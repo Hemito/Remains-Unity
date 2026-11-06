@@ -11,6 +11,7 @@ namespace Remains.Content
         public float FramesPerSecond=>fps;
         [SerializeField,InspectorName("Маски дульной вспышки по кадрам (пусто — без света)")] private Sprite[] emissionFrames=Array.Empty<Sprite>();
         [SerializeField,InspectorName("Смещение вспышки от начала оружия (м)")] private Vector2 emissionOffset;
+        [SerializeField,InspectorName("Исходные affine-матрицы вспышки по кадрам")] private Matrix4x4[] emissionTransforms=Array.Empty<Matrix4x4>();
         // Frames of the original export, loaded on demand: each sprite is cropped to its own image and its pivot is the
         // weapon's registration point, so frames line up by pivot, not by a shared canvas.
         [SerializeField,InspectorName("Кадры выгрузки по требованию (опора — регистрация оригинала)")] private DeferredSprites deferred=new();
@@ -22,8 +23,11 @@ namespace Remains.Content
         public Sprite LoadFrameNow(int index)=>Deferred?deferred.LoadNow(index):frames[index];
         public Sprite[] EmissionFrames=>emissionFrames;
         public Vector2 EmissionOffset=>emissionOffset;
+        public Matrix4x4 EmissionTransform(int frame)=>emissionTransforms!=null && emissionTransforms.Length>0?emissionTransforms[frame]:Matrix4x4.Translate(emissionOffset);
         public void ConfigureEmission(Sprite[] masks,Vector2 offset)
-        {emissionFrames=(Sprite[])masks.Clone();emissionOffset=offset;Validate();}
+        {emissionFrames=(Sprite[])masks.Clone();emissionOffset=offset;emissionTransforms=Array.Empty<Matrix4x4>();Validate();}
+        public void ConfigureEmission(Sprite[] masks,Matrix4x4[] transforms)
+        {emissionFrames=(Sprite[])masks.Clone();emissionOffset=Vector2.zero;emissionTransforms=(Matrix4x4[])transforms.Clone();Validate();}
         public Sprite[] CopyFrames()
         {
             Validate();
@@ -44,6 +48,18 @@ namespace Remains.Content
                 throw new InvalidOperationException($"Анимация {name}: число масок вспышки не совпадает с кадрами.");
             if(!float.IsFinite(emissionOffset.x) || !float.IsFinite(emissionOffset.y))
                 throw new InvalidOperationException($"Анимация {name}: неконечное смещение вспышки.");
+            if(emissionTransforms!=null && emissionTransforms.Length!=0)
+            {
+                if(emissionTransforms.Length!=FrameCount || emissionFrames==null || emissionFrames.Length!=FrameCount)
+                    throw new InvalidOperationException($"Анимация {name}: матрицы вспышки должны совпадать с числом масок и кадров.");
+                for(int i=0;i<emissionTransforms.Length;i++)
+                {
+                    var matrix=emissionTransforms[i];
+                    for(int n=0;n<16;n++)if(!float.IsFinite(matrix[n]))throw new InvalidOperationException($"Анимация {name}: неконечная матрица вспышки, кадр={i}.");
+                    if(emissionFrames[i]!=null && Mathf.Abs(matrix.m00*matrix.m11-matrix.m01*matrix.m10)<1e-8f)
+                        throw new InvalidOperationException($"Анимация {name}: вырожденная матрица вспышки, кадр={i}.");
+                }
+            }
         }
         public void ValidateAgainst(Sprite rest)=>ValidateAgainst(rest==null?null:CatalogSpriteReference.FromSprite(rest));
         public void ValidateAgainst(CatalogSpriteReference rest)

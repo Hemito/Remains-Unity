@@ -30,7 +30,11 @@ namespace Remains.Presentation
             Validate(emission);int signature=emission.GeometrySignature();retained.Add(emission.Id);
             var scene=light.Scene;var b=emission.Bounds;var texels=scene.Texels(Rect.MinMaxRect(b.xMin-emission.Reach,b.yMin-emission.Reach,b.xMax+emission.Reach,b.yMax+emission.Reach));
             if(texels.width<=0 || texels.height<=0)return null;
-            int width=texels.width*scale,height=texels.height*scale;long bytes=(long)width*height*8;
+            // Fixed footprint size, independent of sub-cell position and map-edge clipping. A moving horn/ball
+            // must not alternate between N/N+1 texels and allocate a new RT every other frame.
+            int cellsWide=Mathf.CeilToInt((b.width+2*emission.Reach)/scene.Texel)+2,cellsHigh=Mathf.CeilToInt((b.height+2*emission.Reach)/scene.Texel)+2;
+            int originX=Mathf.FloorToInt((b.xMin-emission.Reach-scene.WorldRect.x)/scene.Texel),originY=Mathf.FloorToInt((b.yMin-emission.Reach-scene.WorldRect.y)/scene.Texel);
+            int width=cellsWide*scale,height=cellsHigh*scale;long bytes=(long)width*height*8;
             if(bytes>Budget)throw new InvalidOperationException($"Поле динамического света {emission.Id} требует {bytes} байт, бюджет={Budget}.");
             fields.TryGetValue(emission.Id,out var field);
             if(field!=null && (field.Texture.width!=width || field.Texture.height!=height)) {Remove(emission.Id);field=null;}
@@ -46,7 +50,7 @@ namespace Remains.Presentation
             if(field.Dirty || field.Signature!=signature)
             {
                 var source=new LevelLightSource(emission.Id,LevelLightSourceKind.Screen,emission.Samples,emission.Radiance,emission.Width,emission.Reach,b,texels,true);
-                field.World=new Rect(scene.WorldRect.x+texels.x*scene.Texel,scene.WorldRect.y+texels.y*scene.Texel,texels.width*scene.Texel,texels.height*scene.Texel);field.Texels=texels;
+                field.World=new Rect(scene.WorldRect.x+originX*scene.Texel,scene.WorldRect.y+originY*scene.Texel,cellsWide*scene.Texel,cellsHigh*scene.Texel);field.Texels=texels;
                 polar.BuildDetailTransient(source,field.Texture,field.World);field.Signature=signature;field.Dirty=false;Builds++;
             }
             return field;

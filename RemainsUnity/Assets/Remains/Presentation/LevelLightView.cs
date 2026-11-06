@@ -32,7 +32,7 @@ namespace Remains.Presentation
         public int DetailBuilds=>detailed?.Builds??0;
         public int DetailSourceUpdates=>detailed?.SourceUpdates??0;
         private ComputeShader compute;
-        private int subtractKernel,addFlashKernel,resolveKernel,copyKernel,copyDetailedKernel,resolveDetailedKernel;
+        private int subtractKernel,addFlashKernel,resolveKernel,copyKernel,copyDetailedKernel,resolveDetailedKernel,worldLightKernel;
         private RenderTexture front,back,mask,flash,staticFront,staticBack;
         private Material maskMaterial;
         private Mesh quad;
@@ -68,7 +68,7 @@ namespace Remains.Presentation
             {
                 compute=GameAssets.Load<ComputeShader>(ComputeResource)??throw new InvalidOperationException("Нет compute-шейдера "+ComputeResource);
                 subtractKernel=compute.FindKernel("SubtractField");addFlashKernel=compute.FindKernel("AddFlash");resolveKernel=compute.FindKernel("ResolveGridFill");
-                copyKernel=compute.FindKernel("CopyDirect");copyDetailedKernel=compute.FindKernel("CopyDetailed");resolveDetailedKernel=compute.FindKernel("ResolveDetailed");
+                copyKernel=compute.FindKernel("CopyDirect");copyDetailedKernel=compute.FindKernel("CopyDetailed");resolveDetailedKernel=compute.FindKernel("ResolveDetailed");worldLightKernel=compute.FindKernel("AddWorldLight");
                 maskMaterial=new Material(GameAssets.Load<Shader>(SceneShaderResource)??throw new InvalidOperationException("Нет шейдера "+SceneShaderResource)) {name="Маска тени над камерой",hideFlags=HideFlags.HideAndDontSave};
                 quad=LightSpriteShapes.UnitQuad("Квадрат маски тени");
                 commands=new CommandBuffer {name="Свет над камерой: маска тени"};
@@ -212,10 +212,8 @@ namespace Remains.Presentation
                 Vector2 world=emission.LocalToWorld.MultiplyPoint3x4(new Vector3(bounds.min.x+p.x*bounds.size.x,bounds.min.y+p.y*bounds.size.y,0));
                 points[i]=new Vector4(world.x,world.y,p.z,0);
             }
-            var scale=emission.LocalToWorld.lossyScale;
-            double formArea=glow.AreaFraction*bounds.size.x*bounds.size.y*Mathf.Abs(scale.x*scale.y);
-            Vector2 a=emission.LocalToWorld.MultiplyPoint3x4(bounds.min),b=emission.LocalToWorld.MultiplyPoint3x4(bounds.max);
-            var form=Rect.MinMaxRect(Mathf.Min(a.x,b.x),Mathf.Min(a.y,b.y),Mathf.Max(a.x,b.x),Mathf.Max(a.y,b.y));
+            double formArea=glow.AreaFraction*bounds.size.x*bounds.size.y*LightEmissionGeometry.AreaScale(emission.LocalToWorld);
+            var form=LightEmissionGeometry.WorldBounds(emission.LocalToWorld,bounds);
             var texels=scene.Texels(Rect.MinMaxRect(form.xMin-FlashReach,form.yMin-FlashReach,form.xMax+FlashReach,form.yMax+FlashReach));
             if(texels.width<=0 || texels.height<=0 || texels.width>flash.width || texels.height>flash.height) return false;
             source=new LevelLightSource(id,LevelLightSourceKind.Screen,LevelLightSources.Normalise(points,id),glow.Color*emission.Gain,
@@ -262,7 +260,7 @@ namespace Remains.Presentation
             var world=WorldArea;var b=field.World;float sx=front.width/world.width,sy=front.height/world.height;
             int x0=Mathf.Clamp(Mathf.FloorToInt((b.xMin-world.xMin)*sx),0,front.width),y0=Mathf.Clamp(Mathf.FloorToInt((b.yMin-world.yMin)*sy),0,front.height);
             int x1=Mathf.Clamp(Mathf.CeilToInt((b.xMax-world.xMin)*sx),0,front.width),y1=Mathf.Clamp(Mathf.CeilToInt((b.yMax-world.yMin)*sy),0,front.height);
-            if(x1<=x0 || y1<=y0)return;int kernel=compute.FindKernel("AddWorldLight");
+            if(x1<=x0 || y1<=y0)return;int kernel=worldLightKernel;
             compute.SetTexture(kernel,"_Front",front);compute.SetTexture(kernel,"_Back",back);compute.SetTexture(kernel,"_Mask",mask);compute.SetTexture(kernel,"_FieldIn",field.Texture);
             compute.SetInts("_OutputSize",front.width,front.height);compute.SetInts("_Clip",x0,y0,x1,y1);
             compute.SetVector("_OutputRect",new Vector4(world.x,world.y,world.width,world.height));compute.SetVector("_DynamicRect",new Vector4(b.x,b.y,b.width,b.height));compute.SetFloat("_DynamicGain",gain);

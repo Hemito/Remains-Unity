@@ -117,8 +117,8 @@ namespace Remains.Presentation
                     var flash=flashes[i];
                     if(flash.Sprite==null || flash.Gain<=0 || !float.IsFinite(flash.Gain)) continue;
                     Vector2 position=flash.LocalToWorld.MultiplyPoint3x4(flash.Sprite.bounds.center);
-                    var size=flash.Sprite.bounds.size;var scale=flash.LocalToWorld.lossyScale;
-                    float radius=Mathf.Max(Mathf.Abs(size.x*scale.x),Mathf.Abs(size.y*scale.y))*.25f;
+                    var form=LightEmissionGeometry.WorldBounds(flash.LocalToWorld,flash.Sprite.bounds);
+                    float radius=Mathf.Max(form.width,form.height)*.25f;
                     if(flashIds==null || i>=flashIds.Count || string.IsNullOrEmpty(flashIds[i]))
                         throw new InvalidOperationException("Проекция вспышки: отсутствует стабильный ID выстрела.");
                     AddTransient(entry,flashIds[i],position,radius,flash.Gain,0,settings);

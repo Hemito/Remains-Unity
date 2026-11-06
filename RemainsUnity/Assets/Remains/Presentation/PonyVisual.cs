@@ -71,6 +71,23 @@ namespace Remains.Presentation
                 if(PonyMagicRenderRoles.Contains(drawnParts[i])) {renderer=renderers[i];return true;}
             renderer=null;return false;
         }
+        // Completed rendered horn pose, including authored rig, affine deformation, wardrobe and facing.
+        // Preview glow has no gameplay/world emitter. The same confirmed activity controls pixels and light.
+        public bool TryGetHornLightPose(out Vector2 position,out Color color,out float opacity)
+        {
+            position=default;color=default;opacity=0;
+            if(UsesMagicPreview || !appearance.HasValue || !gameObject.activeInHierarchy || drawnParts==null || DrawnMagicActivity.Opacity<=0)return false;
+            bool found=false;Bounds bounds=default;
+            for(int i=0;i<drawnParts.Length;i++)
+            {
+                var renderer=renderers[i];
+                if(!PonyMagicRenderRoles.Contains(drawnParts[i]) || !renderer.enabled || renderer.forceRenderingOff ||
+                    !renderer.gameObject.activeInHierarchy || filters[i].sharedMesh==null)continue;
+                if(!found){bounds=renderer.bounds;found=true;}else bounds.Encapsulate(renderer.bounds);
+            }
+            if(!found)return false;
+            position=bounds.center;color=PonyAppearance.Tint("magic",appearance.Value);opacity=DrawnMagicActivity.Opacity;return true;
+        }
         public int DrawnPartCount {get;private set;}
         public override void AppendLightOccluders(List<LightOccluder> output)
         {

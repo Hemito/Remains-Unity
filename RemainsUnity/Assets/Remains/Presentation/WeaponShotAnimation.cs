@@ -40,8 +40,8 @@ namespace Remains.Presentation
             var lightProfiles=lightCatalog.Read();
             foreach(var clip in byAttack.Values)
             {
-                if(clip.masks==null || clip.masks.Length==0) continue;
-                if(string.IsNullOrEmpty(clip.ammo) || !lightProfiles.TryGetValue(clip.ammo,out float gain))
+                if(clip.masks==null || clip.masks.Length==0 || !Array.Exists(clip.masks,m=>m!=null)) continue;
+                if(!lightProfiles.TryGetValue(MuzzleFlashCatalog.ProfileKey(clip.weapon,clip.ammo),out float gain))
                 {Debug.LogWarning($"Свет вспышки пропущен: оружие={clip.weapon}, патрон={clip.ammo ?? "<нет>"}, профиль патрона отсутствует.",this);clip.gain=0;}
                 else clip.gain*=gain;
             }
@@ -79,7 +79,7 @@ namespace Remains.Presentation
             if(actor==null || !playing.TryGetValue(actor.id,out var effect) || !Matches(actor,effect))return false;
             var clip=effect.clip;int frame=Mathf.FloorToInt(effect.elapsed*clip.fps);
             if(clip.gain<=0 || frame>=clip.count || drawn!=clip.source.Frame(frame) || clip.masks==null || frame>=clip.masks.Length || clip.masks[frame]==null)return false;
-            emission=new SpriteEmission(clip.masks[frame],weaponMatrix*Matrix4x4.Translate(clip.offset),clip.gain);
+            emission=new SpriteEmission(clip.masks[frame],weaponMatrix*clip.source.EmissionTransform(frame),clip.gain);
             return true;
         }
         public string EmissionId(ActorState actor)=>actor!=null && playing.TryGetValue(actor.id,out var effect) && Matches(actor,effect)?effect.shot:null;

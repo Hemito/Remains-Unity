@@ -34,6 +34,8 @@ namespace Remains.Presentation
             public PropState prop;
             public HeldPropColor propContext;
             public ActorState body;
+            public MineState mine;
+            public string mineDefinition;
             public int bodyGeneration,bodyHoldEpoch;
             public string bodyToken;
             public bool invalidHold;
@@ -64,7 +66,7 @@ namespace Remains.Presentation
                 if(!actors.TryGetValue(actor.id,out var entry)) {entry=new Entry();actors.Add(actor.id,entry);}
                 entry.owner=actor.owner;entry.level=actor.level;entry.generation=actor.generation;entry.lifecycle=actor.lifecycleSequence;
                 entry.weaponItem=actor.equippedWeaponItem;entry.heldItem=actor.heldItemId;entry.selection=actor.weaponSelectionRevision;
-                entry.selected=entry.held=default;entry.prop=null;entry.body=null;entry.invalidHold=false;
+                entry.selected=entry.held=default;entry.prop=null;entry.body=null;entry.mine=null;entry.mineDefinition=null;entry.invalidHold=false;
                 if(!Active(actor)) continue;
                 // Ordinary selection shadows a previous weapon even if missing
                 // or fully reserved. It is never a second equipped item.
@@ -77,6 +79,17 @@ namespace Remains.Presentation
             foreach(var id in removed) actors.Remove(id);
             foreach(var prop in world.props) PrepareProp(prop,colors);
             foreach(var container in world.containers) PrepareProp(container,colors);
+            foreach(var mine in world.mines)
+            {
+                if(string.IsNullOrEmpty(mine.holder))continue;
+                var holder=world.Find(mine.holder);
+                if(!ActiveHolder(holder) || holder.level!=mine.level || !actors.TryGetValue(holder.id,out var entry))
+                {Warn("mine:"+mine.id,"Недействительный держатель мины: mine="+mine.id+", holder="+mine.holder);continue;}
+                float mass=MineRules.Profile(mine).mass;
+                if(!ValidMass(mass,"mine="+mine.id)){entry.invalidHold=true;continue;}
+                if(!BeginHold(entry,holder.id,mine.id,mass))continue;
+                entry.mine=mine;entry.mineDefinition=mine.definition;
+            }
             foreach(var body in world.actors)
             {
                 if(!ActorHoldRules.Active(body)) continue;
@@ -106,7 +119,7 @@ namespace Remains.Presentation
         {
             if(entry.invalidHold || entry.held.Action==PonyMagicAction.Telekinesis)
             {
-                entry.invalidHold=true;entry.held=default;entry.prop=null;entry.body=null;
+                entry.invalidHold=true;entry.held=default;entry.prop=null;entry.body=null;entry.mine=null;
                 Warn("multiple:"+holder,"У одного актёра несколько подтверждённых удержаний: holder="+holder+", source="+id);
                 return false;
             }
@@ -124,9 +137,12 @@ namespace Remains.Presentation
             bool bodyHeld=entry.body!=null && ActorPresence.IsPresent(entry.body) && ActorHoldRules.Active(entry.body) &&
                 entry.body.generation==entry.bodyGeneration && entry.body.holdEpoch==entry.bodyHoldEpoch &&
                 entry.body.hold.holder==actor.id && entry.body.hold.token==entry.bodyToken && entry.body.level==actor.level;
-            if(entry.prop?.held==true && !propHeld || entry.body?.hold?.holder==actor.id && ActorHoldRules.Active(entry.body) && !bodyHeld)
+            // Mines have canonical holder/level, but no independent hold token/epoch in their contract.
+            // The holder's owner/generation/lifecycle were checked above; never invent a token here.
+            bool mineHeld=entry.mine!=null && entry.mine.holder==actor.id && entry.mine.level==actor.level && entry.mine.definition==entry.mineDefinition;
+            if(entry.prop?.held==true && !propHeld || entry.body?.hold?.holder==actor.id && ActorHoldRules.Active(entry.body) && !bodyHeld || entry.mine?.holder==actor.id && !mineHeld)
             {Warn("hold-epoch:"+actor.id,"Удержание изменено без подготовки свечения рога: actor="+actor.id+", source="+entry.held.SourceId);return default;}
-            if(propHeld || bodyHeld) return entry.held;
+            if(propHeld || bodyHeld || mineHeld) return entry.held;
             if(entry.selection!=actor.weaponSelectionRevision || entry.weaponItem!=actor.equippedWeaponItem || entry.heldItem!=actor.heldItemId)
             {Warn("selection:"+actor.id,"Выбор вещи изменён без подготовки свечения рога: actor="+actor.id+", revision="+actor.weaponSelectionRevision);return default;}
             return entry.selected;

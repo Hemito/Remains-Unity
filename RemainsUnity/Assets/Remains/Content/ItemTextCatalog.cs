@@ -37,10 +37,14 @@ namespace Remains.Content
             var result=new ItemTextCatalog(asset.text);
             var original=GameAssets.Load<TextAsset>(OriginalResource);
             if(original==null)throw new InvalidOperationException("Нет исходных русских названий предметов: "+OriginalResource);
-            var source=new ItemTextCatalog(original.text);
-            // Deliberate Unity descriptions and code-mod labels keep priority over imported original names.
-            foreach(var entry in source.entries.Values)if(!result.Contains(entry.id))result.Register(entry);
+            result.ImportMissing(original.text);
             return loaded=result;
+        }
+        // Validate the complete incoming layer before changing this catalog. Explicit Unity/mod labels win.
+        public void ImportMissing(string json)
+        {
+            var source=new ItemTextCatalog(json,warning);
+            foreach(var entry in source.entries.Values)if(!Contains(entry.id))Register(entry);
         }
         public bool Contains(string id)=>id!=null && entries.ContainsKey(id);
         // Code mods register after Load; replacement is explicit and validated before mutation.

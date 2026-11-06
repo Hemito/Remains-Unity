@@ -25,7 +25,7 @@ namespace Remains.Editor
             using var sha=SHA256.Create();string hash=BitConverter.ToString(sha.ComputeHash(File.ReadAllBytes(source))).Replace("-","").ToLowerInvariant();
             if(hash!=SourceSha256)throw new InvalidDataException("Не совпал проверенный источник русских текстов: "+source+", SHA256="+hash);
             var xml=XDocument.Load(source).Root??throw new InvalidDataException("Нет корня русского каталога: "+source);
-            var index=xml.Elements().Where(e=>e.Attribute("id")!=null).ToDictionary(e=>e.Name.LocalName+":"+(string)e.Attribute("id"),e=>e,StringComparer.Ordinal);
+            var index=BuildTextIndex(xml);
             WeaponCatalog.Load();var catalog=ExportedContentCatalog.Load();var entries=new Dictionary<string,ItemTextDefinition>(StringComparer.Ordinal);var missing=new List<string>();
             foreach(var item in catalog.items.OrderBy(e=>e.category=="item"?0:1).ThenBy(e=>e.key,StringComparer.Ordinal))
             {
@@ -42,24 +42,79 @@ namespace Remains.Editor
                     Add(item.key+":grade:"+grade,Name(index,item.category,item.sourceId,parameters,grade),item,parameters);
                 }
             }
+            // The gameplay catalog also contains turret/robot attack rules. The inventory boundary follows
+            // DebugItems/ExportedContentCatalog: a weapon needs an explicitly declared item-image grade;
+            // thrown weapons live as item:<id>. Appearance/projectile artwork alone is not an inventory item.
+            var inventoryIds=InventoryDefinitions(catalog);
+            var manualText=GameAssets.Load<TextAsset>(ItemTextCatalog.Resource)??throw new InvalidDataException("Нет ручного каталога текстов: "+ItemTextCatalog.Resource);
+            var manualNames=new ItemTextCatalog(manualText.text);
+            var activeMissing=WeaponCatalog.All.Where(w=>inventoryIds.Contains(w.id)&&!entries.ContainsKey(w.id)&&!manualNames.Contains(w.id)).Select(w=>w.id).ToArray();
+            if(activeMissing.Length>0)throw new InvalidDataException("Нет русского имени подключённого оружия: "+string.Join(", ",activeMissing));
             var document=new JObject { ["schema"]=1,["source"]="Remains 1.04 Graphic Update DLC/text_ru.xml",["sourceSha256"]=hash,
                 ["nameRules"]="Item.getXmlParam: weapon/explosive, ammo base+mod, scheme/recipe; Weapon.getXmlParam: named ^grade, otherwise - II",
                 ["items"]=new JArray(entries.Values.OrderBy(e=>e.id,StringComparer.Ordinal).Select(e=>new JObject { ["id"]=e.id,["name"]=e.name,["description"]=e.description })) };
-            File.WriteAllText(AssetPath,document.ToString(Newtonsoft.Json.Formatting.Indented)+"\n");AssetDatabase.ImportAsset(AssetPath);
+            string json=document.ToString(Newtonsoft.Json.Formatting.Indented)+"\n";
+            _=new ItemTextCatalog(json); // No incomplete layer is written for the mandatory runtime loader.
+            File.WriteAllText(AssetPath,json);AssetDatabase.ImportAsset(AssetPath,ImportAssetOptions.ForceUpdate);
             string output=Path.GetFullPath(Path.Combine(Application.dataPath,"../../.reference/weapon-assembly-20261106"));Directory.CreateDirectory(output);
-            File.WriteAllText(Path.Combine(output,"item-text-import.json"),new JObject { ["sourceSha256"]=hash,["entries"]=entries.Count,["untranslated"]=new JArray(missing) }.ToString());
+            File.WriteAllText(Path.Combine(output,"item-text-import.json"),new JObject { ["sourceSha256"]=hash,["entries"]=entries.Count,["workingWeaponDefinitions"]=WeaponCatalog.All.Count(),
+                ["inventoryWeaponDefinitions"]=WeaponCatalog.All.Count(w=>inventoryIds.Contains(w.id)),["nonInventoryWeaponDefinitions"]=new JArray(WeaponCatalog.All.Where(w=>!inventoryIds.Contains(w.id)).Select(w=>w.id)),
+                ["workingWeaponsWithoutText"]=new JArray(activeMissing),["untranslated"]=new JArray(missing) }.ToString());
             if(missing.Count>0)Debug.LogWarning("Исходные русские тексты отсутствуют: "+string.Join(", ",missing)+". Технические определения оставлены с диагностикой неизвестного имени.");
             Debug.Log($"Русские названия: {entries.Count} ID; без перевода {missing.Count}. Ручные подписи item-text имеют приоритет.");
 
             void Add(string id,string title,ExportedItemEntry item,XElement parameters)
             {
+                if(string.IsNullOrWhiteSpace(id)||string.IsNullOrWhiteSpace(title))throw new InvalidDataException($"Неполное исходное имя: key={item.key}, target={id}.");
+                // Unqualified legacy IDs follow ExportedContentCatalog.TryItem: item has precedence over weapon.
+                // Qualified IDs are unambiguous. Repeated graphic grade bindings intentionally share a text.
                 if(entries.ContainsKey(id))return;
                 entries.Add(id,new ItemTextDefinition {id=id,name=title,description=Description(id,item,parameters)});
             }
         }
+        internal static HashSet<string> InventoryDefinitions(ExportedContentCatalog catalog)
+        {
+            var result=new HashSet<string>(StringComparer.Ordinal);
+            foreach(var item in catalog.items)
+            {
+                if(item.category=="item"){result.Add(item.key);continue;}
+                if(item.category!="weapon")continue;
+                foreach(var binding in item.graphics??Array.Empty<ExportedBinding>())
+                {
+                    const string prefix="item-image-grade-";
+                    if(binding.role==null || !binding.role.StartsWith(prefix,StringComparison.Ordinal))continue;
+                    if(!int.TryParse(binding.role.Substring(prefix.Length),out int grade)||grade<0)
+                        throw new InvalidDataException("Некорректный инвентарный грейд: "+item.key+", role="+binding.role);
+                    result.Add(OriginalWeaponIds.Runtime(item.sourceId,grade));
+                    result.Add(item.key+":grade:"+grade);
+                }
+            }
+            return result;
+        }
+        internal static Dictionary<string,XElement> BuildTextIndex(XElement xml)
+        {
+            var index=new Dictionary<string,XElement>(StringComparer.Ordinal);
+            foreach(var entry in xml.Elements())
+            {
+                string kind=entry.Name.LocalName,id=(string)entry.Attribute("id");
+                if(id==null || !(kind is "item" or "weapon" || kind=="pip" && (id.StartsWith("am_",StringComparison.Ordinal)||id is "scheme1" or "recipe")))continue;
+                string key=kind+":"+id;
+                if(index.TryGetValue(key,out var previous))
+                {
+                    // The importer consumes only <n>; unrelated UI entries (for example pip:hp) are excluded.
+                    // Repeated needed labels are accepted only if the consumed text is identical.
+                    if(previous.Element("n")?.Value.Trim()!=entry.Element("n")?.Value.Trim())
+                        throw new InvalidDataException("Противоречивые исходные названия предметов: "+key);
+                    continue;
+                }
+                index.Add(key,entry);
+            }
+            return index;
+        }
         internal static string Name(IReadOnlyDictionary<string,XElement> index,string category,string id,XElement parameters,int grade)
         {
-            string Text(string kind,string key)=>index.TryGetValue(kind+":"+key,out var entry)?entry.Element("n")?.Value.Trim():null;
+            string Text(string kind,string key)
+            {string value=index.TryGetValue(kind+":"+key,out var entry)?entry.Element("n")?.Value.Trim():null;return string.IsNullOrWhiteSpace(value)?null:value;}
             bool weapon=category is "weapon" or "weapon1" || (string)parameters.Attribute("tip")=="e";
             string kind=weapon?"weapon":"item";
             if(weapon && (string)parameters.Attribute("spell")=="1")kind="item";
@@ -74,7 +129,12 @@ namespace Remains.Editor
             if(name==null && !weapon && (string)parameters.Attribute("tip")=="scheme" && id.StartsWith("s_",StringComparison.Ordinal))
             {
                 string target=Text("item",id.Substring(2));
-                if(target!=null)name=Text("pip",(string)parameters.Attribute("work")=="work"?"scheme1":"recipe")+" «"+target+"»";
+                if(target!=null)
+                {
+                    string prefix=Text("pip",(string)parameters.Attribute("work")=="work"?"scheme1":"recipe");
+                    if(prefix==null)throw new InvalidDataException("Нет русского типа схемы/рецепта: "+id);
+                    name=prefix+" «"+target+"»";
+                }
             }
             return name;
         }
@@ -83,8 +143,8 @@ namespace Remains.Editor
             if(WeaponCatalog.Contains(id))
             {
                 var weapon=WeaponCatalog.Get(id);
-                if(weapon.IsGrenade)return weapon.IsFire?"Бросаемое зажигательное оружие.":"Ручная граната.";
-                if(WeaponCatalog.IsMine(id))return "Устанавливаемая мина.";
+                if(weapon.IsGrenade)return weapon.IsFire?"Бросаемое зажигательное оружие. Поджигает поверхности и существ.":"Ручная граната. Бросок и взрыв подключены; особые свойства оригинала могут быть не реализованы.";
+                if(WeaponCatalog.IsMine(id))return "Мина. Установка из инвентаря пока не подключена.";
                 if(weapon.meleeMotion!=null || weapon.strike?.Configured==true)return "Оружие ближнего боя.";
                 return "Оружие. Основная атака подключена; особые свойства оригинала могут быть не реализованы.";
             }

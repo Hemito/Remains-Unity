@@ -2,6 +2,17 @@ using UnityEngine;
 
 namespace Remains.Presentation
 {
+    public static class LightEmissionGeometry
+    {
+        public static float AreaScale(Matrix4x4 transform)=>Mathf.Abs(transform.m00*transform.m11-transform.m01*transform.m10);
+        public static Rect WorldBounds(Matrix4x4 transform,Bounds bounds)
+        {
+            Vector2 a=transform.MultiplyPoint3x4(bounds.min),b=transform.MultiplyPoint3x4(bounds.max);
+            Vector2 c=transform.MultiplyPoint3x4(new Vector3(bounds.min.x,bounds.max.y,0)),d=transform.MultiplyPoint3x4(new Vector3(bounds.max.x,bounds.min.y,0));
+            var min=Vector2.Min(Vector2.Min(a,b),Vector2.Min(c,d));var max=Vector2.Max(Vector2.Max(a,b),Vector2.Max(c,d));
+            return Rect.MinMaxRect(min.x,min.y,max.x,max.y);
+        }
+    }
     // Physical presentation emitter: positions come from the simulation, not flame animation frames.
     // Samples and geometry stay cached; Gain alone may fade without rebuilding the field.
     public readonly struct WorldLightEmission

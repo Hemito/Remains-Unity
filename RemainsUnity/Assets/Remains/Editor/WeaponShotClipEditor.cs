@@ -16,7 +16,12 @@ namespace Remains.Editor
             using(new EditorGUI.DisabledScope(masks.arraySize==0))
             {
                 EditorGUI.indentLevel++;
-                EditorGUILayout.PropertyField(serializedObject.FindProperty("emissionOffset"));
+                var transforms=serializedObject.FindProperty("emissionTransforms");
+                EditorGUILayout.PropertyField(transforms,true);
+                using(new EditorGUI.DisabledScope(transforms.arraySize>0))
+                    EditorGUILayout.PropertyField(serializedObject.FindProperty("emissionOffset"));
+                if(transforms.arraySize>0)
+                    EditorGUILayout.HelpBox("Положение вспышки задают исходные матрицы каждого кадра; общее смещение не применяется.",MessageType.Info);
                 EditorGUI.indentLevel--;
             }
             serializedObject.ApplyModifiedProperties();
