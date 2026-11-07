@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Globalization;
 using System.IO;
 using Newtonsoft.Json;
@@ -9,6 +10,12 @@ namespace Remains.Serialization
     internal static class JsonNumberPrecision
     {
         private static readonly char[] exponentMarkers={'e','E'};
+        private sealed class ReaderBufferPool : IArrayPool<char>
+        {
+            public static readonly ReaderBufferPool Shared=new();
+            public char[] Rent(int minimumLength)=>ArrayPool<char>.Shared.Rent(minimumLength);
+            public void Return(char[] array)=>ArrayPool<char>.Shared.Return(array);
+        }
         public sealed class Reader : JsonTextReader
         {
             private readonly string source;
@@ -17,6 +24,7 @@ namespace Remains.Serialization
             {
                 source=json;
                 DateParseHandling=DateParseHandling.None;FloatParseHandling=FloatParseHandling.Double;MaxDepth=128;
+                ArrayPool=ReaderBufferPool.Shared;
             }
             public override bool Read()
             {
@@ -25,14 +33,14 @@ namespace Remains.Serialization
                     (TokenType==JsonToken.String || TokenType==JsonToken.PropertyName) && QuoteChar!='"'))
                     throw new InvalidDataException($"Состояние требует JSON без комментариев и с двойными кавычками: {Path}.");
                 if(!read || TokenType!=JsonToken.Float && TokenType!=JsonToken.Integer) return read;
-                string raw=NextNumber(TokenType==JsonToken.Float);
+                var raw=NextNumber(TokenType==JsonToken.Float);
                 if(TokenType==JsonToken.Float)
                 {
                     double binary=Convert.ToDouble(Value,CultureInfo.InvariantCulture);
                     if(double.IsNaN(binary) || double.IsInfinity(binary)) throw new InvalidDataException($"Неконечное число JSON: {Path}.");
-                    if(binary==0 && Normalize(raw)!="0") throw new InvalidDataException($"Число JSON меньше диапазона Double: {Path}.");
+                    if(binary==0 && !HasZeroMantissa(raw)) throw new InvalidDataException($"Число JSON меньше диапазона Double: {Path}.");
                     if(decimal.TryParse(raw,NumberStyles.Float,CultureInfo.InvariantCulture,out var exact) &&
-                        Normalize(raw)==Normalize(exact.ToString("G29",CultureInfo.InvariantCulture))) SetToken(JsonToken.Float,exact);
+                        IsExactDecimal(raw,exact)) SetToken(JsonToken.Float,exact);
                     // Binary numbers are accepted later only for declared float/double fields.
                 }
                 return read;
@@ -40,7 +48,7 @@ namespace Remains.Serialization
             // The JSON reader remains responsible for syntax, duplicates and depth.
             // This cursor only recovers the original numeric spelling. Long XML/mod
             // strings are skipped once, without Regex Match/backtracking allocations.
-            private string NextNumber(bool spelling)
+            private ReadOnlySpan<char> NextNumber(bool spelling)
             {
                 while(scan<source.Length)
                 {
@@ -67,11 +75,27 @@ namespace Remains.Serialization
                         {while(scan<source.Length && Digit(source[scan])) scan++;}
                         else scan=marker;
                     }
-                    return spelling?source.Substring(start,scan-start):null;
+                    return spelling?source.AsSpan(start,scan-start):default;
                 }
                 throw new InvalidDataException($"Некорректное число JSON: {Path}.");
             }
             private static bool Digit(char value)=>value>='0' && value<='9';
+        }
+        private static bool HasZeroMantissa(ReadOnlySpan<char> raw)
+        {
+            foreach(char c in raw)
+            {
+                if(c is 'e' or 'E')break;
+                if(c is >= '1' and <= '9')return false;
+            }
+            return true;
+        }
+        private static bool IsExactDecimal(ReadOnlySpan<char> raw,decimal parsed)
+        {
+            // Without an exponent, at most 28 input characters fit both Decimal's
+            // significant-digit and fractional-scale limits. TryParse cannot round them.
+            if(raw.Length<=28 && raw.IndexOfAny('e','E')<0)return true;
+            return Normalize(raw.ToString())==Normalize(parsed.ToString("G29",CultureInfo.InvariantCulture));
         }
         private static string Normalize(string value)
         {

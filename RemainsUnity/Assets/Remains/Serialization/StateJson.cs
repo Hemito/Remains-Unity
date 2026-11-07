@@ -45,6 +45,8 @@ namespace Remains.Serialization
             ObjectCreationHandling=ObjectCreationHandling.Replace,MaxDepth=128,
             Culture=System.Globalization.CultureInfo.InvariantCulture
         };
+        private static readonly JsonLoadSettings strictLoad=new() {DuplicatePropertyNameHandling=DuplicatePropertyNameHandling.Error};
+        [ThreadStatic] private static JsonSerializer strictSerializer;
         internal static JsonContract ContractFor(Type type)=>settings.ContractResolver.ResolveContract(type);
         public static string ToJson(object value,bool prettyPrint=false)=>
             JsonConvert.SerializeObject(value,prettyPrint?Formatting.Indented:Formatting.None,settings);
@@ -129,10 +131,10 @@ namespace Remains.Serialization
             try
             {
                 using var reader=new JsonNumberPrecision.Reader(json);
-                var token=JToken.Load(reader,new JsonLoadSettings {DuplicatePropertyNameHandling=DuplicatePropertyNameHandling.Error});
+                var token=JToken.Load(reader,strictLoad);
                 if(reader.Read()) throw new JsonReaderException("После состояния обнаружены дополнительные данные.");
                 CheckFieldNames(type,token);
-                return token.ToObject(type,JsonSerializer.Create(settings));
+                return token.ToObject(type,strictSerializer??=JsonSerializer.Create(settings));
             }
             catch(JsonException failure) {throw new System.IO.InvalidDataException($"Некорректное состояние {type.Name}: {failure.Message}",failure);}
         }

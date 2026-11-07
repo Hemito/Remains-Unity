@@ -163,6 +163,7 @@ namespace Remains.Editor
             {
                 // -tickBenchWorld <world.json>: another world (a playtest snapshot) instead of the seed104 fixture.
                 var args=Environment.GetCommandLineArgs();int at=Array.IndexOf(args,"-tickBenchWorld");
+                bool heavy=Array.IndexOf(args,"-tickBenchHeavy")>=0;
                 string path=at>=0 && at+1<args.Length?args[at+1]:System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath,"../../.reference/cpu104-baseline3/fixture/world.json"));
                 var world=StateJson.FromTrustedJson<WorldState>(System.IO.File.ReadAllText(path));
                 WorldChanges.Track(world);
@@ -171,16 +172,28 @@ namespace Remains.Editor
                 var client=StateJson.FromTrustedJson<WorldState>(StateJson.ToJson(world));
                 var clientTexts=new WorldTickTexts(client);
                 double tickMs=0,applyMs=0,composeMs=0,idleMs=0;int rounds=20,bytes=0;
+                var applySamples=new double[rounds];int applyCollections=0;
+                int actorChanges=Math.Min(world.actors.Count,heavy?227:30);
+                int propChanges=Math.Min(world.props.Count,heavy?359:5);
+                int propStride=heavy?1:13;
+                int containerChanges=heavy?Math.Min(world.containers.Count,850):0;
                 SnapshotPartCache.Compose(world);   // warm its memory as the game does
                 for(int round=0;round<rounds;round++)
                 {
                     // A busy moment: 30 actors updated by their owners, 5 bodies moved, the world revision.
-                    for(int i=0;i<30 && i<world.actors.Count;i++) {var a=world.actors[(i*7+round)%world.actors.Count];a.x+=.01f;WorldChanges.Mark(world,a);}
-                    for(int i=0;i<5;i++) {var p=world.props[(i*13+round)%world.props.Count];p.x+=.01f;WorldChanges.Mark(world,p);}
+                    for(int i=0;i<actorChanges;i++) {var a=world.actors[(i*7+round)%world.actors.Count];a.x+=.01f;WorldChanges.Mark(world,a);}
+                    for(int i=0;i<propChanges;i++) {var p=world.props[(i*propStride+round)%world.props.Count];p.x+=.01f;WorldChanges.Mark(world,p);}
+                    for(int i=0;i<containerChanges;i++)
+                    {
+                        var body=world.containers[(i+round)%world.containers.Count];
+                        body.owner=(round&1)==0?"tick-host":"tick-peer";body.generation++;WorldChanges.Mark(world,body);
+                    }
                     world.revision++;
                     watch.Restart();var tick=composer.Next(world,part=>WorldChanges.IsMarked(world,part));watch.Stop();tickMs+=watch.Elapsed.TotalMilliseconds;
                     string wire=StateJson.ToJson(tick);bytes+=wire.Length;
-                    watch.Restart();var received=StateJson.FromJson<WorldTick>(wire);WorldTickApplier.Apply(client,received);watch.Stop();applyMs+=watch.Elapsed.TotalMilliseconds;
+                    int gcBefore=GC.CollectionCount(0);
+                    watch.Restart();var received=StateJson.FromJson<WorldTick>(wire);WorldTickApplier.Apply(client,received);watch.Stop();
+                    applySamples[round]=watch.Elapsed.TotalMilliseconds;applyMs+=applySamples[round];applyCollections+=GC.CollectionCount(0)-gcBefore;
                     clientTexts.Apply(received);
                     watch.Restart();SnapshotPartCache.Compose(world);watch.Stop();composeMs+=watch.Elapsed.TotalMilliseconds;   // also clears the marks
                     watch.Restart();composer.Next(world,part=>WorldChanges.IsMarked(world,part));watch.Stop();idleMs+=watch.Elapsed.TotalMilliseconds;
@@ -207,6 +220,9 @@ namespace Remains.Editor
                 Debug.Log($"Тики на заводе seed104 ({world.containers.Count} контейнеров, {world.actors.Count} актёров, {world.props.Count} тел): "+
                     $"тик {tickMs/rounds:F2} мс, применение {applyMs/rounds:F2} мс, тик без изменений {idleMs/rounds:F2} мс, {bytes/rounds} символов; "+
                     $"для сравнения снимок (Compose) {composeMs/rounds:F2} мс. Editor batch, не Player.");
+                Array.Sort(applySamples);
+                Debug.Log($"Tick receive benchmark: heavy={heavy}, actors={actorChanges}, props={propChanges}, containers={containerChanges}, "+
+                    $"mean={applyMs/rounds:F2}ms, p95={applySamples[(int)Math.Ceiling(rounds*.95)-1]:F2}ms, max={applySamples[rounds-1]:F2}ms, collections={applyCollections}.");
                 EditorApplication.Exit(0);
             }
             catch(Exception error) {Debug.LogException(error);EditorApplication.Exit(1);}
