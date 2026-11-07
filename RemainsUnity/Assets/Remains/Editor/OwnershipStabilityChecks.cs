@@ -20,7 +20,9 @@ namespace Remains.Editor
                 Require(npc.owner=="a" && npc.generation==0,"Небольшое колебание расстояния меняет владельца.");
             }
             b.x=1;service.Reassign(world,owners);
-            Require(npc.owner=="b" && npc.generation==1,"Заметно более близкий клиент не получает сущность.");
+            Require(npc.owner=="a" && npc.generation==0,"NPC без цели перешёл более близкому клиенту.");
+            npc.target=b.id;service.Reassign(world,owners);
+            Require(npc.owner=="b" && npc.generation==1,"Цель NPC не получила владение.");
             npc.target=a.id;npc.attackBusy=true;service.Reassign(world,owners);
             Require(npc.owner=="b","Начатая атака прервана передачей.");
             npc.attackBusy=false;service.Reassign(world,owners);
@@ -31,12 +33,41 @@ namespace Remains.Editor
             Require(npc.owner=="a","Клиент в другом уровне удержал владение.");
             a.down=true;service.Reassign(world,owners);
             Require(npc.owner=="host","Нет корректного освобождения при отсутствии активных клиентов уровня.");
-            a.down=false;b.level="hub";b.x=1.9f;npc.owner="a";
+            a.down=false;b.level="hub";b.x=1.9f;npc.owner="a";npc.target=b.id;
+            service.Reassign(world,owners);
+            Require(npc.owner=="b","Цель NPC в том же уровне не получила владение.");
+            npc.target=null;a.x=-2;b.x=2;
+            var moving=new PropState {id="threshold-moving",owner="a",level="hub",x=.15f,vx=1,generation=1};
+            world.props.Add(moving);
+            service.Reassign(world,owners);
+            Require(moving.owner=="a","Движущееся тело ушло в пределах запаса.");
             new OwnershipService(new StableProximityOwnershipRule(0)).Reassign(world,owners);
-            Require(npc.owner=="b","Настройка порога правила не применяется.");
+            Require(moving.owner=="b","Настройка порога правила не применяется.");
+            world.props.Remove(moving);
+            CheckIdleNpcs();
             CheckRestingBodies();
             Debug.Log("Стабильность владения: PASS — колебания расстояния, приближение, цель, атака, отключение и смена уровня.");
         }
+        // Two players walking among idle NPCs must not hand them back and forth.
+        private static void CheckIdleNpcs()
+        {
+            var world=new WorldState();
+            var a=new ActorState {id="idle-a",owner="a",player=true,connected=true,x=0,level="factory:0"};
+            var b=new ActorState {id="idle-b",owner="b",player=true,connected=true,x=100,level="factory:0"};
+            world.actors.AddRange(new[]{a,b});
+            for(int i=0;i<200;i++) world.actors.Add(new ActorState {id="idle-npc-"+i,owner=i%2==0?"a":"b",level="factory:0",x=i*.5f,health=10});
+            var service=new OwnershipService();var owners=new[]{"a","b"};
+            for(int step=0;step<=100;step++) {a.x=step;b.x=100-step;service.Reassign(world,owners);}
+            Require(world.actors.TrueForAll(actor=>actor.player || actor.generation==0),"NPC без цели меняли владельца, пока игроки ходили.");
+            var hunter=world.actors.Find(actor=>actor.id=="idle-npc-1");hunter.target=a.id;
+            service.Reassign(world,owners);
+            Require(hunter.owner=="a" && hunter.generation==1,"NPC с целью не перешёл к её владельцу.");
+            b.level="hub";service.Reassign(world,owners);
+            Require(world.actors.TrueForAll(actor=>actor.player || actor.owner=="a"),"NPC ушедшего игрока не перешли оставшемуся.");
+            a.down=true;service.Reassign(world,owners);
+            Require(world.actors.TrueForAll(actor=>actor.player || actor.owner=="host"),"Без стоящих игроков NPC не вернулись хосту.");
+        }
+
         // Two players walking across a level full of resting bodies must not hand them back and forth.
         private static void CheckRestingBodies()
         {

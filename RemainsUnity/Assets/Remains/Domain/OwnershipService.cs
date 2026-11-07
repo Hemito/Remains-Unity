@@ -73,6 +73,10 @@ namespace Remains.Domain
                 }
                 var target=active.FirstOrDefault(a=>a.id==actor.target && a.level==actor.level);
                 var holder=actor.hold==null?null:active.FirstOrDefault(a=>a.id==actor.hold.holder && a.level==actor.level);
+                // An NPC with no target and no holder stays with a standing owner on its level (decisions.md, 2026-11-07):
+                // nearest-player handoff of idle NPCs resent every one of them while players walked. A target still moves it.
+                if(holder==null && target==null && string.IsNullOrEmpty(actor.target) &&
+                    active.Any(a=>a.owner==actor.owner && a.level==actor.level)) continue;
                 var candidate = holder ?? target ?? active.Where(a => a.level == actor.level)
                     .OrderBy(a => Vector2.Distance(a.Position, actor.Position)).ThenBy(a => a.id).FirstOrDefault();
                 if(holder==null && target==null && candidate!=null)

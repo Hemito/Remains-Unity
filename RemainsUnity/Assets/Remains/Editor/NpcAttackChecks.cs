@@ -47,8 +47,9 @@ namespace Remains.Editor
             Require(npc.down && npc.target==null && !npc.attackBusy && npc.attackId==null && npc.attackTarget==null && npc.attackRemaining==0,
                 "Нокаут сохранил незавершённую атаку или цель NPC");
             Require(!receiver.Apply(npc,hit,true),"Повторное попадание применилось к телу");
-            Require(new OwnershipService().ReassignAndReportChanges(world,new[]{"far","near"}) && npc.owner=="near",
-                "Незавершённая атака удерживает тело у прежнего владельца");
+            // Without a target the knocked-out NPC stays with its standing owner (decisions.md, 2026-11-07).
+            Require(!new OwnershipService().ReassignAndReportChanges(world,new[]{"far","near"}) && npc.owner=="far",
+                "Нокаутированный NPC без цели перешёл ближайшему клиенту");
             Require(NpcAttackRules.Complete(npc,far)==null,"Позднее завершение атаки тела создало выстрел");
             // A recovered legacy snapshot can still contain a down actor with a pending attack.
             npc.attackBusy=true;npc.attackId="stale";npc.attackTarget=far.id;npc.attackRemaining=.1f;
