@@ -3,9 +3,11 @@ using System.Collections;
 using System.IO;
 using System.Linq;
 using Mirror;
+using Remains.Content;
 using Remains.Domain;
 using Remains.Gameplay;
 using Remains.Networking;
+using Remains.Persistence;
 using Remains.Presentation;
 using UnityEngine;
 
@@ -18,13 +20,15 @@ namespace Remains.Runtime
         private PrototypeRuntime runtime;
         private int phase,explosions;
         private float deadline,returnAt,settledAt;
-        private bool threw,disconnected,returned,finished,handoff,startRequested;
+        private bool threw,disconnected,returned,finished,handoff,startRequested,checkpointSaved;
         private string grenadeId;
         private float heldAt;
         private Vector2 plannedOrigin;
         private bool heldLaunchVerified;
         private HeldLaunchEvidence heldLaunch;
         private InteractionVisuals interactionVisuals;
+        private Func<string,int,Vector2?> resolveBlastPosition;
+        private BlastEvidence blastEvidence;
         private int immediateContacts;
         private readonly System.Collections.Generic.Dictionary<string,int> contactFrames=new();
         private bool Held=>runtime.Options.Smoke.Contains("-held-");
@@ -35,6 +39,9 @@ namespace Remains.Runtime
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+45;value.CommandSource=Command;
+            resolveBlastPosition=value.Combat.LocalExplosionPosition;
+            value.Combat.LocalExplosionPosition=ObserveBlast;
+            value.Combat.DamageApplied+=ObserveDamage;
             interactionVisuals=FindFirstObjectByType<InteractionVisuals>();
             File.WriteAllText(value.Options.Report+".hub-layout.json",Remains.Serialization.StateJson.ToJson(Remains.Domain.RoomLayout.Load("hub")));
             value.GrenadeAudio.Observed+=message=>
@@ -85,10 +92,17 @@ namespace Remains.Runtime
         }
         private PlayerCommand Command()
         {
-            if(Resume || phase!=1 || !Source || threw || runtime.Session.LocalActor==null) return default;
+            if(Resume || runtime.Session.LocalActor is not {} actor) return default;
+            if(Host && phase==0 && Thrower is {} thrower)
+            {
+                // Stand in the outer half of the blast so the sole connected player survives the handoff.
+                float target=thrower.x+WeaponCatalog.Get("grenade").range*5/6;
+                return new PlayerCommand {movement=new Vector2(Mathf.Clamp((target-actor.x)*2,-1,1),0)};
+            }
+            if(phase!=1 || !Source || threw) return default;
             // Keep the handoff/damage scenario above its support. A downward release
             // can legitimately pass through the one-way floor and miss these players.
-            var actor=runtime.Session.LocalActor;var aim=actor.Position+Vector2.up*3;
+            var aim=actor.Position+Vector2.up*3;
             if(Held)
             {
                 if(actor.weapon!="grenade") return new PlayerCommand {weaponItem=actor.inventory.First(item=>item.definition=="grenade").id,hasAim=true,aim=aim};
@@ -96,6 +110,35 @@ namespace Remains.Runtime
                 if(Time.unscaledTime-heldAt<.5f) return new PlayerCommand {hasAim=true,aim=actor.Position+new Vector2(-3,1)};
             }
             threw=true;return new PlayerCommand {grenade=!Held,fire=Held,hasAim=true,aim=aim};
+        }
+        private ActorState Thrower=>runtime.Session.World?.Find("player:session-client-1");
+        private bool ReadyToThrow()
+        {
+            if(Resume) return true;
+            if(runtime.Session.LocalActor is not {} host || Thrower is not {} thrower) return false;
+            float target=thrower.x+WeaponCatalog.Get("grenade").range*5/6;
+            return Mathf.Abs(host.x-target)<.05f && Mathf.Abs(host.vx)<.15f && Mathf.Abs(host.y-thrower.y)<.05f;
+        }
+        private Vector2? ObserveBlast(string id,int generation)
+        {
+            var position=resolveBlastPosition?.Invoke(id,generation);
+            var actor=runtime.Session.LocalActor;
+            var explosion=runtime.Session.World?.explosions.Find(value=>value.attack.id==id && value.attack.weapon=="grenade");
+            if(actor==null || explosion==null || blastEvidence!=null) return position;
+            var attack=explosion.attack;
+            var weapon=WeaponCatalog.Get(attack.weapon);
+            var blast=position??attack.End;
+            float distance=Anatomy.BlastDistance(actor,blast);
+            float damage=ExplosionRules.Damage(weapon.damage,weapon.range,distance,id,actor.id);
+            float protectedDamage=new TypeHitProtectionRule().Resolve(actor,attack,damage);
+            blastEvidence=new BlastEvidence {attack=id,actor=actor.id,position=blast,distance=distance,
+                initialHealth=actor.health,expectedHealth=Mathf.Max(0,actor.health-protectedDamage)};
+            return position;
+        }
+        private void ObserveDamage(DamageResult hit)
+        {
+            if(blastEvidence==null || blastEvidence.attack!=hit.attack || blastEvidence.actor!=hit.actor) return;
+            blastEvidence.applications++;blastEvidence.damage+=hit.amount;
         }
         private void ObserveLaunchRequest(NetworkDiagnostics.MessageInfo info)
         {
@@ -151,19 +194,17 @@ namespace Remains.Runtime
             {returned=true;session.StartClient();return;}
             if(!Host || session.World==null) return;
             if(Resume && session.ServerWorld.grenades.Count>0) {handoff=true;grenadeId=session.ServerWorld.grenades[0].id;}
-            if(phase==0 && session.World.actors.Count(a=>a.player && a.connected)==runtime.Options.ProbePeers)
+            if(phase==0 && session.World.actors.Count(a=>a.player && a.connected)==runtime.Options.ProbePeers && ReadyToThrow())
             {phase=1;NetworkServer.SendToAll(new GrenadeProbePhase {phase=1});}
             if(phase!=1) return;
             var active=session.ServerWorld.grenades.FirstOrDefault();
             if(active!=null)
             {
                 grenadeId=active.id;
-                if(active.generation>1 && !Remains.Domain.ActorPresence.IsPresent(session.ServerWorld.Find("player:session-client-1")))
+                if(active.generation>1 && active.owner==session.LocalOwner && !ActorPresence.IsPresent(session.ServerWorld.Find("player:session-client-1")))
                 {
                     handoff=true;
-                    // Exact canonical checkpoint, captured while the fuse is still live.
-                    string proof=runtime.Options.Report+".active-world.json";
-                    if(!File.Exists(proof)) File.WriteAllText(proof,session.Saves.SelectedSnapshot().Json);
+                    if(!checkpointSaved) CaptureActiveCheckpoint(session.ServerWorld);
                 }
             }
             if(!handoff || session.World.grenades.Count!=0 || session.World.explosions.Count!=1 ||
@@ -175,14 +216,43 @@ namespace Remains.Runtime
                 phase=2;NetworkServer.SendToAll(new GrenadeProbeFinish());
             }
         }
+        private void CaptureActiveCheckpoint(WorldState world)
+        {
+            // The runner can resume this directory. Using final character profiles with an
+            // earlier world would import already applied damage into the restored hub.
+            string directory=Path.Combine(Path.GetDirectoryName(runtime.Options.Report),"active-checkpoint");
+            var captured=Remains.Serialization.StateJson.Copy(world);
+            var host=captured.Find(runtime.Session.LocalActorId);
+            var thrower=captured.Find("player:session-client-1");
+            if(host==null || thrower==null || Mathf.Abs(host.x-runtime.Session.LocalActor.x)>.1f) return;
+            var hostStore=new SaveStore(Path.Combine(directory,host.character+"-save"));
+            var snapshot=hostStore.SaveWorld(captured);
+            hostStore.SaveCharacter(host);
+            new SaveStore(Path.Combine(directory,thrower.character+"-save")).SaveCharacter(thrower);
+            File.WriteAllText(Path.Combine(directory,"session-host-report.json.active-world.json"),snapshot.Json);
+            checkpointSaved=true;
+        }
         private bool Validate()
         {
             var world=runtime.Session.World;
-            if(world==null || world.grenades.Count!=0 || world.explosions.Count!=1 || Held && Source && !heldLaunchVerified) return false;
-            var id=world.explosions[0].attack.id;
-            return world.actors.Where(a=>a.player && a.connected).All(a=>!Resume && a.character=="session-client-1"?
-                a.health==100 && !a.resolvedExplosions.Contains(id) && a.inventory.Where(i=>i.definition=="grenade").Sum(i=>i.count)==4:
-                a.health==30 && a.resolvedExplosions.Count(x=>x==id)==1 && (a.character!="session-client-1" || a.inventory.Where(i=>i.definition=="grenade").Sum(i=>i.count)==4));
+            if(world==null || world.grenades.Count!=0 || world.explosions.Count!=1 || Held && Source && !heldLaunchVerified ||
+                Host && !Resume && !checkpointSaved) return false;
+            var explosion=world.explosions[0];var id=explosion.attack.id;
+            var players=world.actors.Where(a=>a.player && a.connected).ToArray();
+            if(players.Length!=runtime.Options.ProbePeers) return false;
+            foreach(var player in players)
+            {
+                bool thrower=player.character=="session-client-1",hit=Resume || !thrower;
+                if(explosion.players.Contains(player.id)!=hit || player.resolvedExplosions.Count(x=>x==id)!=(hit?1:0) ||
+                    player.resolvedAttacks.Count(x=>x==id)!=(hit?1:0) || player.inventory.Where(i=>i.definition=="grenade").Sum(i=>i.count)!=(thrower?4:5) ||
+                    !hit && (player.health!=100 || player.down)) return false;
+            }
+            if(!Resume && Source) return blastEvidence==null;
+            var actor=runtime.Session.LocalActor;
+            return actor!=null && blastEvidence!=null && blastEvidence.attack==id && blastEvidence.actor==actor.id &&
+                blastEvidence.initialHealth==100 && blastEvidence.expectedHealth<100 && (!Host || blastEvidence.expectedHealth>0) &&
+                blastEvidence.applications==1 && Mathf.Abs(blastEvidence.damage-(100-blastEvidence.expectedHealth))<.001f &&
+                Mathf.Abs(actor.health-blastEvidence.expectedHealth)<.001f && actor.down==(blastEvidence.expectedHealth==0);
         }
         private void Finish(bool success,string detail)
         {
@@ -200,11 +270,17 @@ namespace Remains.Runtime
             var evidence=new Report {success=success,detail=detail,held=Held,heldLaunch=heldLaunch,handoff=handoff,phase=phase,explosions=explosions,
                 activeGrenades=world?.grenades.Count??-1,attack=attack,explosionPosition=world?.explosions.FirstOrDefault()?.attack.Origin??Vector2.zero,
                 players=world?.actors.Where(a=>a.player).Select(a=>new PlayerEvidence {id=a.id,connected=a.connected,health=a.health,position=a.Position,
-                    grenades=a.inventory.Where(i=>i.definition=="grenade").Sum(i=>i.count),receipts=a.resolvedExplosions.Count(id=>id==attack)}).ToArray()};
+                    grenades=a.inventory.Where(i=>i.definition=="grenade").Sum(i=>i.count),receipts=a.resolvedExplosions.Count(id=>id==attack)}).ToArray(),blast=blastEvidence};
             File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(evidence,true));StartCoroutine(Exit(success));
         }
         private IEnumerator Exit(bool success) {yield return new WaitForSecondsRealtime(1);Application.Quit(success?0:1);}
-        private void OnDestroy()=>NetworkDiagnostics.OutMessageEvent-=ObserveLaunchRequest;
+        private void OnDestroy()
+        {
+            NetworkDiagnostics.OutMessageEvent-=ObserveLaunchRequest;
+            if(runtime?.Combat==null) return;
+            runtime.Combat.LocalExplosionPosition=resolveBlastPosition;
+            runtime.Combat.DamageApplied-=ObserveDamage;
+        }
         private IEnumerator CaptureExplosion(Remains.Presentation.ExplosionVisual effect)
         {
             yield return new WaitForSeconds(.12f);
@@ -225,6 +301,8 @@ namespace Remains.Runtime
             NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".held.png",runtime.Hud.GetComponent<Canvas>());
         }
         [Serializable] private sealed class PlayerEvidence {public string id;public bool connected;public float health;public Vector2 position;public int grenades,receipts;}
+        [Serializable] private sealed class BlastEvidence
+        {public string attack,actor;public Vector2 position;public float distance,initialHealth,expectedHealth,damage;public int applications;}
         [Serializable] private sealed class HeldLaunchEvidence
         {
             public string transaction,createdTransaction,world,owner,connection,actor,item,level,bodyOutcome,pose,sprite,texture;
@@ -234,6 +312,6 @@ namespace Remains.Runtime
             public Vector2 anchor,body,heldOffset,plannedOrigin,requestOrigin,createdOrigin,requestVelocity,createdVelocity,aim,pivot;
             public Vector4 rect;
         }
-        [Serializable] private sealed class Report {public bool success,held,handoff;public string detail,attack;public int phase,explosions,activeGrenades;public Vector2 explosionPosition;public PlayerEvidence[] players;public HeldLaunchEvidence heldLaunch;}
+        [Serializable] private sealed class Report {public bool success,held,handoff;public string detail,attack;public int phase,explosions,activeGrenades;public Vector2 explosionPosition;public PlayerEvidence[] players;public HeldLaunchEvidence heldLaunch;public BlastEvidence blast;}
     }
 }
