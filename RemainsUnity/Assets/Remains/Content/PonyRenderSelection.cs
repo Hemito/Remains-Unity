@@ -65,9 +65,8 @@ namespace Remains.Content
                         if(parts.Length==0) throw new InvalidOperationException($"Пустой кадр внешности: head={CharacterAppearance.OriginalHeadStyleId}, hair={hair}, eyes={eyes}, secondary={secondary}, clip={source.id}, frame={f}.");
                         for(int p=1;p<parts.Length;p++) if(parts[p-1].drawOrder>=parts[p].drawOrder)
                             throw new InvalidOperationException($"Перемешаны слои внешности: head={CharacterAppearance.OriginalHeadStyleId}, hair={hair}, eyes={eyes}, clip={source.id}, frame={f}, order={parts[p].drawOrder}.");
-                        clip.rig[f]=PonyRigDrawPlan.PrepareFrame(source.id,f,parts);
                         PrepareExpressions(clip,f,parts,source.id);
-                        clip.frames[f]=parts;clip.bounds[f]=clip.rig[f].Bounds;Capacity=Math.Max(Capacity,parts.Length);
+                        clip.bounds[f]=clip.rig[f].Bounds;Capacity=Math.Max(Capacity,parts.Length);
                     }
                     clips.Add(source.id,clip);
                 }
@@ -91,6 +90,7 @@ namespace Remains.Content
             clip.alert??=new PonyRenderPart[count][];clip.dead??=new PonyRenderPart[count][];
             clip.alertRig??=new PonyRigDrawPlan.Frame[count];clip.deadRig??=new PonyRigDrawPlan.Frame[count];
             var eye=PonyNestedEyeFrames.Prepare(parts);
+            clip.frames[frame]=eye.Open;clip.rig[frame]=PonyRigDrawPlan.PrepareFrame(id,frame,eye.Open);
             clip.closed[frame]=eye.Closed;clip.alert[frame]=eye.Parts(PonyFacialExpression.Alert);clip.dead[frame]=eye.Parts(PonyFacialExpression.Dead);
             clip.closedRig[frame]=eye.CanBlink?PonyRigDrawPlan.PrepareFrame(id,frame,eye.Closed):clip.rig[frame];
             clip.alertRig[frame]=eye.CanBlink?PonyRigDrawPlan.PrepareFrame(id,frame,clip.alert[frame]):clip.rig[frame];
@@ -120,9 +120,8 @@ namespace Remains.Content
                     for(int p=0;p<parts.Length;p++) if(parts[p].sourceShape==PonyHeadRenderResolver.SourceShape)
                     {parts[p]=headResolver.Resolve(appearance.HeadStyleId,entry.Key,f,parts[p]);replaced++;}
                     if(replaced!=1) throw new InvalidOperationException($"Нет единственной головы в исходном сочетании: head={appearance.HeadStyleId}, clip={entry.Key}, frame={f}, matches={replaced}.");
-                    clip.rig[f]=PonyRigDrawPlan.PrepareFrame(entry.Key,f,parts);
                     PrepareExpressions(clip,f,parts,entry.Key);
-                    clip.frames[f]=parts;clip.bounds[f]=clip.rig[f].Bounds;
+                    clip.bounds[f]=clip.rig[f].Bounds;
                 }
                 prepared.Add(entry.Key,clip);
             }

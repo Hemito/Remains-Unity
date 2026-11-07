@@ -29,20 +29,35 @@ namespace Remains.Content
         public static PonyNestedEyeFrame Prepare(PonyRenderPart[] open)
         {
             if(open==null || open.Length==0)throw new ArgumentException("Моргание пони: нет подготовленных частей кадра.",nameof(open));
-            PonyRenderPart anchor=null;int first=-1,removed=0;string container=null;
+            PonyRenderPart anchor=null;int first=-1,removed=0,anchorIndex=-1,lastStyledPart=-1;string container=null;
             for(int p=0;p<open.Length;p++)
             {
                 var part=open[p];if(!IsEyePart(part))continue;
                 int at=part.sourcePath.IndexOf("/eye/",StringComparison.Ordinal);string prefix=part.sourcePath.Substring(0,at+5);
                 if(container!=null && container!=prefix)throw new InvalidOperationException("Моргание пони: неоднозначные видимые поддеревья глаз: "+container+" / "+prefix);
                 container=prefix;if(first<0)first=p;removed++;
+                if(part.eyeStyle>0) lastStyledPart=p;
                 if(part.sourceShape!="216")continue;
                 if(anchor!=null)throw new InvalidOperationException("Моргание пони: повтор опорного символа216: "+part.sourcePath);
-                anchor=part;
+                anchor=part;anchorIndex=p;
             }
             // A fully opaque helmet may explicitly remove the complete eye subtree.
             if(first<0)return new PonyNestedEyeFrame(open,open,false);
             if(anchor==null)throw new InvalidOperationException("Моргание пони: видимый глаз не имеет опорного символа216: "+container);
+            // Authored poses store alternate eye drawings after the first complete head.
+            // The chosen eye belongs below the shared highlight, inside the same head layers.
+            if(lastStyledPart>anchorIndex)
+            {
+                open=(PonyRenderPart[])open.Clone();
+                int insertion=anchorIndex;
+                for(int p=anchorIndex+1;p<=lastStyledPart;p++)
+                {
+                    var part=open[p];
+                    if(part.eyeStyle<=0 || !IsEyePart(part)) continue;
+                    Array.Copy(open,insertion,open,insertion+1,p-insertion);
+                    open[insertion++]=part;
+                }
+            }
             if(asset==null)
             {
                 var loaded=GameAssets.Load<PonyNestedEyeAsset>(PonyNestedEyeAsset.Resource)??throw new InvalidOperationException("Нет сохранённого символа моргания "+PonyNestedEyeAsset.Resource);

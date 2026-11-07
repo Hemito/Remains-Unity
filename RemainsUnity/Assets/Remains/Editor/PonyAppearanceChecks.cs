@@ -53,6 +53,15 @@ namespace Remains.Editor
                         {
                             Require(frame.Length<=PonyRenderSelection.Capacity && frame.Count(p=>p.slot=="eye")==1,"неверная вместимость или число радужек");
                             Require(secondary==1 || frame.All(p=>p.slot!="hairSecondary"),"второй цвет показан при выключенной настройке");
+                            if(clip.id is "idle" or "bedBack" or "punch" or "kick")
+                            {
+                                int lastEye=Array.FindLastIndex(frame,part=>part.eyeStyle>0 && PonyNestedEyeFrames.IsEyePart(part));
+                                int highlight=Array.FindIndex(frame,part=>part.sourceShape=="216" && PonyNestedEyeFrames.IsEyePart(part));
+                                int horn=Array.FindIndex(frame,part=>part.sourceShape=="236");
+                                int glow=Array.FindIndex(frame,PonyMagicRenderRoles.Contains);
+                                Require(lastEye>=0 && lastEye<highlight && highlight<horn && horn<glow,
+                                    $"Слои глаза, блика и рога: pose={clip.id}, eye={eyes}, order={lastEye}/{highlight}/{horn}/{glow}.");
+                            }
                         }
                     }
                     Require(PonyVisual.CameraBounds(actor)==camera,"смена формы/кадра изменила композицию камеры");

@@ -23,7 +23,11 @@ namespace Remains.Content
             foreach(var entry in values)
             {
                 int count=entry.Value.Length;var closed=new PonyRenderPart[count][];var alert=new PonyRenderPart[count][];var dead=new PonyRenderPart[count][];
-                for(int f=0;f<count;f++){var eye=PonyNestedEyeFrames.Prepare(entry.Value[f]);closed[f]=eye.Closed;alert[f]=eye.Parts(PonyFacialExpression.Alert);dead[f]=eye.Parts(PonyFacialExpression.Dead);}
+                for(int f=0;f<count;f++)
+                {
+                    var eye=PonyNestedEyeFrames.Prepare(entry.Value[f]);
+                    entry.Value[f]=eye.Open;closed[f]=eye.Closed;alert[f]=eye.Parts(PonyFacialExpression.Alert);dead[f]=eye.Parts(PonyFacialExpression.Dead);
+                }
                 closedFrames.Add(entry.Key,closed);alertFrames.Add(entry.Key,alert);deadFrames.Add(entry.Key,dead);
             }
             hairStyle=appearance.HairStyle;eyeStyle=appearance.EyeStyle;secondaryEnabled=appearance.SecondaryEnabled;headStyleId=appearance.HeadStyleId;}
