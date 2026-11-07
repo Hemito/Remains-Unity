@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Mirror;
 using Remains.Content;
 using Remains.Domain;
 using Remains.Gameplay;
@@ -23,7 +24,7 @@ namespace Remains.Runtime
         private sealed class Station
         {
             public string name;public Func<ActorState,ActorTypeDefinition,bool> matches;
-            public bool radiation,buried,blast;
+            public bool radiation,buried,blast,naturalHit;
             public float watch=WatchSeconds;
         }
         private static readonly Station[] Stations=
@@ -45,11 +46,12 @@ namespace Remains.Runtime
             new() {name="рейдер-стрелок",matches=(a,t)=>t.behavior==NpcCreatureBehaviours.Raider && t.raider is {robot:false,zombie:false,attacker:RaiderAttacker.Ranged}},
             new() {name="рейдер, оружие в зубах",matches=(a,t)=>t.behavior==NpcCreatureBehaviours.Raider && t.raider is {robot:false,zombie:false,attacker:RaiderAttacker.Teeth}},
             new() {name="рейдер, оружие телекинезом",matches=(a,t)=>t.behavior==NpcCreatureBehaviours.Raider && t.raider is {robot:false,zombie:false,attacker:RaiderAttacker.Levitated}},
+            new() {name="попадание слизня",matches=(a,t)=>t.behavior==NpcCreatureBehaviours.Slime,naturalHit=true},
         };
         [Serializable] private sealed class StationResult
         {
             public string station,actor,actorType,detail,modes,poses;
-            public int attempt,attacks,explosions;
+            public int attempt,attacks,explosions,naturalBursts,replayedNaturalAttacks;
             public bool passed,noticed,emerged,hiddenAtStart,killed,playerDown;
             public float playerDamage,radiation,moved,firstAttackSeconds,killSeconds;
             public string[] frames;
@@ -66,6 +68,7 @@ namespace Remains.Runtime
         private int station=-1,attempt,phase,exitCode;
         private readonly HashSet<string> tried=new(StringComparer.Ordinal);
         private readonly HashSet<string> attacks=new(StringComparer.Ordinal);
+        private readonly Dictionary<string,int> naturalBursts=new(StringComparer.Ordinal);
         private readonly List<StationResult> results=new();
         private readonly Dictionary<string,LogEntry> log=new(StringComparer.Ordinal);
         private readonly HashSet<string> modes=new(StringComparer.Ordinal),poses=new(StringComparer.Ordinal);
@@ -99,11 +102,16 @@ namespace Remains.Runtime
             PlayerStarterInventory.Give(player);InventoryStacks.Add(player,SharedInventory.Create("p10",300));
             value.Session.Saves.SaveCharacter(player);
             value.Session.AttackReceived+=Attack;
+            value.NaturalHits.Shown+=NaturalHit;
             // Every hit the player takes, with its attack: one blast of 100 or two of 60 read differently.
             value.Combat.DamageApplied+=hit=>{if(hit.actor==value.Session.LocalActorId) Debug.Log($"Живой прогон, попадание: {hit.attack} — {hit.amount:0.##} (станция {(current==null?"-":current.station)}).");};
             Application.logMessageReceived+=Log;
         }
-        private void OnDestroy()=>Application.logMessageReceived-=Log;
+        private void OnDestroy()
+        {
+            Application.logMessageReceived-=Log;
+            if(runtime!=null) runtime.NaturalHits.Shown-=NaturalHit;
+        }
         private void Log(string message,string stack,LogType type)
         {
             if(type==LogType.Log) return;
@@ -120,6 +128,17 @@ namespace Remains.Runtime
             if(current==null || npcId==null || attack.attacker!=npcId || !attacks.Add(attack.id)) return;
             current.attacks++;
             if(firstAttack<0) {firstAttack=Time.unscaledTime;current.firstAttackSeconds=firstAttack-started;capture="атака";}
+            if(Stations[station].naturalHit && NpcNaturalAttack.IsNatural(attack))
+            {
+                current.replayedNaturalAttacks++;
+                NetworkServer.SendToAll(Remains.Networking.AttackMessage.From(attack));
+            }
+        }
+        private void NaturalHit(DamageResult result)
+        {
+            if(current==null || !Stations[station].naturalHit || result.actor!=runtime.Session.LocalActorId) return;
+            naturalBursts[result.attack]=naturalBursts.GetValueOrDefault(result.attack)+1;
+            capture="частицы попадания";
         }
         private ActorState Npc=>npcId==null?null:runtime.Session.ServerWorld?.Find(npcId);
 
@@ -179,11 +198,12 @@ namespace Remains.Runtime
                 var spec=Stations[station];
                 if(npc.down) {Dying(now);return;}
                 bool attacked=Attacked;
-                bool done=attacked && (!spec.radiation || current.radiation>0) && (!spec.buried && !current.hiddenAtStart || current.emerged) && now-firstAttack>1 ||
+                bool naturalHit=!spec.naturalHit || naturalBursts.Keys.Any(attacks.Contains);
+                bool done=attacked && naturalHit && (!spec.radiation || current.radiation>0) && (!spec.buried && !current.hiddenAtStart || current.emerged) && now-firstAttack>1 ||
                     player.down || now-started>spec.watch;
                 if(!done) return;
                 current.noticed=current.moved>.3f || attacked || modes.Count>1 || current.emerged;
-                if(!current.noticed && !npc.down && attempt<Attempts && Place())
+                if((!current.noticed || !naturalHit) && !npc.down && attempt<Attempts && Place())
                 {Debug.Log($"Живой прогон: {Stations[station].name} {npc.id} не заметил игрока; взят другой экземпляр.");return;}
                 if(ActorPresence.Hidden(npc)) {Close(null);return;}
                 Restore(player,"перед стрельбой");phase=2;killStarted=now;return;
@@ -252,6 +272,7 @@ namespace Remains.Runtime
         private void Begin(ActorState npc,ActorState player,Vector2 position)
         {
             npcId=npc.id;npcStart=npc.Position;modes.Clear();poses.Clear();frames.Clear();firstAttack=-1;met=false;
+            attacks.Clear();naturalBursts.Clear();
             current=new StationResult {station=Stations[station].name,actor=npc.id,actorType=npc.actorType,attempt=attempt,hiddenAtStart=ActorPresence.Hidden(npc)};
             player.Position=position;player.Velocity=Vector2.zero;player.climbing=false;player.pose="idle";player.poseTime=0;
             Restore(player,"на станции "+current.station);
@@ -278,6 +299,13 @@ namespace Remains.Runtime
             if(spec.radiation && current.radiation<=0) missing.Add("не облучил");
             if((spec.buried || current.hiddenAtStart) && !current.emerged) missing.Add("не выкопался");
             if(spec.blast && current.explosions==0) missing.Add("не взорвался");
+            if(spec.naturalHit)
+            {
+                var counts=naturalBursts.Where(pair=>attacks.Contains(pair.Key)).Select(pair=>pair.Value).ToArray();
+                current.naturalBursts=counts.Sum();
+                if(counts.Length==0 || counts.Any(count=>count!=1) || current.replayedNaturalAttacks==0)
+                    missing.Add("нет однократного эффекта подтверждённой атаки при повторной доставке");
+            }
             current.passed=missing.Count==0;
             current.detail=string.Join("; ",missing.Append(problem).Where(s=>s!=null));
             results.Add(current);
@@ -288,14 +316,14 @@ namespace Remains.Runtime
         {
             if(capture==null || current==null) return;
             var actor=runtime.Session.LocalActor;var npc=runtime.Session.World?.Find(npcId??"");
-            if(actor==null || npc==null || runtime.Hud==null) {capture=null;return;}
+            if(actor==null || npc==null || runtime.Hud==null && !Stations[station].naturalHit) {capture=null;return;}
             var camera=Camera.main;var saved=camera.transform.position;
             string path=$"{runtime.Options.Report}.{station:00}-{frames.Count}.png";
             try
             {
                 var middle=(actor.Position+npc.Position)*.5f;
                 camera.transform.position=new Vector3(middle.x,middle.y+1.5f,saved.z);
-                NetworkFrameCapture.Save(camera,path,runtime.Hud.GetComponent<Canvas>(),1280,720);
+                NetworkFrameCapture.Save(camera,path,runtime.Hud?.GetComponent<Canvas>(),1280,720);
                 frames.Add(Path.GetFileName(path)+" "+capture);
             }
             finally {camera.transform.position=saved;capture=null;}

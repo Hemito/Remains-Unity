@@ -9,6 +9,7 @@ namespace Remains.Domain
         public string world,actorType;
         public int generation,lifecycleSequence,damageSequence;
         public bool confirmedNpcDeath;
+        public bool naturalContact;
         public float amount,x,y;
         public string Key=>$"{actor}:{attack}";
     }

@@ -61,8 +61,8 @@ namespace Remains.Networking
             // Ownership decides health. The host's copied HP/damage sequence may
             // still be behind the cosmetic receipt; immutable identity and the
             // life scope are sufficient here and do not introduce hit validation.
-            if(rejection==null && result.confirmedNpcDeath)
-                rejection=result.world!=session.ServerWorld.worldId?"world":target.player?"player-death":
+            if(rejection==null && (result.confirmedNpcDeath || result.naturalContact))
+                rejection=result.world!=session.ServerWorld.worldId?"world":result.confirmedNpcDeath && target.player?"player-death":
                     target.actorType!=result.actorType?"actor-type":target.lifecycleSequence!=result.lifecycleSequence?"lifecycle":null;
             if(rejection!=null)
             {
@@ -76,7 +76,7 @@ namespace Remains.Networking
         }
         public static bool Valid(DamageResult result)=>!string.IsNullOrEmpty(result.attack) && !string.IsNullOrEmpty(result.actor) &&
             !string.IsNullOrEmpty(result.level) && result.amount>0 && float.IsFinite(result.amount) && float.IsFinite(result.x) && float.IsFinite(result.y) &&
-            (!result.confirmedNpcDeath || !string.IsNullOrWhiteSpace(result.world) && !string.IsNullOrWhiteSpace(result.actorType) &&
+            (!result.confirmedNpcDeath && !result.naturalContact || !string.IsNullOrWhiteSpace(result.world) && !string.IsNullOrWhiteSpace(result.actorType) &&
                 result.generation>=0 && result.lifecycleSequence>=0 && result.damageSequence>0);
         private void Receive(DamageResult result)
         {

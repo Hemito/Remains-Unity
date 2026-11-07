@@ -44,7 +44,12 @@ namespace Remains.Editor
             Require(!AttackScope.CanAffect(attack,neighbor,true) && !new DamageReceiver(new ForbiddenWeapon()).Apply(neighbor,attack,true),"Адресный укус принял посторонний адресат.");
             neighbor.down=false;neighbor.health=8;
             Require(!new DamageReceiver(new ForbiddenWeapon()).Apply(neighbor,attack,true) && neighbor.health==8 && neighbor.resolvedAttacks.Count==0,"Прямой вызов урона повредил живого соседа.");
-            var receiver=new DamageReceiver(new ForbiddenWeapon());Require(receiver.Apply(player,attack,true) && player.health==96 && !receiver.Apply(player,attack,true),"Урон не применён ровно один раз через отдельный контракт.");
+            var receiver=new DamageReceiver(new ForbiddenWeapon());int feedback=0;DamageResult confirmed=default;
+            receiver.Applied+=result=>{feedback++;confirmed=result;};
+            Require(!receiver.Apply(player,attack,false) && feedback==0 && player.health==100,"Промах создал подтверждённое попадание.");
+            Require(receiver.Apply(player,attack,true) && player.health==96 && !receiver.Apply(player,attack,true),"Урон не применён ровно один раз через отдельный контракт.");
+            Require(feedback==1 && confirmed.naturalContact && confirmed.attack==attack.id && confirmed.amount==4,
+                "Подтверждение естественной атаки отсутствует либо повторено.");
             attack.id="override-natural";receiver=new DamageReceiver(new ForbiddenWeapon(),null,null,new OverrideDamage());Require(receiver.Apply(player,attack,true) && player.health==89,"Не заменяется модовое правило естественного урона.");
             var wall=new RoomLayout {platforms=new[]{new RoomSurface {x=.45f,y=0,width=.1f,height=1}}};
             player.x=1.25f; // The victim's hull is behind the wall, not overlapping it.

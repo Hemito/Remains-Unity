@@ -38,16 +38,17 @@ namespace Remains.Domain
             var bodyPosition=actor.BodyPosition;
             float previousHealth=actor.health;
             bool previouslyDown=actor.down;
-            if(NpcNaturalAttack.IsNatural(attack)) NpcNaturalAttack.ValidateEvent(attack);
-            if(NpcNaturalAttack.IsNatural(attack) && actor.id!=attack.naturalAttackTarget) return false;
-            float amount=NpcNaturalAttack.IsNatural(attack)?natural.Calculate(attack.naturalAttackType)*(1+attack.naturalAttackVariation):rules.Calculate(attack.weapon,attack.speed);
+            bool naturalContact=NpcNaturalAttack.IsNatural(attack);
+            if(naturalContact) NpcNaturalAttack.ValidateEvent(attack);
+            if(naturalContact && actor.id!=attack.naturalAttackTarget) return false;
+            float amount=naturalContact?natural.Calculate(attack.naturalAttackType)*(1+attack.naturalAttackVariation):rules.Calculate(attack.weapon,attack.speed);
             if(Remains.Content.WeaponCatalog.IsExplosive(attack.weapon))
                 amount=ExplosionRules.Damage(amount,Remains.Content.WeaponCatalog.Get(attack.weapon).range,Anatomy.BlastDistance(actor,attack.End),attack.id,actor.id);
             amount*=FactoryEnemyScaling.AttackFactor(attack);
             if(float.IsNaN(amount) || float.IsInfinity(amount) || amount<0)
                 throw new System.InvalidOperationException($"Правило урона вернуло некорректное значение: actor={actor.id}, attack={attack.id}, damage={amount}.");
             amount=protection.Resolve(actor,attack,amount);
-            return ApplyAmount(actor,attack.id,amount);
+            return ApplyAmount(actor,attack.id,amount,naturalContact:naturalContact);
         }
         public bool ApplyPhysical(ActorState actor,PropImpactContact contact)
         {
@@ -95,7 +96,7 @@ namespace Remains.Domain
             float limit=PlayerRadiation.HealthLimit(actor);
             return actor.health>limit && ApplyAmount(actor,"radiation:"+actor.id+":"+(actor.damageSequence+1),actor.health-limit,record:false);
         }
-        private bool ApplyAmount(ActorState actor,string attackId,float amount,bool record=true)
+        private bool ApplyAmount(ActorState actor,string attackId,float amount,bool record=true,bool naturalContact=false)
         {
             var bodyPosition=actor.BodyPosition;float previousHealth=actor.health;bool previouslyDown=actor.down;
             if(!float.IsFinite(amount) || amount<0)
@@ -122,7 +123,7 @@ namespace Remains.Domain
                 generation=actor.generation,actorType=actor.actorType,lifecycleSequence=actor.lifecycleSequence,
                 damageSequence=actor.damageSequence,
                 confirmedNpcDeath=!actor.player && !previouslyDown && previousHealth>0 && actor.health==0 && actor.down,
-                amount=lost,x=bodyPosition.x,y=bodyPosition.y});
+                naturalContact=naturalContact,amount=lost,x=bodyPosition.x,y=bodyPosition.y});
             return true;
         }
     }

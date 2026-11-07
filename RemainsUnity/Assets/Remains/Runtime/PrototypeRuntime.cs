@@ -52,6 +52,7 @@ namespace Remains.Runtime
         public HazardVisuals HazardVisuals {get;private set;}
         private float musicMixVolume;
         public DamageFeedback DamageFeedback {get;private set;}
+        public NaturalHitEffects NaturalHits {get;private set;}
         public DamageNumbers DamageNumbers {get;private set;}
         public System.Func<PlayerCommand> CommandSource { get; set; }
         public PrototypeHud Hud => hud;
@@ -188,6 +189,8 @@ namespace Remains.Runtime
             Session.PropImpacts.Configure(Combat.ApplyPhysicalContact);
             DamageFeedback=new DamageFeedback(Session);
             DamageNumbers=CreateOwnedObject("Числа урона").AddComponent<DamageNumbers>();DamageNumbers.Initialize(Session,DamageFeedback);
+            NaturalHits=CreateOwnedObject("Частицы попаданий").AddComponent<NaturalHitEffects>();
+            NaturalHits.Initialize(Session,DamageFeedback,visualOrders);
             if(Options.Diagnostics || Options.Smoke!=null)
                 gameObject.AddComponent<SessionTimingDiagnostics>().Initialize(this);
             Combat.DamageApplied+=DamageFeedback.Publish;
