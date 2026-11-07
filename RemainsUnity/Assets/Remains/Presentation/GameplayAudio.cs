@@ -106,8 +106,8 @@ namespace Remains.Presentation
         public void ObserveFire(FireVisuals source)
         {
             if(fireVisuals!=null) throw new InvalidOperationException("Звук горения уже подключён.");
-            fireCrackle=GameAssets.Load<AudioClip>("Presentation/fire-crackle");
-            if(fireCrackle==null || fireCrackle.samples<=0) throw new InvalidOperationException("Нет петли звука горения.");
+            // The original's flamethrower stream (flamer_s) is the burning loop: the game ships no separate fire sound.
+            fireCrackle=Remains.Content.AudioClipSource.Load(Remains.Content.AudioClipSource.ExportedPrefix+"sound_weapon:54");
             fireVisuals=source??throw new ArgumentNullException(nameof(source));
             fireVisuals.AudioFrame+=UpdateFireVoices;
         }
