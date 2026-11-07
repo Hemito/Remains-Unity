@@ -219,7 +219,7 @@ namespace Remains.Runtime
                 var lightArea=Session.LocalActor is {} litViewer?(Rect?)cameraFollower.AnimationArea(litViewer):null;
                 if(fireVisuals!=null)foreach(var e in fireVisuals.Lights.Emissions)
                     if(!lightArea.HasValue || lightArea.Value.Overlaps(Rect.MinMaxRect(e.Bounds.xMin-e.Reach,e.Bounds.yMin-e.Reach,e.Bounds.xMax+e.Reach,e.Bounds.yMax+e.Reach)))worldLightEmissions.Add(e);
-                hornLights.Append(activeVisuals,worldLightEmissions,lightArea);
+                hornLights.Append(activeVisuals,worldLightEmissions,lightArea,Geometry.Get(shownLevel));
                 using(Remains.Diagnostics.FrameHitchLog.Section("Тени: персонажи")) actorShadows.Present(ActiveFactoryLighting,activeVisuals,interactionVisuals,emissions,interactionVisuals.MuzzleSourceIds,
                     lightArea,worldLightEmissions);
                 using(Remains.Diagnostics.FrameHitchLog.Section("Тени: проекции вспышек")) actorShadows.CollectProjectedLightShadows(projectedFlashShadows);

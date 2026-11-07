@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Remains.Domain;
 using UnityEngine;
 
 namespace Remains.Presentation
@@ -13,7 +14,7 @@ namespace Remains.Presentation
         private readonly Dictionary<string,Entry> entries=new(StringComparer.Ordinal);
         private readonly HashSet<string> retained=new(StringComparer.Ordinal);
         private readonly List<string> gone=new();
-        public void Append(IReadOnlyDictionary<string,ActorVisual> visuals,List<WorldLightEmission> output,Rect? visibleArea=null)
+        public void Append(IReadOnlyDictionary<string,ActorVisual> visuals,List<WorldLightEmission> output,Rect? visibleArea=null,RoomLayout room=null)
         {
             if(visuals==null || output==null)throw new ArgumentNullException(visuals==null?nameof(visuals):nameof(output));
             retained.Clear();
@@ -22,6 +23,10 @@ namespace Remains.Presentation
                 if(pair.Value is not PonyVisual pony || !pony.TryGetHornLightPose(out var position,out var color,out float opacity))continue;
                 var affected=new Rect(position-Vector2.one*Reach,Vector2.one*(Reach*2));
                 if(visibleArea.HasValue && !visibleArea.Value.Overlaps(affected))continue;
+                // The moving rig may carry the horn past the body hull and into or beyond a wall.
+                bool obstructed=pony.HornObstructed(room,position);
+                pony.SetHornObstructed(obstructed);
+                if(obstructed) continue;
                 if(string.IsNullOrEmpty(pony.ActorId) || pair.Key!=pony.ActorId)
                     throw new InvalidOperationException($"Свет рога: ID представления не совпал с ключом: actor={pony.ActorId}, key={pair.Key}.");
                 retained.Add(pair.Key);

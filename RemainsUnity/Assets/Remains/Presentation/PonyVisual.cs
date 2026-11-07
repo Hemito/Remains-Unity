@@ -45,7 +45,7 @@ namespace Remains.Presentation
         // Detached asset previews intentionally show the complete authored glow.
         // A live world always installs its confirmed source before Bind/Draw.
         private float previewMagicOpacity=1;
-        private bool magicDirty=true;
+        private bool magicDirty=true,hornObstructed;
         private int magicRoleVersion=-1;
         private PonyRenderPart[] drawnParts;
         private readonly PonyNestedBlinkClock blink=new();
@@ -63,7 +63,7 @@ namespace Remains.Presentation
         public void ConfigureMagicPreview(float opacity)
         {
             if(!float.IsFinite(opacity) || opacity<0 || opacity>1) throw new ArgumentOutOfRangeException(nameof(opacity));
-            magicSource=null;previewMagicOpacity=opacity;magicDirty=true;
+            magicSource=null;previewMagicOpacity=opacity;hornObstructed=false;magicDirty=true;
         }
         public bool TryGetMagicRenderer(out MeshRenderer renderer)
         {
@@ -87,6 +87,17 @@ namespace Remains.Presentation
             }
             if(!found)return false;
             position=bounds.center;color=PonyAppearance.Tint("magic",appearance.Value);opacity=DrawnMagicActivity.Opacity;return true;
+        }
+        internal bool HornObstructed(RoomLayout room,Vector2 position)
+        {
+            Vector2 body=transform.position;
+            return room!=null && !RoomVisibility.Clear(room,body+Vector2.up*(Anatomy.Movement(state).height*.5f),position);
+        }
+        internal void SetHornObstructed(bool obstructed)
+        {
+            if(hornObstructed==obstructed) return;
+            hornObstructed=obstructed;magicDirty=true;
+            if(appearance.HasValue) RefreshMagic(appearance.Value);
         }
         public int DrawnPartCount {get;private set;}
         public override void AppendLightOccluders(List<LightOccluder> output)
@@ -282,7 +293,7 @@ namespace Remains.Presentation
             for(int i=0;i<drawnParts.Length;i++)
             {
                 var part=drawnParts[i];if(!PonyMagicRenderRoles.Contains(part)) continue;
-                var color=PonyAppearance.Tint(part.slot,tint);color.a*=activity.Opacity;
+                var color=PonyAppearance.Tint(part.slot,tint);color.a*=hornObstructed?0:activity.Opacity;
                 properties.SetColor("_Color",color);properties.SetFloat("_Emission",1);
                 renderers[i].enabled=part.visible && activity.Opacity>0;renderers[i].SetPropertyBlock(properties);
             }

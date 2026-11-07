@@ -55,7 +55,10 @@ namespace Remains.Editor
                     Require(Mathf.Approximately(e.Gain,visual.DrawnMagicActivity.Opacity) && Mathf.Approximately(e.Gain,.5f),"Сила не совпадает с подтверждённым рогом.");
                 }
                 actor.rest=actor.restPose=null;actor.pose="idle";actor.facing=1;visual.Bind(actor);visual.DrawPose(0);output.Clear();lights.Append(visuals,output);var previous=output[0].Position;
-                if(clothing.Length==0)CheckBrightness(output[0]);
+                if(clothing.Length==0)
+                {
+                    CheckBrightness(output[0]);CheckObstruction(actor,visual,visuals,lights);
+                }
                 actor.x+=5;actor.y+=2;visual.DrawPose(0);output.Clear();lights.Append(visuals,output);
                 Require(Vector2.Distance(output[0].Position-previous,new Vector2(5,2))<.00001f,"Источник не следует за переносом пони.");
                 output.Clear();lights.Append(visuals,output,new Rect(100,100,2,2));Require(output.Count==0,"Источник вне активного вида не отсечён.");
@@ -63,6 +66,55 @@ namespace Remains.Editor
                 visual.ConfigureMagicPreview(1);visual.DrawPose(0);output.Clear();lights.Append(visuals,output);Require(output.Count==0,"Detached preview создал игровой свет.");
             }
             finally{lights.Clear();Object.DestroyImmediate(visual.gameObject);}
+        }
+        private static void CheckObstruction(ActorState actor,PonyVisual visual,IReadOnlyDictionary<string,ActorVisual> visuals,HornLightSources lights)
+        {
+            var hull=Anatomy.Movement(actor);
+            var ceiling=new RoomSurface{x=0,y=actor.y+hull.height,width=6,height=.05f};
+            var wall=new RoomSurface{x=actor.x+hull.width*.5f,y=0,width=.05f,height=6};
+            Require(visual.TryGetHornLightPose(out var tip,out _,out _) && tip.y>ceiling.y && tip.x>wall.x,
+                $"Фикстура должна воспроизвести выступ рога: рог={tip}, потолок={ceiling.y}, стена={wall.x}.");
+            Require(visual.TryGetMagicRenderer(out var renderer),"У рога нет отрисованной детали.");
+            var properties=new MaterialPropertyBlock();
+            var output=new List<WorldLightEmission>();
+            foreach(var (surface,direction) in new[]{(ceiling,Vector2.up),(wall,Vector2.right)})
+            {
+                var room=new RoomLayout{id=actor.level,left=0,right=6,bottom=0,top=8,platforms=new[]{surface}};
+                RoomSurfaces.Prepare(room);
+                var stopped=ActorTerrainMotion.Move(room,hull,actor.Position,direction,false);
+                Require(ActorTerrainMotion.IsClear(room,hull,stopped) && Vector2.Distance(actor.Position,stopped)<.00001f,
+                    "Коллизия тела не остановилась у препятствия.");
+                output.Clear();lights.Append(visuals,output);Require(output.Count==1,"Открытый рог не добавлен как источник.");
+                var unfiltered=output[0];
+                output.Clear();lights.Append(visuals,output,room:room);renderer.GetPropertyBlock(properties);
+                Require(output.Count==0 && properties.GetColor("_Color").a==0,"Рог за препятствием освещает мир или виден поверх препятствия.");
+                if(surface==ceiling)CheckCeilingLight(unfiltered,output,ceiling);
+                room.platforms=Array.Empty<RoomSurface>();RoomSurfaces.Prepare(room);
+                output.Clear();lights.Append(visuals,output,room:room);renderer.GetPropertyBlock(properties);
+                Require(output.Count==1 && properties.GetColor("_Color").a>0,"После открытия пути рог не восстановил свет и видимость.");
+                Debug.Log($"Horn obstruction: body stopped at {stopped}; drawn horn {tip}; blocking side {direction}.");
+            }
+        }
+        private static void CheckCeilingLight(WorldLightEmission unfiltered,List<WorldLightEmission> filtered,RoomSurface ceiling)
+        {
+            const int size=120,resolution=20;
+            var walls=new float[size,size];int roof=Mathf.RoundToInt(ceiling.y*resolution);
+            for(int x=0;x<size;x++)walls[x,roof]=1;
+            var scene=new LevelLightScene(walls,Vector2.zero,resolution,Array.Empty<LevelLightScene.ObjectSprite>());
+            using var light=new LevelLight(scene,new LevelLightSources(Array.Empty<LevelLightSource>(),size,size),.2f);light.BuildAll();
+            var context=new LightShaderContext();using var view=new LevelLightView(light,context);
+            context.Activate();
+            try
+            {
+                var sample=unfiltered.Position+Vector2.up*.4f;
+                view.Present(scene.WorldRect,null,null,null,new[]{unfiltered});
+                float leak=ReadGreen(view,sample);
+                view.Present(scene.WorldRect,null,null,null,filtered);
+                float fixedLight=ReadGreen(view,sample);
+                Require(leak>.1f && fixedLight<.001f,$"Свет за потолком: прежде={leak}, теперь={fixedLight}.");
+                Debug.Log($"Horn obstruction GPU: before={leak:F4}, after={fixedLight:F4}.");
+            }
+            finally{context.Release();}
         }
         private static void CheckBrightness(WorldLightEmission horn)
         {
@@ -92,11 +144,7 @@ namespace Remains.Editor
                 {
                     view.Present(scene.WorldRect,Array.Empty<SpriteEmission>(),Array.Empty<ProjectedLightShadow>(),Array.Empty<string>(),sources);
                     if(capture!=null)NetworkFrameCapture.Save(camera,Path.Combine(output,capture+".png"),width:960,height:540);
-                    var texture=Shader.GetGlobalTexture("_RemainsRadiance");var area=view.WorldArea;
-                    int x=(int)((sample.x-area.xMin)/area.width*texture.width),y=(int)((sample.y-area.yMin)/area.height*texture.height);
-                    var readback=AsyncGPUReadback.Request(texture,0,x,1,y,1,0,1,TextureFormat.RGBAFloat);readback.WaitForCompletion();
-                    Require(!readback.hasError,"Не удалось измерить свет рога на GPU.");
-                    return readback.GetData<Color>()[0].g;
+                    return ReadGreen(view,sample);
                 }
                 foreach(bool lit in new[]{false,true})
                 {
@@ -114,6 +162,14 @@ namespace Remains.Editor
                 context.Release();Object.DestroyImmediate(camera.gameObject);Object.DestroyImmediate(wall.gameObject);
                 Object.DestroyImmediate(sprite);Object.DestroyImmediate(material);
             }
+        }
+        private static float ReadGreen(LevelLightView view,Vector2 sample)
+        {
+            var texture=Shader.GetGlobalTexture("_RemainsRadiance");var area=view.WorldArea;
+            int x=(int)((sample.x-area.xMin)/area.width*texture.width),y=(int)((sample.y-area.yMin)/area.height*texture.height);
+            var readback=AsyncGPUReadback.Request(texture,0,x,1,y,1,0,1,TextureFormat.RGBAFloat);readback.WaitForCompletion();
+            Require(!readback.hasError,"Не удалось измерить свет рога на GPU.");
+            return readback.GetData<Color>()[0].g;
         }
         private static void CheckMineActivity()
         {
