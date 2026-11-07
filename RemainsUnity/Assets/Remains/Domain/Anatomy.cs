@@ -149,6 +149,9 @@ namespace Remains.Domain
         // How far a blast at this point is from the body: its nearest region centre (the same centres a blast's contact
         // measures; the original measured from the unit's middle). Infinity without an anatomy.
         public static float BlastDistance(ActorState actor,Vector2 point)
+            =>BlastDistance(actor,point,null);
+
+        internal static float BlastDistance(ActorState actor,Vector2 point,Predicate<Vector2> reachable)
         {
             if(!definitions.TryGetValue(actor.anatomy,out var definition))
             {
@@ -157,7 +160,8 @@ namespace Remains.Domain
             }
             float nearest=float.PositiveInfinity;
             foreach(var region in definition.regions)
-                if(TryRegion(actor,definition,region,out var center,out _)) nearest=Mathf.Min(nearest,Vector2.Distance(center,point));
+                if(TryRegion(actor,definition,region,out var center,out _) && (reachable==null || reachable(center)))
+                    nearest=Mathf.Min(nearest,Vector2.Distance(center,point));
             return nearest;
         }
 

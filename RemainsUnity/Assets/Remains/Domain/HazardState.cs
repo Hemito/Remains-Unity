@@ -129,10 +129,12 @@ namespace Remains.Domain
             hazard.level==blast.level && BlastDistance(hazard,profile,blast)<=WeaponCatalog.Get(blast.weapon).range;
         // From the blast to the nearest point of the hazard's body.
         public static float BlastDistance(HazardState hazard,HazardDefinition profile,AttackEvent blast)
+            =>Vector2.Distance(ClosestBlastPoint(hazard,profile,blast.End),blast.End);
+
+        internal static Vector2 ClosestBlastPoint(HazardState hazard,HazardDefinition profile,Vector2 centre)
         {
-            var body=Body(hazard,profile);var centre=blast.End;
-            var nearest=new Vector2(Mathf.Clamp(centre.x,body.xMin,body.xMax),Mathf.Clamp(centre.y,body.yMin,body.yMax));
-            return Vector2.Distance(nearest,centre);
+            var body=Body(hazard,profile);
+            return new Vector2(Mathf.Clamp(centre.x,body.xMin,body.xMax),Mathf.Clamp(centre.y,body.yMin,body.yMax));
         }
     }
 }

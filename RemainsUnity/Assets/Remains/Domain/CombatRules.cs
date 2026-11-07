@@ -31,6 +31,9 @@ namespace Remains.Domain
         {this.rules=rules;this.knockdown=knockdown??new ZeroHealthKnockdownRule();this.protection=protection??new TypeHitProtectionRule();this.natural=natural??throw new System.ArgumentNullException(nameof(natural));}
 
         public bool Apply(ActorState actor, AttackEvent attack, bool contact)
+            =>Apply(actor,attack,contact,null);
+
+        internal bool Apply(ActorState actor,AttackEvent attack,bool contact,float? blastDistance)
         {
             if (!AttackScope.Includes(attack,actor) || !contact || actor.health <= 0 || actor.resolvedAttacks.Contains(attack.id)) return false;
             // Cosmetic receipt keeps the body at contact time, even when applying

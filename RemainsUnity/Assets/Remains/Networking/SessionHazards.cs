@@ -175,20 +175,24 @@ namespace Remains.Networking
         // ---- Damage ------------------------------------------------------------------------------------------------
         // Host: an explosion (grenade, mine, charge) damages every hazard its blast reaches.
         public void Blast(AttackEvent blast)
+            =>Blast(blast,null);
+
+        internal void Blast(AttackEvent blast,GrenadeCoverVolume[] cover)
         {
             var world=session.ServerWorld;
             if(world==null || blast==null) return;
-            Enqueue(world,blast);
+            Enqueue(world,blast,cover);
             Resolve();
         }
         // Every hazard the blast reaches, with the blast's damage at its distance (ExplosionRules.Damage, as on actors).
-        private void Enqueue(WorldState world,AttackEvent blast)
+        private void Enqueue(WorldState world,AttackEvent blast,GrenadeCoverVolume[] cover=null)
         {
             var weapon=WeaponCatalog.Get(blast.weapon);float factor=FactoryEnemyScaling.AttackFactor(blast);
             foreach(var hazard in world.hazards)
             {
                 var profile=HazardRules.Profile(hazard);
                 if(!HazardRules.InBlast(hazard,profile,blast)) continue;
+                if(cover!=null && !GrenadeRules.BlastClear(cover,blast.End,HazardRules.ClosestBlastPoint(hazard,profile,blast.End))) continue;
                 float amount=ExplosionRules.Damage(weapon.damage,weapon.range,HazardRules.BlastDistance(hazard,profile,blast),blast.id,hazard.id)*factor;
                 if(amount>0) damage.Enqueue((hazard,amount));
             }

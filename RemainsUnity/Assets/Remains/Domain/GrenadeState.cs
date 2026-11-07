@@ -30,6 +30,14 @@ namespace Remains.Domain
             weapon=weapon,originX=x,originY=y,endX=x,endY=y};
     }
     [Serializable]
+    public struct GrenadeCoverVolume
+    {
+        public float x,y,width,height;
+        internal GrenadeCoverVolume(Rect rect) {x=rect.x;y=rect.y;width=rect.width;height=rect.height;}
+        internal Rect Bounds=>new(x,y,width,height);
+    }
+
+    [Serializable]
     public sealed class ExplosionState : Remains.Serialization.ExtensibleState
     {
         public AttackEvent attack;
@@ -39,6 +47,8 @@ namespace Remains.Domain
         public int generation;
         public List<string> players=new();
         public List<string> enemies=new();
+        // Frozen by the host before publishing the grenade detonation. Null is a legacy or non-grenade blast.
+        public GrenadeCoverVolume[] grenadeCover;
     }
     // One way an explosion becomes world state (grenades, mines, charges): every present player of the level decides
     // its own contact; the host lists the non-player actors it hit.
@@ -189,19 +199,59 @@ namespace Remains.Domain
             return changed;
         }
         public static ExplosionState Detonate(WorldState world,GrenadeState grenade,IEnumerable<string> enemyHits)
+            =>Detonate(world,grenade,enemyHits,null);
+
+        public static ExplosionState Detonate(WorldState world,GrenadeState grenade,IEnumerable<string> enemyHits,RoomLayout room)
         {
             if(!world.grenades.Contains(grenade) || grenade.remaining>0) return null;
+            var attack=grenade.Attack();
+            var cover=room==null?null:CaptureCover(room,world,attack);
             world.grenades.Remove(grenade);
-            return ExplosionRules.Record(world,grenade.Attack(),enemyHits,false,grenade.generation);
+            var explosion=ExplosionRules.Record(world,attack,enemyHits,false,grenade.generation);
+            explosion.grenadeCover=cover;
+            return explosion;
         }
+
+        private static GrenadeCoverVolume[] CaptureCover(RoomLayout room,WorldState world,AttackEvent attack)
+        {
+            const float inset=.0001f;
+            float radius=Remains.Content.WeaponCatalog.Get(attack.weapon).range;
+            var area=new Rect(attack.End-Vector2.one*radius,Vector2.one*(radius*2));
+            var cover=new List<GrenadeCoverVolume>();
+            void Include(Rect bounds)
+            {
+                // A grenade resting on a floor must be able to blast out of the contact plane.
+                var interior=Rect.MinMaxRect(bounds.xMin+inset,bounds.yMin+inset,bounds.xMax-inset,bounds.yMax-inset);
+                if(interior.width>0 && interior.height>0 && area.Overlaps(interior)) cover.Add(new GrenadeCoverVolume(interior));
+            }
+            foreach(var surface in RoomSurfaces.Near(room,area))
+                if(!surface.oneWay && string.IsNullOrEmpty(surface.sourceDoorId)) Include(new Rect(surface.x,surface.y,surface.width,surface.height));
+            // The host's current doors can be ahead of its own client-side room geometry.
+            foreach(var door in world.doors)
+                if(door.level==attack.level && door.Blocks) Include(door.Bounds);
+            return cover.ToArray();
+        }
+
+        internal static bool BlastClear(GrenadeCoverVolume[] cover,Vector2 from,Vector2 to)
+        {
+            if(cover==null) return true;
+            foreach(var obstacle in cover)
+                if(SurfaceContact.Entry(obstacle.Bounds,from,to).HasValue) return false;
+            return true;
+        }
+
         public static bool Resolve(ActorState actor,ExplosionState explosion,DamageReceiver damage,Vector2 localPosition)
         {
             if(!ActorPresence.IsPresent(actor) || actor.resolvedExplosions.Contains(explosion.attack.id) ||
                 !(actor.player?explosion.players:explosion.enemies).Contains(actor.id)) return false;
             var attack=JsonUtility.FromJson<AttackEvent>(JsonUtility.ToJson(explosion.attack));
             attack.endX=localPosition.x;attack.endY=localPosition.y;
-            bool contact=actor.player?HitGeometry.Contacts(actor,attack):true;
-            if(AttackScope.CanAffect(attack,actor,explosion.friendlyFire)) damage.Apply(actor,attack,contact);
+            float? blastDistance=explosion.grenadeCover==null?null:
+                Anatomy.BlastDistance(actor,localPosition,point=>BlastClear(explosion.grenadeCover,explosion.attack.End,point));
+            bool contact=blastDistance.HasValue
+                ? blastDistance.Value<Remains.Content.WeaponCatalog.Get(attack.weapon).range
+                : !actor.player || HitGeometry.Contacts(actor,attack);
+            if(AttackScope.CanAffect(attack,actor,explosion.friendlyFire)) damage.Apply(actor,attack,contact,blastDistance);
             // A miss is also a final victim decision. Returning later cannot turn it into a hit.
             actor.resolvedExplosions.Add(attack.id);actor.revision++;return true;
         }

@@ -88,6 +88,7 @@ namespace Remains.Editor
             CheckRotation();
             CheckExplosionMessage();
             CheckBlastFalloff();
+            CheckBlastCover();
             CheckOriginalGrenades();
             var world=new WorldState();
             var source=new ActorState {id="source",owner="a",player=true,connected=true};
@@ -547,6 +548,50 @@ namespace Remains.Editor
             Require(dynamite.remaining>2.4f && dynamite.Attack().weapon=="item:dinamit","Динамит горит своим запалом и взрывается своим взрывом");
         }
         // Bullet.explGas: × 0.7–1.3, whole within half the radius, linear to nothing at it; the same roll on every peer.
+        private static void CheckBlastCover()
+        {
+            const string level="factory:0";
+            var damage=new DamageReceiver(new PrototypeDamageRule());
+            foreach(string scenario in new[]{"wall","floor","one-way","closed","open","destroyed"})
+            foreach(bool player in new[]{false,true})
+            {
+                var actor=new ActorState {id="blast-victim",level=level,player=player,connected=player,x=2,y=0};
+                var grenade=new GrenadeState {id="cover-"+scenario,attacker="thrower",level=level};
+                var world=new WorldState {worldId="blast-cover",friendlyFire=true,actors={actor},grenades={grenade}};
+                var room=new RoomLayout {id=level,left=-8,right=8,bottom=-4,top=6,
+                    platforms=new[]{new RoomSurface {x=-8,y=-1,width=16,height=1}}};
+                if(scenario=="wall" || scenario=="one-way")
+                {
+                    Array.Resize(ref room.platforms,2);
+                    room.platforms[1]=new RoomSurface {x=.9f,y=0,width=.2f,height=4,oneWay=scenario=="one-way"};
+                }
+                DoorState door=null;
+                if(scenario is "closed" or "open" or "destroyed")
+                {
+                    door=new DoorState {id="blast-door",definition="test",level=level,surfaceTexture="wall",
+                        x=.9f,y=0,width=.2f,height=4,integrity=new DoorIntegrity {maxHealth=30,health=30}};
+                    world.doors.Add(door);
+                    // Give the server a client-side room that still has the closed door.
+                    room.platforms=DoorGeometry.Compose(room.platforms,world.doors,level);
+                    if(scenario=="open") door.open=true;
+                    if(scenario=="destroyed")
+                        Require(DoorDamageOperations.Apply(door,"prior-hit",30,out _)==DoorChange.Changed,"Не разрушилась тестовая дверь");
+                }
+                RoomSurfaces.Prepare(room);
+                var explosion=GrenadeRules.Detonate(world,grenade,new[]{actor.id},room);
+                Require(explosion!=null && explosion.grenadeCover!=null,"Детонация не запомнила преграды");
+                if(scenario=="closed")
+                    Require(DoorDamageOperations.Apply(door,"later-hit",30,out _)==DoorChange.Changed,"Не изменилась дверь после детонации");
+                var received=StateJson.Copy(explosion);
+                Require(received.grenadeCover!=null && GrenadeRules.Resolve(actor,received,damage,grenade.Position),
+                    "Получатель потерял препятствия или решение взрыва");
+                bool blocked=scenario is "wall" or "closed";
+                Require(blocked?actor.health==100:actor.health<100,$"Преграда взрыва: {scenario}, player={player}, health={actor.health}");
+                Require(!GrenadeRules.Resolve(actor,received,damage,grenade.Position),"Повторный взрыв после изменения двери");
+            }
+            Debug.Log("Преграды гранаты: PASS — стены, опора в точке взрыва, one-way и три состояния двери, игрок и NPC, повтор и сохранение.");
+        }
+
         private static void CheckBlastFalloff()
         {
             float near=ExplosionRules.Damage(150,6,1,"blast","v"),half=ExplosionRules.Damage(150,6,2.99f,"blast","v");
