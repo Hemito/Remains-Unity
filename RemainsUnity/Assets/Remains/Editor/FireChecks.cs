@@ -193,8 +193,9 @@ namespace Remains.Editor
 
         private static void CheckFireLoopClip()
         {
-            var clip=GameAssets.Load<AudioClip>("Presentation/fire-crackle");
-            Require(clip!=null && clip.channels==1 && Mathf.Abs(clip.length-3.2f)<.01f,"петля горения должна быть моно длиной 3,2 с");
+            var clip=FireLoopAudio.Create();
+            float expected=FireLoopAudio.End-FireLoopAudio.Start-FireLoopAudio.Crossfade;
+            Require(clip!=null && clip.channels==1 && Mathf.Abs(clip.length-expected)<.01f,$"петля горения должна быть моно длиной {expected:F2} с из звука оригинала");
             var data=new float[clip.samples];
             Require(clip.GetData(data,0) && data.Max(sample=>Mathf.Abs(sample))>.1f &&
                 Mathf.Abs(data[0]-data[^1])<.025f,"петля горения пуста или имеет скачок на стыке");
