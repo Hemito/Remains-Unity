@@ -129,6 +129,8 @@ namespace Remains.Runtime
                 gameObject.AddComponent<RoomCatalogLifetimeProbe>().Initialize(Options);
                 return;
             }
+            if(SystemInfo.graphicsDeviceType==UnityEngine.Rendering.GraphicsDeviceType.Null)
+                throw new System.InvalidOperationException("Для игрового процесса требуется графическое устройство. Запустите Player без параметра -nographics.");
             TransitionTiming.Enabled=Options.Smoke?.StartsWith("lighting-preparation")==true;
             TransitionTiming.Reset();
             using(TransitionTiming.Measure("runtime.catalog-prepare",GetInstanceID().ToString()))

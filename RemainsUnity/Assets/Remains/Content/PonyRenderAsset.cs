@@ -113,10 +113,9 @@ namespace Remains.Content
         // This reads native arrays only when a compiled bank is loaded/registered.
         public static void ValidatePart(PonyRenderPart part,string context)
         {
-            if(part==null || part.mesh==null || !part.mesh.isReadable || part.material==null || part.material.mainTexture==null ||
-                part.material.shader==null || !part.material.HasProperty("_MainTex") || !part.material.HasProperty("_Color") || !part.material.HasProperty("_Emission") ||
-                part.points==null || part.points.Length!=4 || string.IsNullOrEmpty(part.sourcePath) || string.IsNullOrEmpty(part.symbolId))
-                throw new InvalidOperationException($"Повреждена подготовленная графическая часть: context={context}, path={part?.sourcePath}.");
+            string problem=PartProblem(part);
+            if(problem!=null)
+                throw new InvalidOperationException($"Повреждена подготовленная графическая часть: context={context}, path={part?.sourcePath}, причина={problem}.");
             var vertices=part.mesh.vertices;var uv=part.mesh.uv;var colors=part.mesh.colors;var triangles=part.mesh.triangles;
             if(vertices.Length!=4 || uv.Length!=4 || colors.Length!=4 || triangles.Length!=6 ||
                 triangles[0]!=0 || triangles[1]!=2 || triangles[2]!=1 || triangles[3]!=2 || triangles[4]!=3 || triangles[5]!=1 ||
@@ -137,6 +136,15 @@ namespace Remains.Content
                 throw new InvalidOperationException($"Неконечный цвет части: context={context}, path={part.sourcePath}.");
             var expected=new Bounds();expected.SetMinMax(minimum,maximum);ValidateBounds(part.mesh.bounds,expected,context+"/"+part.sourcePath);
         }
+        // Preserve the validation in Null graphics mode. A missing shader property and
+        // unreadable mesh require different repairs; neither means the source bank is necessarily corrupt.
+        private static string PartProblem(PonyRenderPart part)=>part==null?"part-null":
+            part.mesh==null?"mesh-null":!part.mesh.isReadable?"mesh-unreadable":
+            part.material==null?"material-null":part.material.mainTexture==null?"texture-null":
+            part.material.shader==null?"shader-null":!part.material.HasProperty("_MainTex")?"shader-main-texture":
+            !part.material.HasProperty("_Color")?"shader-color":!part.material.HasProperty("_Emission")?"shader-emission":
+            part.points==null?"points-null":part.points.Length!=4?"points-count":
+            string.IsNullOrEmpty(part.sourcePath)?"source-path-empty":string.IsNullOrEmpty(part.symbolId)?"symbol-id-empty":null;
         public static void ValidateBounds(Bounds actual,Bounds expected,string context)
         {
             var minimum=actual.min;var maximum=actual.max;
