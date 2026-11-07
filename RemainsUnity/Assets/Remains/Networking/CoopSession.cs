@@ -703,6 +703,8 @@ namespace Remains.Networking
         private void ReceiveTick(WorldTickMessage message)
         {
             if(World==null || LocalActorId==null) return;   // before admission: the full world carries the base seq
+            long tickStarted=System.Diagnostics.Stopwatch.GetTimestamp();
+            var worldBeforeTick=World;
             WorldTick tick;WorldTickReceiver.Result result;
             try
             {
@@ -724,10 +726,21 @@ namespace Remains.Networking
             }
             if(result!=WorldTickReceiver.Result.Applied) return;
             WorldState live;
-            using(Remains.Diagnostics.FrameHitchLog.Section("Тик мира: рабочая копия (клиент)"))
+            try
             {
-                live=WorldTickLists.ShallowCopy(World);
-                WorldTickApplier.Apply(live,tickReceiver.LastParsed,Remains.Serialization.ValidatedStateCopy.Copy);
+                using(Remains.Diagnostics.FrameHitchLog.Section("Тик мира: рабочая копия (клиент)"))
+                {
+                    live=WorldTickLists.ShallowCopy(World);
+                    WorldTickApplier.Apply(live,tickReceiver.LastParsed,Remains.Serialization.ValidatedStateCopy.Copy);
+                }
+            }
+            catch(Exception error) when(error is System.IO.InvalidDataException || error is InvalidOperationException)
+            {
+                // A throw from a Mirror handler drops the connection: ask for the whole world instead.
+                tickReceiver.Forget();
+                Debug.LogWarning($"Рабочая копия тика {message.seq} не собрана, запрошен полный снимок. {error}");
+                NetworkClient.Send(new WorldResyncRequest {world=World.worldId,snapshot="tick:"+message.seq,reason="копия тика "+message.seq+": "+error.Message});
+                return;
             }
             var reused=new HashSet<string>(StringComparer.Ordinal);
             var changedActors=new HashSet<string>(StringComparer.Ordinal);
@@ -743,6 +756,7 @@ namespace Remains.Networking
             ReceiveWorld(new WorldMessage(),null,WorldTickReceiver.Changes(tick),WorldTickReceiver.ChangedParts(tick),live,reused,
                 tickReceiver.CopyCanonicalActor,WorldTickReceiver.FindBody,true);
             if(predictions.Count>0) SettlePredictions(null);
+            WorldTickDiagnostics.Report(tick,worldBeforeTick,(System.Diagnostics.Stopwatch.GetTimestamp()-tickStarted)*1000d/System.Diagnostics.Stopwatch.Frequency,Time.unscaledTimeAsDouble);
             if(tick.recovery!=null)
             {
                 // The host's recovery point: the same copy from this client's tick texts, written and acknowledged.

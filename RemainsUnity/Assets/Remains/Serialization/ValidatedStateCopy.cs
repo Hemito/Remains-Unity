@@ -85,6 +85,8 @@ namespace Remains.Serialization
                         attribute is OnDeserializingAttribute || attribute is OnDeserializedAttribute))
                     {
                         if(current==typeof(ExtensibleState) && method.Name=="CheckExtensionNames") continue;
+                        // Normalizes legacy text on reading. A validated graph has already been read, so its copy needs nothing.
+                        if(current==typeof(Remains.Domain.PropImpactContact) && method.Name==nameof(Remains.Domain.PropImpactContact.ReadLegacyGeneration)) continue;
                         throw Unsupported(type,"callback сериализации "+method.Name);
                     }
             if(StateJson.ContractFor(type) is not JsonObjectContract contract || contract.Converter!=null || contract.DefaultCreator==null)

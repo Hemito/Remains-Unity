@@ -67,7 +67,29 @@ namespace Remains.Editor
             bool rejected=false;
             try {ValidatedStateCopy.Copy<object>(new object());} catch(InvalidOperationException) {rejected=true;}
             Require(rejected,"Неподдерживаемый объект скопирован без явного отказа.");
+            CheckImpactContactTick();
             Debug.Log("Копирование проверенного состояния: PASS — JSON-контракт, вложенные объекты, числовые extensions, transient defaults, изоляция.");
+        }
+
+        // A box that hit someone keeps the contact in its journal; the next world tick carries it to every client.
+        private static void CheckImpactContactTick()
+        {
+            var host=new WorldState {worldId="check:tick"};
+            var box=new PropState {id="check:box",level="hub",definition="box",generation=1};
+            host.props.Add(box);
+            WorldChanges.Track(host);
+            var composer=new Remains.Persistence.WorldTickComposer();composer.Next(host,part=>WorldChanges.IsMarked(host,part));
+            var client=StateJson.FromJson<WorldState>(StateJson.ToJson(host));
+            box.impacts=new PropImpactJournal();
+            box.impacts.contacts.Add(new PropImpactContact {id="contact",target="check:actor",generationBefore=1,generationAfter=2,
+                source=new PropImpactSample {id="sample",prop=box.id,generation=1}});
+            box.generation=2;WorldChanges.Mark(host,box);host.revision++;
+            var tick=composer.Next(host,part=>WorldChanges.IsMarked(host,part));WorldChanges.Clear(host);
+            var live=Remains.Persistence.WorldTickLists.ShallowCopy(client);
+            Remains.Persistence.WorldTickApplier.Apply(live,Remains.Persistence.WorldTickApplier.Parse(live,tick),ValidatedStateCopy.Copy);
+            Require(StateJson.ToJson(live)==StateJson.ToJson(host),"Клиент собрал другой мир после удара ящика.");
+            Require(live.props[0].impacts.contacts.Count==1 && !ReferenceEquals(live.props[0].impacts.contacts[0],box.impacts.contacts[0]),
+                "Запись об ударе ящика не отделена от источника.");
         }
 
         private static void AssertDetached(object source,object copy,string path,int depth)
