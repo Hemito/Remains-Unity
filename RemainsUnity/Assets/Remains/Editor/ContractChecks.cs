@@ -173,7 +173,7 @@ namespace Remains.Editor
             LightingChecks.Run();
             RoomLightingUpdateChecks.Run();
             MotionAudioChecks.Run();ReloadAudioChecks.Run();WeaponReloadChecks.Run();InventoryAudioChecks.Run();
-            ActiveReloadChecks.Run();ActiveReloadControllerChecks.Run();
+            ActiveReloadChecks.Run();ActiveReloadControllerChecks.Run();GrenadeTelekinesisChecks.Run();
             TelekinesisProbeChecks.Run();WorldFactoryCreationChecks.Run();
             ShortcutIconBindingChecks.Run();ActorShadowTeardownChecks.Run();
             HeldPropColorChecks.Run();WorldLibraryIdentityChecks.Run();
