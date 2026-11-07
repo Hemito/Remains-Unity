@@ -554,7 +554,7 @@ namespace Remains.Runtime
             }
             if(visual is PonyVisual pony) pony.ConfigureMagicSource(ponyMagic);
             visual.Bind(actor);
-            visual.SetVisible(id==Session.LocalActorId || activeVisuals.ContainsKey(id));
+            visual.SetVisible(id==Session?.LocalActorId || activeVisuals.ContainsKey(id));
         }
 
         private void RefreshActorFrameIndex()
