@@ -137,10 +137,12 @@ namespace Remains.Domain
                     break;
                 case PonyIntentKind.Shoot:
                     if(--p.advance<=0) {p.advancing=Chance(.3);p.advance=Range(100)+100;}
+                    // A shooter cannot fire from the ladder. Keep following the
+                    // target vertically even when it would hold position on land.
                     // It does not fire through its own: it moves up to clear the line.
-                    if(p.advancing || p.blocked) Toward(); else Face();
+                    if(climbing || p.advancing || p.blocked) Toward(); else Face();
                     // State 4's step back from a close target: pushed away with a small jump.
-                    if(!s.robot && p.stepBack<=0 && Mathf.Abs(dx)<200*Px && Mathf.Abs(m.point.y-actor.y)<200*Px)
+                    if(!climbing && !s.robot && p.stepBack<=0 && Mathf.Abs(dx)<200*Px && Mathf.Abs(m.point.y-actor.y)<200*Px)
                     {
                         p.stepBack=Range(30)+30;
                         if(Chance(.6)) {intent.pushX=s.RunSpeed*(dx>0?-1:1)*2;jump=.4f;}

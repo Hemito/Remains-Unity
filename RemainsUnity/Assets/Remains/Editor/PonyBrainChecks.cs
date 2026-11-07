@@ -1,6 +1,7 @@
 using System;
 using Remains.Content;
 using Remains.Domain;
+using Remains.Gameplay;
 using Remains.Serialization;
 using UnityEngine;
 
@@ -36,8 +37,44 @@ namespace Remains.Editor
             Require(shooter.pony!=null && Mathf.Approximately(shooter.pony.retreatHealth,.25f) && SapientPonies.Is(Raider()) &&
                 !SapientPonies.Is(new ActorState {id="t",actorType="tarakan"}),"у рейдера — характер разумного пони по умолчанию; таракан не разумный пони");
             Calm(shooter);Notice(shooter);Shooting(shooter);Melee(shooter);Retreat(shooter);Search(shooter);Revival(shooter);SelfHeal(shooter);Grenades(shooter);
-            LineOfFire();
+            LineOfFire();ShootingFromLadder();
             Debug.Log("Мозг разумных пони: PASS — спокойствие, задержка реакции, стрельба с отскоком, ближний бой в зубах и телекинезом, отступление и бой в углу, поиск, без дёрганья, подъём союзника и самолечение аптечкой, гранаты с прицеливанием по безопасности.");
+        }
+
+        private sealed class HoldPositionRandom : System.Random
+        {
+            public override double NextDouble()=>.99;
+        }
+
+        private static void ShootingFromLadder()
+        {
+            WeaponRigs.Load();
+            var type=ActorTypes.Get("raider");
+            var room=new RoomLayout {id="raider-climb-check",left=-8,right=8,bottom=-3,top=8,
+                platforms=new[]{new RoomSurface {x=-8,y=-.4f,width=16,height=.4f},
+                    new RoomSurface {x=-5,y=3.4f,width=10,height=.2f,oneWay=true}},
+                ladders=new[]{new RoomLadder {x=0,bottom=0,top=3.6f}}};
+            RoomSurfaces.Prepare(room);
+            foreach(int rate in new[]{30,60,144})
+            {
+                var target=new ActorState {id="target",player=true,connected=true,x=3.2f,y=3.6f,level=room.id};
+                var actor=Raider();
+                actor.level=room.id;actor.y=1.2f;actor.climbing=true;actor.pose="climb";
+                var npc=new NpcRaiderController(MovementSettings.Load(),new HoldPositionRandom());
+                bool choseShootOnLadder=false;
+                for(int tick=0;tick<rate*4;tick++)
+                {
+                    float y=actor.y;
+                    npc.Step(actor,type,target,true,room,1f/rate);
+                    if(npc.Intent(actor.id)!=PonyIntentKind.Shoot || !actor.climbing) continue;
+                    choseShootOnLadder=true;
+                    Require(actor.y>y,"Стрелок остановил подъём в ожидании выстрела, Гц "+rate);
+                }
+                Require(choseShootOnLadder && !actor.climbing && Mathf.Abs(actor.y-3.6f)<.001f &&
+                    ActorTerrainMotion.Supported(room,Anatomy.Movement(actor),actor.Position),
+                    "Стрелок не завершил подъём до опоры, Гц "+rate);
+            }
+            Debug.Log("Подъём стрелка: PASS — намерение стрелять не останавливает подъём при 30/60/144 Гц.");
         }
 
         private static RoomLayout Room(float left=-20,float right=20)
