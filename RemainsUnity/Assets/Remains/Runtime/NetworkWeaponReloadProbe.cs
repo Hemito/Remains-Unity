@@ -72,6 +72,7 @@ namespace Remains.Runtime
         private Phase current;
         private WeaponReloadProbeStage? pendingStage;
         private Manifest evidence;
+        private readonly Dictionary<int,string> manifestAcks=new();
         private readonly List<Phase> phases=new();
         private readonly List<Capture> captures=new();
         private readonly HashSet<int> ready=new(),capturedPeers=new(),finishedPeers=new();
@@ -129,8 +130,7 @@ namespace Remains.Runtime
                 var actor=runtime.Session.ConnectedActor(connection);Require(actor?.id==message.actor,"ACK другого участника.");
                 if(message.phase==4)
                 {
-                    Require(evidence!=null && message.token==manifestHash,"ACK чужого manifest.");finishedPeers.Add(connection.connectionId);
-                    if(finishedPeers.Count==runtime.Options.ProbePeers) NetworkServer.SendToAll(new WeaponReloadProbeDone {success=true,detail=$"4 фактические перезарядки, 2 завершения/2 отмены, {runtime.Options.ProbePeers*4} кадров участников; магазины и запас сохранены."});
+                    manifestAcks[connection.connectionId]=message.token;ConfirmManifestAcks();
                     return;
                 }
                 Require(message.phase==serverPhase && observed.TryGetValue(message.token,out var start) && start.actor==source,"ACK чужого capture token.");
@@ -288,11 +288,19 @@ namespace Remains.Runtime
                 var manifest=StateJson.FromJson<Manifest>(pendingReceivedManifest);Validate(manifest);
                 Require(manifest.phases.All(p=>observed.ContainsKey(p.token) && ended.Contains(p.token)),"Нет actual received tokens из server manifest.");
                 evidence=manifest;manifestHash=Hash(pendingReceivedManifest);
-                File.WriteAllText(runtime.Options.Report+".manifest.json",pendingReceivedManifest,new UTF8Encoding(false));pendingReceivedManifest=null;
+                File.WriteAllText(runtime.Options.Report+".manifest.json",pendingReceivedManifest,new UTF8Encoding(false));pendingReceivedManifest=null;ConfirmManifestAcks();
             }
             if(evidence!=null && !manifestAck && starts==4 && stops==4 && shots==4 && captures.Count==4 &&
                 evidence.phases.All(p=>observed.ContainsKey(p.token) && ended.Contains(p.token)))
             {manifestAck=true;NetworkClient.Send(new WeaponReloadProbeAck {phase=4,actor=Actor.id,token=manifestHash});}
+        }
+        // A remote ACK can overtake the host's own queued copy of the manifest; compare it once that copy exists.
+        private void ConfirmManifestAcks()
+        {
+            if(evidence==null) return;
+            foreach(var ack in manifestAcks)
+            {Require(ack.Value==manifestHash,"ACK чужого manifest.");finishedPeers.Add(ack.Key);}
+            if(finishedPeers.Count==runtime.Options.ProbePeers) NetworkServer.SendToAll(new WeaponReloadProbeDone {success=true,detail=$"4 фактические перезарядки, 2 завершения/2 отмены, {runtime.Options.ProbePeers*4} кадров участников; магазины и запас сохранены."});
         }
         private void LateUpdate()=>Guard(()=>
         {
