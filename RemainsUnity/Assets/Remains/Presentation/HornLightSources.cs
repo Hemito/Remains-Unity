@@ -8,7 +8,7 @@ namespace Remains.Presentation
     // The completed PonyVisual supplies both exact horn pose and its confirmed activity; no world/item scans here.
     public sealed class HornLightSources
     {
-        public const float Reach=1.5f,EmitterWidth=.1f,RadianceScale=2;
+        public const float Reach=1.5f,EmitterWidth=.1f,RadianceScale=1;
         private sealed class Entry {public string Id;public readonly Vector4[] Points=new Vector4[1];}
         private readonly Dictionary<string,Entry> entries=new(StringComparer.Ordinal);
         private readonly HashSet<string> retained=new(StringComparer.Ordinal);
