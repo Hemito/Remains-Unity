@@ -27,15 +27,20 @@ namespace Remains.Runtime
         { ["example.mod:metadata"]=new JObject {["owner"]=value,["nested"]=new JArray("данные",true,17),["date"]="2026-10-01T00:00:00Z"} };
         private static bool Intact(ExtensibleState state,string owner)=>state.extensions!=null && state.extensions.TryGetValue("example.mod:metadata",out var value) &&
             JToken.DeepEquals(value,Extra(owner)["example.mod:metadata"]);
+        private static bool InventoryIntact(ActorState actor)=>actor.inventory.All(item=>Intact(item,item.id) &&
+            (item.weaponState==null || Intact(item.weaponState,"weapon:"+item.id)));
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+40;value.CommandSource=Command;
             if(string.IsNullOrEmpty(value.Options.SaveDirectory)) throw new InvalidOperationException("Проверка расширений требует отдельного профиля.");
             // Fixture adds opaque metadata before loading; gameplay below uses normal commands.
             var actor=new ActorState {id="player:"+value.Options.Character,character=value.Options.Character,player=true,level="hub",extensions=Extra(value.Options.Character)};
-            WeaponAmmunition.Initialize(actor,true);
-            foreach(var item in actor.inventory) item.extensions=Extra(item.id);
-            foreach(var magazine in actor.magazines) magazine.extensions=Extra(magazine.weapon);
+            PlayerStarterInventory.Give(actor);
+            foreach(var item in actor.inventory)
+            {
+                item.extensions=Extra(item.id);
+                if(item.weaponState!=null) item.weaponState.extensions=Extra("weapon:"+item.id);
+            }
             initialReserve=InventoryJournal.Count(actor,"p10");value.Session.Saves.SaveCharacter(actor);
             value.Session.ServerReady+=()=>
             {
@@ -46,7 +51,7 @@ namespace Remains.Runtime
             value.Session.ClientReady+=()=>
             {
                 NetworkClient.RegisterHandler<ExtensionProbePhase>(_=>active=true);
-                NetworkClient.RegisterHandler<ExtensionProbeFinish>(_=>Finish(true,"Дополнительные поля мира, персонажа, предметов и магазинов сохранены после передачи, выстрела, перезарядки и записи профиля."));
+                NetworkClient.RegisterHandler<ExtensionProbeFinish>(_=>Finish(true,"Дополнительные поля мира, персонажа, предметов и состояния оружия сохранены после передачи, выстрела, перезарядки и записи профиля."));
             };
         }
         private PlayerCommand Command()
@@ -68,11 +73,11 @@ namespace Remains.Runtime
             if(!active || !reloaded || ProbeWeaponSelection.Magazine(actor,"pistol").rounds!=12 || InventoryJournal.Count(actor,"p10")!=initialReserve-1) return;
             if(!acked)
             {
-                if(!Intact(session.World,"world") || !Intact(actor,runtime.Options.Character) || actor.inventory.Any(i=>!Intact(i,i.id)) || actor.magazines.Any(m=>!Intact(m,m.weapon)))
+                if(!Intact(session.World,"world") || !Intact(actor,runtime.Options.Character) || !InventoryIntact(actor))
                 {Finish(false,"Дополнительные данные потеряны в живом состоянии.");return;}
-                acked=true;session.SaveLocalCharacter();
+                acked=true;session.SaveLocalCharacter();session.FlushSaveWrites();
                 var saved=session.Saves.LoadCharacter();
-                if(InventoryJournal.Count(saved,"p10")!=initialReserve-1 || !Intact(saved,runtime.Options.Character) || saved.inventory.Any(i=>!Intact(i,i.id)))
+                if(InventoryJournal.Count(saved,"p10")!=initialReserve-1 || !Intact(saved,runtime.Options.Character) || !InventoryIntact(saved))
                 {Finish(false,"Дополнительные данные потеряны в файле персонажа.");return;}
                 NetworkClient.Send(new ExtensionProbeAck());
             }

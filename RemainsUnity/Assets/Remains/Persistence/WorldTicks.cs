@@ -214,22 +214,22 @@ namespace Remains.Persistence
         private WorldTickList Diff(string name,System.Collections.IList list,ListMemory before,bool fresh,Func<object,bool> marked,Func<object,bool> motionMarked,bool slow,ref int changed)
         {
             int count=list.Count;
-            var objects=new object[count];
             bool always=SnapshotPartCache.AlwaysSerialized(name);
             // Same objects at the same positions (the usual tick): only marked parts are serialized again.
             bool aligned=!fresh && before.Objects.Length==count;
             for(int i=0;aligned && i<count;i++) aligned=ReferenceEquals(before.Objects[i],list[i]);
+            var objects=aligned?before.Objects:new object[count];
             var keys=aligned?before.Keys:new string[count];
             var hashes=aligned?before.Hashes:new uint[count];
             bool slowList=WorldTickLists.Slow(Array.IndexOf(WorldTickLists.Names,name));
-            var texts=aligned?(string[])before.Texts.Clone():new string[count];
-            var changedKeys=new List<string>();var changedTexts=new List<string>();
+            var texts=aligned?before.Texts:new string[count];
+            List<string> changedKeys=null,changedTexts=null;
             // Actors also change through their own revision (ownership, health, generation) without a mark, as the
             // snapshot composition treats them (SnapshotPartCache.ComposeActor).
             bool actors=name=="actors";
-            var revisions=actors?new long[count]:null;
+            var revisions=actors?(aligned?before.Revisions:new long[count]):null;
             // Flights: serialized while flying and once more when they finish (the landing state), then no longer.
-            var finished=always?new bool[count]:null;
+            var finished=always?(aligned?before.Finished:new bool[count]):null;
             Dictionary<string,string> previousText=null;
             Dictionary<object,int> previousIndex=null;
             if(!aligned && !fresh)
@@ -243,16 +243,18 @@ namespace Remains.Persistence
             }
             for(int i=0;i<count;i++)
             {
-                var item=list[i];objects[i]=item;
-                if(actors) revisions[i]=((ActorState)item)?.revision??0;
-                if(always) finished[i]=item is ProjectileState done && done.finished;
+                var item=list[i];
+                long revision=actors?((ActorState)item)?.revision??0:0;
+                bool ended=always && item is ProjectileState done && done.finished;
                 if(aligned)
                 {
-                    bool revised=actors && before.Revisions.Length==count && revisions[i]!=before.Revisions[i];
+                    bool revised=actors && revision!=before.Revisions[i];
+                    if(revised) Change(ref revisions,before.Revisions,i,revision);
                     bool isMarked=item!=null && marked(item);
                     if(isMarked) Consumed.Add(item);
                     // Flights progress without marks; a finished flight no longer changes.
-                    bool flying=always && !(finished[i] && before.Finished.Length==count && before.Finished[i]);
+                    bool flying=always && !(ended && before.Finished[i]);
+                    if(always && ended!=before.Finished[i]) Change(ref finished,before.Finished,i,ended);
                     // A motion-only change waits for its slot; its stale text is not an unmarked change.
                     bool moved=actors && item!=null && motionMarked!=null && motionMarked(item);
                     bool refresh=moved && InSlot(hashes[i]);
@@ -262,9 +264,14 @@ namespace Remains.Persistence
                     string text=item==null?"null":StateJson.ToJson(item);
                     if(text==texts[i]) continue;
                     if(audited) ReportUnmarked(keys[i],texts[i],text);
-                    texts[i]=text;changedKeys.Add(keys[i]);changedTexts.Add(text);
+                    Change(ref texts,before.Texts,i,text);
+                    (changedKeys??=new List<string>()).Add(keys[i]);
+                    (changedTexts??=new List<string>()).Add(text);
                     continue;
                 }
+                objects[i]=item;
+                if(actors) revisions[i]=revision;
+                if(always) finished[i]=ended;
                 bool markedItem=item!=null && marked(item);
                 if(markedItem) Consumed.Add(item);
                 keys[i]=WorldTickLists.Key(name,item,i);hashes[i]=Hash(keys[i]);
@@ -279,7 +286,8 @@ namespace Remains.Persistence
                 texts[i]=item==null?"null":StateJson.ToJson(item);
                 if(fresh) continue;
                 if(previousText!=null && previousText.TryGetValue(keys[i],out var was) && was==texts[i]) continue;
-                changedKeys.Add(keys[i]);changedTexts.Add(texts[i]);
+                (changedKeys??=new List<string>()).Add(keys[i]);
+                (changedTexts??=new List<string>()).Add(texts[i]);
             }
             string[] removed=null,order=null;
             if(!aligned && !fresh)
@@ -293,9 +301,17 @@ namespace Remains.Persistence
                 if(!sameOrder) order=keys;
             }
             before.Objects=objects;before.Keys=keys;before.Hashes=hashes;before.Texts=texts;if(actors) before.Revisions=revisions;if(always) before.Finished=finished;
-            changed+=changedKeys.Count;
-            if(fresh || changedKeys.Count==0 && removed==null && order==null) return null;
-            return new WorldTickList {name=name,keys=changedKeys.ToArray(),texts=changedTexts.ToArray(),removed=removed,order=order};
+            changed+=changedKeys?.Count??0;
+            if(fresh || changedKeys==null && removed==null && order==null) return null;
+            return new WorldTickList {name=name,keys=changedKeys?.ToArray()??Array.Empty<string>(),
+                texts=changedTexts?.ToArray()??Array.Empty<string>(),removed=removed,order=order};
+        }
+
+        // A prepared recovery may still hold the previous text array on the save worker.
+        private static void Change<T>(ref T[] values,T[] previous,int index,T value)
+        {
+            if(ReferenceEquals(values,previous)) values=(T[])previous.Clone();
+            values[index]=value;
         }
     }
 

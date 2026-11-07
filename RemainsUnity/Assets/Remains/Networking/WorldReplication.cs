@@ -41,6 +41,7 @@ namespace Remains.Networking
             =>SendParts(snapshot,part=> {part.owner=part.offset==0?owner:null;part.actor=part.offset==0?actor:null;part.tickSeq=tickSeq;connection.Send(part);});
         internal static void SendParts(RecoverySnapshot snapshot,Action<WorldPartMessage> send)
         {
+            _=snapshot.Manifest;
             // Packed (PayloadCodec): receivers assemble with SnapshotTransfer.AppendPacked.
             byte[] bytes=PayloadCodec.Pack(snapshot.Utf8);
             if(CpuBaselineCapture.Enabled) PayloadMeasured?.Invoke("full-send",bytes.Length);

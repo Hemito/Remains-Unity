@@ -94,7 +94,8 @@ namespace Remains.Persistence
         }
 
         // Capture on the simulation owner thread before handing immutable bytes to disk I/O.
-        public RecoverySnapshot CaptureWorldSnapshot(WorldState world,Func<WorldState,SnapshotPartCache.Composition> compose=null)
+        public RecoverySnapshot CaptureWorldSnapshot(WorldState world,Func<WorldState,SnapshotPartCache.Composition> compose=null,
+            bool deferManifest=false)
         {
             if(world==null) throw new ArgumentNullException(nameof(world));
             using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: внешний вид"))
@@ -102,7 +103,7 @@ namespace Remains.Persistence
             using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: происхождение контента"))
                 ContentProvenance.Record(ref world.weaponContent,ref world.weaponContentHistory);
             if(world.historyVersion==1) world.checkpointSequence++;
-            return compose==null?RecoverySnapshot.FromWorld(world):RecoverySnapshot.FromComposition(world,compose(world));
+            return compose==null?RecoverySnapshot.FromWorld(world):RecoverySnapshot.FromComposition(world,compose(world),deferManifest);
         }
         public RecoverySnapshot SaveWorld(WorldState world)
         {
@@ -143,6 +144,7 @@ namespace Remains.Persistence
 
         public void SaveRecovery(RecoverySnapshot snapshot)
         {
+            _=snapshot.Manifest;
             EnsureWorldLibrary();
             using var access=SaveAccess.Enter(WorldDirectoryPath);
             // Keep every distinct payload, including branches with identical revision numbers.
@@ -211,8 +213,11 @@ namespace Remains.Persistence
         // The caller freezes actor state before passing this operation to background I/O.
         // Host local clients keep newer canonical heads by setting publishWorld=false.
         public void SaveRecoveryWithCharacter(RecoverySnapshot snapshot,ActorState capturedActor,bool publishWorld=true)
-            =>LocalRecoveryPair.Save(this,snapshot,CaptureCharacterJson(capturedActor),publishWorld,
+        {
+            _=snapshot.Manifest;
+            LocalRecoveryPair.Save(this,snapshot,CaptureCharacterJson(capturedActor),publishWorld,
                 json=>WriteCharacter("character.json",json));
+        }
         public bool RecoverPendingPair()=>LocalRecoveryPair.Recover(this,json=>WriteCharacter("character.json",json));
         private static string CaptureCharacterJson(ActorState actor)
         {

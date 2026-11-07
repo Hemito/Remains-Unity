@@ -65,7 +65,42 @@ namespace Remains.Editor
             Reject(()=>RecoverySnapshot.FromWorld(bad),"Negative level clock accepted");
             bad=world.Copy();bad.extensions["WorldId"]=world.worldId;
             Reject(()=>RecoverySnapshot.FromWorld(bad),"Reserved/case-collision extension accepted");
+            CheckDeferredTickCapture(root,world);
             Debug.Log("Recovery capture: PASS — immutable 135KB payload, first-parse ownership/concurrent consumers, Record/sequence без disk, nested extension/Decimal/alias/receipt, exact known active+flat reuse, external valid archive, same-stamp invalid backup, strict unknown-number/clock/field guards. Own JSON reparse намеренно сохранён.");
+        }
+        private static void CheckDeferredTickCapture(string root,WorldState source)
+        {
+            var world=source.Copy();
+            var store=new SaveStore(Path.Combine(root,"deferred-tick"));
+            var composer=new WorldTickComposer();
+            var snapshot=store.CaptureWorldSnapshot(world,current=>
+            {
+                composer.Next(current,_=>false);
+                return composer.Composition(WorldTickLists.Template(current));
+            },deferManifest:true);
+            string exact=StateJson.ToJson(world);
+            Require(snapshot.JsonLength==exact.Length && !snapshot.TryFileId(out _),
+                "Длина диагностики материализовала SHA либо разошлась с исходным текстом");
+            world.actors[0].x+=12;world.actors[0].revision++;
+            composer.Next(world,_=>false);
+            Task.Run(()=>store.SaveRecovery(snapshot)).GetAwaiter().GetResult();
+            Require(snapshot.Id==RecoverySnapshot.Fingerprint(exact) &&
+                File.ReadAllText(Path.Combine(store.WorldDirectoryPath,"world.json"))==exact &&
+                snapshot.CreateLiveWorld().actors[0].x!=world.actors[0].x,
+                "Последующий тик изменил неизменяемую часть фонового сохранения");
+
+            var next=composer.Composition(WorldTickLists.Template(world));
+            var parts=(SnapshotPartCache.PartSet[])next.Lists.Clone();
+            int slot=Array.FindIndex(parts,set=>set.Name=="actors");
+            var actorParts=parts[slot];
+            parts[slot]=new SnapshotPartCache.PartSet("actors",
+                new[]{actorParts.Keys[0],actorParts.Keys[0]},new[]{actorParts.Texts[0],actorParts.Texts[0]});
+            var invalid=RecoverySnapshot.FromComposition(world,
+                new SnapshotPartCache.Composition(next.Template,parts,next.Parts+1,next.Parsed),deferManifest:true);
+            Reject(()=>Task.Run(()=>store.SaveRecovery(invalid)).GetAwaiter().GetResult(),
+                "Фоновая запись приняла повтор ключа манифеста");
+            Require(File.ReadAllText(Path.Combine(store.WorldDirectoryPath,"world.json"))==exact,
+                "Отклонённый снимок перезаписал сохранение");
         }
         private static void CheckLiveOwnership(RecoverySnapshot source)
         {

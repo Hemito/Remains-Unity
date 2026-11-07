@@ -24,6 +24,7 @@ namespace Remains.Persistence
             }
         }
         private string json;
+        public int JsonLength=>Volatile.Read(ref json)?.Length??SnapshotPartCache.Length(template,parts);
         // The text into a writer: from the parts when it has not been built (no whole-text string for a save).
         public void WriteTo(System.IO.TextWriter writer)
         {
@@ -71,9 +72,13 @@ namespace Remains.Persistence
             }
         }
         public bool TryFileId(out string value) {value=Volatile.Read(ref fileId);return value!=null;}
-        public SnapshotManifest Manifest {get;private set;}
+        private readonly SnapshotManifest parsedManifest;
+        private readonly Lazy<SnapshotManifest> composedManifest;
+        public SnapshotManifest Manifest=>parsedManifest??composedManifest.Value;
         public string ReplicationId=>Manifest.Id;
-        private sealed class ManifestMemory {public SnapshotManifest value;}
+        private static long nextCapture;
+        internal long CaptureSerial {get;}=Interlocked.Increment(ref nextCapture);
+        private sealed class ManifestMemory {public SnapshotManifest value;public long capture;}
         private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<WorldState,ManifestMemory> manifestMemories=new();
         public string WorldId { get; }
         public long Revision { get; }
@@ -100,21 +105,38 @@ namespace Remains.Persistence
             Revision = world.revision;
             fileId = Fingerprint(json);
             var split=SnapshotPartCache.Split(world);
-            Manifest=SnapshotManifest.Build(split.Template,split.Lists);
+            parsedManifest=SnapshotManifest.Build(split.Template,split.Lists);
             preparedLive = world;
         }
 
         // From live state: the text is composed from cached parts (SnapshotPartCache), whose strict parse covers
         // what the whole-text round-trip covered; the world rules are checked on the live world the text was
         // written from. No parsed graph is kept: CreateLiveWorld parses the immutable Json when asked.
-        private RecoverySnapshot(WorldState world,string template,IReadOnlyList<SnapshotPartCache.PartSet> parts,SnapshotManifest previousManifest=null)
+        private RecoverySnapshot(WorldState world,string template,IReadOnlyList<SnapshotPartCache.PartSet> parts,ManifestMemory memory)
         {
             using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: правила мира")) Validate(world);
             this.template=template;this.parts=parts;
             WorldId = world.worldId;
             Revision = world.revision;
-            using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: манифест")) Manifest=SnapshotManifest.Build(template,parts,previousManifest);
+            composedManifest=new Lazy<SnapshotManifest>(()=>BuildManifest(memory));
             producedHere = true;
+        }
+        private SnapshotManifest BuildManifest(ManifestMemory memory)
+        {
+            using var section=Remains.Diagnostics.FrameHitchLog.Section("Снимок: манифест");
+            var manifest=SnapshotManifest.Build(template,parts,Volatile.Read(ref memory.value));
+            lock(memory)
+                if(CaptureSerial>memory.capture)
+                {
+                    memory.capture=CaptureSerial;
+                    Volatile.Write(ref memory.value,manifest);
+                }
+            lock(producedGate)
+            {
+                produced.Enqueue(this);
+                while(produced.Count>ProducedKept) produced.Dequeue();
+            }
+            return manifest;
         }
 
         // A received text: the snapshot object itself when this process produced exactly this text, otherwise the
@@ -186,17 +208,12 @@ namespace Remains.Persistence
             return FromComposition(world,SnapshotPartCache.Compose(world));
         }
         // Transport v2: the composition comes from the world tick composer's part texts (no world serialization).
-        public static RecoverySnapshot FromComposition(WorldState world,SnapshotPartCache.Composition composition)
+        public static RecoverySnapshot FromComposition(WorldState world,SnapshotPartCache.Composition composition,bool deferManifest=false)
         {
             if(world==null || composition==null) throw new ArgumentNullException(world==null?nameof(world):nameof(composition));
             var memory=manifestMemories.GetOrCreateValue(world);
-            var snapshot=new RecoverySnapshot(world,composition.Template,composition.Lists,memory.value) {Composition=composition};
-            memory.value=snapshot.Manifest;
-            lock(producedGate)
-            {
-                produced.Enqueue(snapshot);
-                while(produced.Count>ProducedKept) produced.Dequeue();
-            }
+            var snapshot=new RecoverySnapshot(world,composition.Template,composition.Lists,memory) {Composition=composition};
+            if(!deferManifest) _=snapshot.Manifest;
             return snapshot;
         }
 
@@ -219,23 +236,23 @@ namespace Remains.Persistence
     public sealed class RecoveryReceiptGate
     {
         private sealed class Receipt {public long revision;public string fileId;}
-        private readonly Dictionary<string,Receipt> sent = new();
-        private readonly Queue<string> order = new();
+        private readonly Dictionary<long,Receipt> sent = new();
+        private readonly Queue<long> order = new();
         public int Count=>sent.Count;
         public void Clear() {sent.Clear();order.Clear();}
         public void Register(RecoverySnapshot snapshot)
         {
-            if (sent.ContainsKey(snapshot.ReplicationId)) return;
+            if(sent.ContainsKey(snapshot.CaptureSerial)) return;
             snapshot.TryFileId(out string ready);
-            sent.Add(snapshot.ReplicationId,new Receipt {revision=snapshot.Revision,fileId=ready});
-            order.Enqueue(snapshot.ReplicationId);
+            sent.Add(snapshot.CaptureSerial,new Receipt {revision=snapshot.Revision,fileId=ready});
+            order.Enqueue(snapshot.CaptureSerial);
             while (order.Count > 256) sent.Remove(order.Dequeue());
         }
         // Called on the game thread after the canonical save worker completed. No old payload is retained.
         public void Complete(RecoverySnapshot snapshot)
         {
-            if(!snapshot.TryFileId(out string ready)) throw new InvalidOperationException("Запись снимка завершена без точного SHA: "+snapshot.ReplicationId);
-            if(sent.TryGetValue(snapshot.ReplicationId,out var receipt)) receipt.fileId=ready;
+            if(!snapshot.TryFileId(out string ready)) throw new InvalidOperationException("Запись снимка завершена без точного SHA: "+snapshot.Revision);
+            if(sent.TryGetValue(snapshot.CaptureSerial,out var receipt)) receipt.fileId=ready;
         }
         public bool Pending(long revision)
         {

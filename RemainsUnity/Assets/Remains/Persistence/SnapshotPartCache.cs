@@ -81,6 +81,18 @@ namespace Remains.Persistence
             Write(template,lists,sink);
             return sink.Builder.ToString();
         }
+        public static int Length(string template,IReadOnlyList<PartSet> lists)
+        {
+            var sink=new LengthSink();
+            Write(template,lists,sink);
+            return sink.Count;
+        }
+        private sealed class LengthSink : ITextSink
+        {
+            public int Count {get;private set;}
+            public void Append(string text,int start,int count)=>Count=checked(Count+count);
+            public void Append(char value)=>Count=checked(Count+1);
+        }
         // SHA-256 of Splice(template, lists), streamed: no whole-text string (RecoverySnapshot.Fingerprint).
         public static string Fingerprint(string template,IReadOnlyList<PartSet> lists)
         {

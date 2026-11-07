@@ -221,10 +221,18 @@ namespace Remains.Runtime
                     throw new InvalidOperationException("Завершённый снимок содержит неверные transaction/item/количества резерва.");
                 string archive=Path.Combine("Worlds",snapshot.WorldId,"Snapshots",snapshot.Id+".json");
                 string path=Path.Combine(runtime.Session.Saves.WorldDirectoryPath,archive);
-                if(!File.Exists(path) || File.ReadAllText(path)!=snapshot.Json)
+                // The local replica may still be flushing this immutable archive through a writable handle.
+                // Capture its exact bytes without preventing that flush on Windows.
+                byte[] bytes;
+                using(var archiveFile=new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.ReadWrite|FileShare.Delete))
+                using(var capturedBytes=new MemoryStream())
+                {
+                    archiveFile.CopyTo(capturedBytes);
+                    bytes=capturedBytes.ToArray();
+                }
+                if(new System.Text.UTF8Encoding(false,true).GetString(bytes)!=snapshot.Json)
                     throw new InvalidOperationException($"Точный архив внесения не совпал: snapshot={snapshot.Id}, path={path}.");
-                // Evidence copy of the real durable archive, never a write to the live save.
-                File.Copy(path,runtime.Options.Report+".active-world.json",true);
+                File.WriteAllBytes(runtime.Options.Report+".active-world.json",bytes);
                 capturedSnapshot=snapshot.Id;capturedArchive=archive;captured=true;
             }
             catch(Exception error) {Finish(false,"Не подтверждён durable резерв внесения: "+error.Message);}

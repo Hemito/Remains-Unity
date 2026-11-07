@@ -177,6 +177,7 @@ namespace Remains.Networking
         private readonly SelfHealingReconciliation selfHealing=new(message=>Debug.LogWarning(message));
         public event Action<string,bool> ClaimPrepared;
         public event Action<string,long> RecoveryPrepared;
+        public event Action<RecoverySnapshot> RecoveryCaptured;
         public event Action<RecoverySnapshot> RecoveryPersisted;
         // Optional diagnostics: detached capture and the exact profile from that
         // completed FIFO operation, rather than a later mutable profile head.
@@ -253,12 +254,11 @@ namespace Remains.Networking
         private const double TickIntervalSeconds=.05,SlowTickIntervalSeconds=1,RecoveryIntervalSeconds=3;
         private readonly WorldTickComposer tickComposer=new();
         private readonly HashSet<int> tickReady=new();
-        private readonly Dictionary<string,long> snapshotTickSeq=new(StringComparer.Ordinal);
         private double lastTickAt,lastSlowTickAt,lastRecoveryAt=double.NegativeInfinity;
+        private long lastPreparedRecoveryRevision=long.MinValue;
         private readonly WorldTickReceiver tickReceiver=new();
-        // Delta replication (host-migration.md): the snapshot each connection holds, and the recent host snapshots
-        // a delta can start from. A connection on another base gets a full snapshot.
-        private readonly Dictionary<int,string> deliveredSnapshots=new();
+        // A peer receives its full world before incremental ticks on the reliable channel.
+        private readonly HashSet<int> deliveredSnapshots=new();
         private readonly ResyncLimit resyncLimit=new();
         // The reliable backlog per connection (null without a KCP transport): a peer behind by PauseBacklog segments
         // (~3.5 MB) gets no world ticks until its link drains below ResumeBacklog, then one full world re-bases it.
@@ -281,8 +281,6 @@ namespace Remains.Networking
             public void Clear()=>times.Clear();
         }
         // Tick seq of the last prepared copies (a full world names the tick it includes); a few, not the copies themselves.
-        private readonly Queue<string> preparedSnapshotIds=new();
-        private const int PreparedSnapshotsTracked=4;
         private OwnershipService ownership = new();
         private SharedInventory inventory;
         private readonly HashSet<string> recoveredActors=new();
@@ -303,7 +301,8 @@ namespace Remains.Networking
                 return NetworkServer.connections.TryGetValue(recipient.Key,out var connection)?connection:null;
             });
             serverPoses.Clear();
-            backupRevisions.Clear();recoveryReceipts.Clear();pendingRecoveryAcks.Clear();owners.Clear();playerIds.Clear();deliveredSnapshots.Clear();preparedSnapshotIds.Clear();resyncLimit.Clear();tickReady.Clear();tickPaused.Clear();snapshotTickSeq.Clear();lastRecoveryAt=double.NegativeInfinity;
+            backupRevisions.Clear();recoveryReceipts.Clear();pendingRecoveryAcks.Clear();owners.Clear();playerIds.Clear();deliveredSnapshots.Clear();resyncLimit.Clear();tickReady.Clear();tickPaused.Clear();lastRecoveryAt=double.NegativeInfinity;
+            lastPreparedRecoveryRevision=long.MinValue;
             Travel.RegisterServer();
             ContainerInspection.RegisterServer();
             Mechanisms.RegisterServer();Mines.RegisterServer();Hazards.RegisterServer();
@@ -782,7 +781,7 @@ namespace Remains.Networking
                 // The host's recovery point: the same copy from this client's tick texts, written and acknowledged.
                 RecoverySnapshot copy;
                 using(Remains.Diagnostics.FrameHitchLog.Section("Тик мира: копия восстановления (клиент)"))
-                    copy=RecoverySnapshot.FromComposition(tickReceiver.Canonical,tickReceiver.Texts.Composition(tick.recovery));
+                    copy=RecoverySnapshot.FromComposition(tickReceiver.Canonical,tickReceiver.Texts.Composition(tick.recovery),deferManifest:true);
                 // REMAINS_TICK_DUMP=<folder>: the client's recovery copy by revision, to compare with the host's archive.
                 string dump=Environment.GetEnvironmentVariable("REMAINS_TICK_DUMP");
                 if(!string.IsNullOrEmpty(dump)) System.IO.File.WriteAllText(System.IO.Path.Combine(dump,$"client-{LocalOwner?.Replace(':','_')}-r{copy.Revision}.json"),copy.Json);
@@ -949,17 +948,17 @@ namespace Remains.Networking
 
         public event Action<string,double,int> RecoveryMeasured;
         private long BeginRecoveryMeasurement()=>RecoveryMeasured==null?0:System.Diagnostics.Stopwatch.GetTimestamp();
-        // The text length only when measured: a composed snapshot builds its whole text lazily (RecoverySnapshot.Json).
+        // Measure the exact text length without materializing the complete recovery JSON.
         private void FinishRecoveryMeasurement(string stage,long started,RecoverySnapshot snapshot)
         {
             if(started!=0) RecoveryMeasured?.Invoke(stage,
-                (System.Diagnostics.Stopwatch.GetTimestamp()-started)/(double)System.Diagnostics.Stopwatch.Frequency,snapshot.Json.Length);
+                (System.Diagnostics.Stopwatch.GetTimestamp()-started)/(double)System.Diagnostics.Stopwatch.Frequency,snapshot.JsonLength);
         }
-        private void SendFullWorld(NetworkConnectionToClient connection,RecoverySnapshot snapshot,string owner=null,string actor=null)
+        private void SendFullWorld(NetworkConnectionToClient connection,(RecoverySnapshot Snapshot,long TickSeq) prepared,
+            string owner=null,string actor=null)
         {
-            long seq=snapshotTickSeq.TryGetValue(snapshot.ReplicationId,out long recorded)?recorded:tickComposer.Seq;
-            WorldReplication.Send(connection,snapshot,owner,actor,seq);
-            deliveredSnapshots[connection.connectionId]=snapshot.ReplicationId;
+            WorldReplication.Send(connection,prepared.Snapshot,owner,actor,prepared.TickSeq);
+            deliveredSnapshots.Add(connection.connectionId);
             tickReady.Add(connection.connectionId);   // ticks after seq follow this full world on the same channel
         }
 
@@ -994,12 +993,13 @@ namespace Remains.Networking
                     {completed.Add((pair.Key,pair.Value[i]));pair.Value.RemoveAt(i);}
             foreach(var value in completed) AcceptRecoveryAck(value.peer,value.ack,false);
         }
-        private RecoverySnapshot PrepareRecovery()
+        private (RecoverySnapshot Snapshot,long TickSeq) PrepareRecovery()
         {
             using var timing=TransitionTiming.Measure("snapshot.prepare",ServerWorld?.worldId);
             long started=BeginRecoveryMeasurement();
             RecoverySnapshot snapshot;
             using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: захват")) snapshot=CaptureServerSnapshot();
+            long capturedTick=tickComposer.Seq;
             var store=Saves;
             saveWrites.Enqueue(()=>store.SaveRecovery(snapshot),()=>
             {
@@ -1010,14 +1010,12 @@ namespace Remains.Networking
                 if(ServerWorld?.worldId==snapshot.WorldId) CompleteBackedUpGrants();
             },SaveWriteFailed);
             using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: регистрация")) recoveryReceipts.Register(snapshot);
-            // Every change before this capture is in it; a later tick may repeat some parts (ticks carry absolute states).
-            if(!snapshotTickSeq.ContainsKey(snapshot.ReplicationId)) preparedSnapshotIds.Enqueue(snapshot.ReplicationId);
-            snapshotTickSeq[snapshot.ReplicationId]=tickComposer.Seq;
-            while(preparedSnapshotIds.Count>PreparedSnapshotsTracked) snapshotTickSeq.Remove(preparedSnapshotIds.Dequeue());
+            lastPreparedRecoveryRevision=Math.Max(lastPreparedRecoveryRevision,snapshot.Revision);
+            RecoveryCaptured?.Invoke(snapshot);
             // Legacy diagnostic subscribers explicitly request the file SHA. Ordinary replication never does.
             RecoveryPrepared?.Invoke(snapshot.Id,snapshot.Revision);
             FinishRecoveryMeasurement("recovery-prepared",started,snapshot);
-            return snapshot;
+            return (snapshot,capturedTick);
         }
 
         private void MergeActor(ActorState actor)
@@ -1529,21 +1527,24 @@ namespace Remains.Networking
             using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("Снимок мира");
             Pause.Publish();
             lastRecoveryAt=Time.unscaledTimeAsDouble;
-            RecoverySnapshot snapshot;
-            using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: подготовка")) snapshot=PrepareRecovery();
+            (RecoverySnapshot Snapshot,long TickSeq) prepared;
+            using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: подготовка")) prepared=PrepareRecovery();
             Remains.Diagnostics.FrameHitchLog.Note(SnapshotPartCache.LastReport);
             // Clients compose this copy from the recovery-point tick; only a connection without any full world gets one.
             foreach(int id in owners.Keys)
-                if(!deliveredSnapshots.ContainsKey(id) && NetworkServer.connections.TryGetValue(id,out var connection)) SendFullWorld(connection,snapshot);
+                if(!deliveredSnapshots.Contains(id) && NetworkServer.connections.TryGetValue(id,out var connection)) SendFullWorld(connection,prepared);
             // New authority arrives before its pending hits on the same reliable channel.
             // A generation change must not wait for the periodic retry timer.
             npcHits?.Flush();
         }
 
-        private bool RecoveryDue()=>ServerWorld.pendingGrants.Count>0 || Time.unscaledTimeAsDouble-lastRecoveryAt>=RecoveryIntervalSeconds ||
-            owners.Keys.Any(id=>!deliveredSnapshots.ContainsKey(id));
+        // A reserved deposit needs an exact recovery point before waiting for the participating peers.
+        private bool RecoveryDue()=>ServerWorld.pendingGrants.Count>0 ||
+            ServerWorld.pendingDeposits.Exists(deposit=>deposit.preparedRevision>lastPreparedRecoveryRevision) ||
+            Time.unscaledTimeAsDouble-lastRecoveryAt>=RecoveryIntervalSeconds ||
+            owners.Keys.Any(id=>!deliveredSnapshots.Contains(id));
         // A server-world snapshot, composed from the tick composer after a slow tick (no world serialization).
-        private RecoverySnapshot CaptureServerSnapshot()=>Saves.CaptureWorldSnapshot(ServerWorld,ComposeFromTicks);
+        private RecoverySnapshot CaptureServerSnapshot()=>Saves.CaptureWorldSnapshot(ServerWorld,ComposeFromTicks,deferManifest:true);
         // The capture is a recovery point: its tick carries the template, and each client composes the same copy from
         // its tick texts, writes it in the background and acknowledges it (no snapshot deltas are sent).
         // recoveryPoint=false: a view that is not persisted (an entry preparation); clients must not write a copy the
@@ -1614,14 +1615,14 @@ namespace Remains.Networking
             List<int> drained=null;
             foreach(int id in tickPaused) if(Backlog==null || Backlog.ServerBacklog(id)<=ResumeBacklog) (drained??=new List<int>()).Add(id);
             if(drained==null) return;
-            RecoverySnapshot snapshot=null;
+            (RecoverySnapshot Snapshot,long TickSeq)? prepared=null;
             foreach(int id in drained)
             {
                 tickPaused.Remove(id);
                 if(!NetworkServer.connections.TryGetValue(id,out var connection)) continue;
-                snapshot??=PrepareRecovery();
-                Debug.Log($"Тики мира к клиенту {id} возобновлены: очередь разгружена, отправлен полный мир {snapshot.Id}.",this);
-                SendFullWorld(connection,snapshot);
+                prepared??=PrepareRecovery();
+                Debug.Log($"Тики мира к клиенту {id} возобновлены: очередь разгружена, отправлен полный мир {prepared.Value.Snapshot.Id}.",this);
+                SendFullWorld(connection,prepared.Value);
             }
         }
         public void CommitWorld()
