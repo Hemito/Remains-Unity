@@ -140,6 +140,8 @@ namespace Remains.Presentation
         public Func<float> RevivalProgress {get;set;}
         public Func<bool> RevivalPending {get;set;}
         public Func<float?> ReloadRemaining {get;set;}
+        public Func<ActiveReloadClock> ReloadClock {get;set;}
+        private ActiveReloadBarView reloadBar;
         private Button friendlyFire;
         private Button friendlyDecision;
         private Button leave;
@@ -175,6 +177,7 @@ namespace Remains.Presentation
             });
             quickActions=sessionHud.gameObject;
             feedback=HudFeedbackView.Create(transform);message=feedback.Notice;revival=feedback.Revival;
+            reloadBar=ActiveReloadBarView.Create(transform,worldCamera);
             mainMenu=new MainMenuPanel(transform,
                 ()=>{if(SelectCharacter?.Invoke(character.text)==true) PrepareConnection(copy=>
                 {session.ConfigureHostStartup(copy==null?SessionStartupIntent.NewWorld():SessionStartupIntent.Continue(copy));HostRequested?.Invoke();},true);},
@@ -441,6 +444,7 @@ namespace Remains.Presentation
         {
             bool show=actor!=null && !RoomPresentationPending && !inventory.activeSelf && !PauseMenu.IsOpen && !WorldMap.IsOpen;
             combatHud.Refresh(actor,show,ReloadRemaining?.Invoke());
+            reloadBar.Refresh(ReloadClock?.Invoke(),show?LocalActorArtworkBounds:null,show && !actor.down);
             quickActions.SetActive(show);
             status.transform.parent.gameObject.SetActive(show);
             return show;

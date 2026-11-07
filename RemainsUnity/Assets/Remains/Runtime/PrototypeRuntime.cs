@@ -284,6 +284,7 @@ namespace Remains.Runtime
                 hud.MechanismProgress=()=>MechanismInteraction.Progress;
                 hud.MechanismPending=()=>MechanismInteraction.Pending;
                 hud.ReloadRemaining=()=>Combat.Reload.Active?Combat.Reload.Remaining:(float?)null;
+                hud.ReloadClock=()=>Combat.Reload.Active?Combat.Reload.Clock:null;
                 hud.RevivalProgress=()=>Revival.Progress;hud.RevivalPending=()=>Revival.Pending;
                 hud.EquipWeaponItem=EquipWeaponItem;
                 hud.ConfigureItemActions(ItemActions);
@@ -796,7 +797,7 @@ namespace Remains.Runtime
                 if(HeldItemSelection.HasSelection(actor)) HeldItemPose.Aim(actor,command.aim,Geometry.Get(actor.level));
                 else if(!Combat.IsMeleeActive) WeaponPose.Aim(actor,command.aim,Geometry.Get(actor.level));
             }
-            if(command.reload && !HeldItemSelection.HasSelection(actor) && !Combat.IsMeleeActive) Combat.Reload.Start(actor,Combat.Weapon);
+            if(command.reload && !HeldItemSelection.HasSelection(actor) && !Combat.IsMeleeActive) Combat.Reload.Request(actor,Combat.Weapon);
             if(command.strike) Combat.Strike(actor,command.sprint);
             Revival.Step(InteractionFocus.Target,command.revive,dt);
             Telekinesis.Step(command.telekinesis,command.aim,dt);

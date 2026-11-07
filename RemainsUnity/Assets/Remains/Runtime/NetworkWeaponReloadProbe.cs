@@ -257,7 +257,7 @@ namespace Remains.Runtime
             if(finished)return;
             if(Time.unscaledTime>deadline){Fail($"Таймаут reload: phase={phase}, captures={captures.Count}, starts/stops={starts}/{stops}, resume={resumePhase}; {ReadinessDetail()}");return;}
             if(Actor==null || !NetworkClient.isConnected)return;
-            if(!readySent && Actor.level=="hub" && !runtime.IsLevelPreparing && runtime.ActiveRoomLighting is {IsReady:true,IsUpdating:false} &&
+            if(!readySent && Actor.level=="hub" && !runtime.IsLevelPreparing && runtime.CurrentLevelLighting is {IsReady:true,IsUpdating:false} &&
                 runtime.Session.World.actors.Count(a=>a.player && a.connected)==runtime.Options.ProbePeers)
             {readySent=true;NetworkClient.Send(new WeaponReloadProbeReady {actor=Actor.id,world=runtime.Session.World.worldId});}
             if(Source && begun && phase==0 && current==null && commandCalls==0 && Time.unscaledTime-beginTime>5)

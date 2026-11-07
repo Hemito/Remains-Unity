@@ -35,9 +35,11 @@ namespace Remains.Gameplay
         private string actorId,weapon,weaponItem,world,level;
         private long selectionRevision;
         private int generation,lifecycle;
-        private float remaining;
+        private readonly ActiveReloadClock clock=new();
+        private ActiveReloadSettings settings;
         public bool Active => actorId!=null;
-        public float Remaining => remaining;
+        public float Remaining => clock.Remaining;
+        public ActiveReloadClock Clock=>clock;
         public event System.Action<ActorState,string> Started;
         public event System.Action Finished;
         public WeaponReloadController(CoopSession session) => this.session=session;
@@ -49,28 +51,51 @@ namespace Remains.Gameplay
             if(definition.rechargeSeconds>0) {session.ShowNotice("Оружие подзаряжается автоматически.");return false;}
             if(WeaponAmmunition.ReloadAmount(actor,definition)==0)
             { session.ShowNotice("Перезарядка не нужна или нет подходящих патронов в запасе.");return false; }
+            settings??=ActiveReloadSettings.Load();
+            clock.Start(definition.reloadSeconds,settings.windowStart,settings.windowWidth);
             actorId=actor.id;weapon=selected;generation=actor.generation;lifecycle=actor.lifecycleSequence;
             weaponItem=actor.equippedWeaponItem;
             world=session.World?.worldId;level=actor.level;selectionRevision=actor.weaponSelectionRevision;
-            remaining=definition.reloadSeconds;
             session.ShowNotice("Перезарядка…");
             Started?.Invoke(actor,selected);
             return true;
         }
 
+        // R starts a reload or spends its one optional timing attempt. Programmatic Start
+        // retains its old meaning and never accidentally attempts an active reload.
+        public bool Request(ActorState actor,string selected)
+        {
+            if(!Active) return Start(actor,selected);
+            if(actor?.id!=actorId || !Matches(actor,selected) || session.Pause.IsPaused(actor.level)) return false;
+            var attempt=clock.Press();
+            if(attempt==ActiveReloadAttempt.Succeeded) Complete(actor);
+            else if(attempt==ActiveReloadAttempt.Missed)
+            {
+                Finished?.Invoke();Started?.Invoke(actor,weapon);
+                session.ShowNotice("Промах: перезарядка начата заново.");
+            }
+            return attempt!=ActiveReloadAttempt.Ignored;
+        }
+
+        private bool Matches(ActorState actor,string selected)=>actor!=null && !actor.down && actor.owner==session.LocalOwner && selected==weapon &&
+            session.World?.worldId==world && actor.level==level && actor.weaponSelectionRevision==selectionRevision &&
+            actor.generation==generation && actor.lifecycleSequence==lifecycle &&
+            (actor.weaponInventoryVersion==0 || actor.equippedWeaponItem==weaponItem && WeaponInventory.Available(actor,weapon));
+
         public void Step(string selected,float dt)
         {
             if(!Active) return;
             var actor=session.World?.Find(actorId);
-            if(actor==null || actor.down || actor.owner!=session.LocalOwner || selected!=weapon ||
-                session.World.worldId!=world || actor.level!=level || actor.weaponSelectionRevision!=selectionRevision ||
-                actor.generation!=generation || actor.lifecycleSequence!=lifecycle ||
-                actor.weaponInventoryVersion!=0 && (actor.equippedWeaponItem!=weaponItem || !WeaponInventory.Available(actor,weapon)))
-            {actorId=null;remaining=0;Finished?.Invoke();session.ShowNotice("Перезарядка прервана.");return;}
+            if(!Matches(actor,selected))
+            {actorId=null;clock.Cancel();Finished?.Invoke();session.ShowNotice("Перезарядка прервана.");return;}
             if(session.Pause.IsPaused(actor.level)) return;
-            remaining-=dt;
-            if(remaining>0) return;
-            actorId=null;remaining=0;
+            clock.Advance(dt);
+            if(clock.Running) return;
+            Complete(actor);
+        }
+        private void Complete(ActorState actor)
+        {
+            actorId=null;
             Finished?.Invoke();
             if(WeaponAmmunition.CompleteReload(actor,WeaponCatalog.Get(weapon)))
             {session.PublishActor(actor);session.ShowNotice("Оружие перезаряжено.");}
