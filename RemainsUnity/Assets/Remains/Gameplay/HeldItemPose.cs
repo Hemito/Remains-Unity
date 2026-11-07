@@ -26,12 +26,31 @@ namespace Remains.Gameplay
                 if(ReportNeeded(actor,true)) Debug.LogWarning($"Удерживание: неконечная цель, actor={actor.id}, item={actor.heldItemId ?? actor.equippedWeaponItem}, target={target}.");return false;
             }
             var offset=Vector2.ClampMagnitude(delta,ReachLimit(actor));
+            bool mirrored=delta.x<0;
+            float angle=delta.sqrMagnitude==0?(actor.facing<0?180:0):Mathf.Atan2(delta.y,delta.x)*Mathf.Rad2Deg;
             if(room!=null)
             {
-                foreach(var surface in RoomSurfaces.Near(room,SurfaceContact.QueryBounds(anchor,anchor+offset,ClearanceRadius)))
+                // A released item starts with its full oriented opaque bounds at the held pose.
+                var bounds=HeldItemSelection.Selected(actor) is {} item && DroppedItemShapeCatalog.TryGet(item.definition,out var shape)
+                    ?shape.WorldBounds(angle,mirrored):(Rect?)null;
+                var query=SurfaceContact.QueryBounds(anchor,anchor+offset,ClearanceRadius);
+                if(bounds.HasValue)
+                {
+                    var sweep=SurfaceContact.QueryBounds(anchor,anchor+offset);
+                    query.min=Vector2.Min(query.min,sweep.min+bounds.Value.min);
+                    query.max=Vector2.Max(query.max,sweep.max+bounds.Value.max);
+                }
+                foreach(var surface in RoomSurfaces.Near(room,query))
                 {
                     if(surface.oneWay) continue;
                     var contact=SurfaceContact.Entry(surface,anchor,anchor+offset,ClearanceRadius);
+                    if(bounds is Rect body)
+                    {
+                        var expanded=Rect.MinMaxRect(surface.x-body.xMax,surface.y-body.yMax,
+                            surface.x+surface.width-body.xMin,surface.y+surface.height-body.yMin);
+                        var bodyContact=SurfaceContact.Entry(expanded,anchor,anchor+offset);
+                        if(bodyContact.HasValue && (!contact.HasValue || bodyContact.Value<contact.Value)) contact=bodyContact;
+                    }
                     if(!contact.HasValue) continue;
                     if(contact.Value==0)
                     {
@@ -44,8 +63,8 @@ namespace Remains.Gameplay
             }
             if(actor.id!=null) diagnostics.Remove(actor.id);
             actor.heldItemPoseX=offset.x;actor.heldItemPoseY=offset.y;actor.heldItemPoseValid=true;
-            actor.weaponFlipY=delta.x<0;
-            actor.weaponAngle=delta.sqrMagnitude==0?(actor.facing<0?180:0):Mathf.Atan2(delta.y,delta.x)*Mathf.Rad2Deg;
+            actor.weaponFlipY=mirrored;
+            actor.weaponAngle=angle;
             return true;
         }
         private static bool ReportNeeded(ActorState actor,bool nonfinite,RoomSurface surface=null)

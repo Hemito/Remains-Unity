@@ -47,6 +47,7 @@ namespace Remains.Editor
                     label.alignment=TextAnchor.MiddleCenter;
                 }
                 view.Weapons=ItemShortcutAuthoring.Configure(view.Weapons,root.transform,new Vector2(20,-56));
+                view.WeaponIcons=ItemShortcutAuthoring.IconReferences(view.Weapons);
                 view.Validate();PrefabUtility.SaveAsPrefabAsset(root,path);
             }
             finally {PrefabUtility.UnloadPrefabContents(root);}

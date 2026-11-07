@@ -14,6 +14,7 @@ namespace Remains.Editor
     {
         public static void Run()
         {
+            Anatomy.Load();WeaponCatalog.Load();
             var actor=new ActorState {id="held-contract",owner="local",character="held-character",player=true,connected=true,weaponInventoryVersion=1,level="hub"};
             var ammo=InventoryStacks.Add(actor,SharedInventory.Create("p10",12));
             var grenade=SharedInventory.Create("grenade",1);actor.inventory.Add(grenade);
@@ -58,6 +59,7 @@ namespace Remains.Editor
                 "Удерживаемый предмет прошёл в стену");
             Require(HeldItemPose.Aim(actor,new Vector2(0,-3),room) && HeldItemPose.Mount(actor).y>HeldItemPose.ClearanceRadius,
                 "Удерживаемый предмет прошёл под пол");
+            CheckFloorRelease(actor,floor);
             var invalidRoom=new RoomLayout {platforms=new[]{new RoomSurface {x=-.1f,y=-1,width=.2f,height=3}}};
             Require(!HeldItemPose.Aim(actor,new Vector2(3,1),invalidRoom) && !actor.heldItemPoseValid,
                 "Исходная опора внутри стены принята как готовая поза");
@@ -103,6 +105,18 @@ namespace Remains.Editor
                 "Подтверждение остатка потеряло ссылку на зарезервированную стопку");
             CheckVisualRelease();
             Debug.Log("Удерживаемые вещи: PASS — выбор без расхода, 12 ссылок/alias, резерв, 2D-диапазон, препятствия, выпуск, эпоха, G и единая транзакция.");
+        }
+        private static void CheckFloorRelease(ActorState actor,RoomSurface floor)
+        {
+            var room=new RoomLayout {left=-5,right=5,bottom=-1,platforms=new[]{floor}};
+            var aim=actor.Position+new Vector2(.6f,.05f);
+            Require(HeldItemPose.Aim(actor,aim,room),"Не подготовлен бросок боеприпасов к полу");
+            var launch=HeldItemPose.Capture(actor,aim);
+            var drop=DroppedItemTransfer.Preview(actor,"floor-release","p10",launch.origin,launch.velocity,launch.angle,launch.mirrored);
+            Require(drop.y-drop.anchorHeight>=0,"Корпус боеприпасов при выпуске пересекает пол");
+            for(int i=0;i<60;i++) PropMotion.Step(drop,room,1f/60,null);
+            Require(Mathf.Abs(drop.y-drop.anchorHeight)<.001f && Mathf.Abs(drop.vy)<.001f,
+                "Брошенные к полу боеприпасы не остались на поверхности");
         }
         private static void CheckVisualRelease()
         {

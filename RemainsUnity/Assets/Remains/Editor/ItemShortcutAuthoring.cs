@@ -27,12 +27,14 @@ namespace Remains.Editor
             Edit("Assets/Remains/Resources/Presentation/PersonalInventory.prefab",root=>
             {
                 var view=root.GetComponent<PersonalInventoryView>();
-                view.Weapons=Configure(view.Weapons,root.transform,new Vector2(20,-56));view.Validate();
+                view.Weapons=Configure(view.Weapons,root.transform,new Vector2(20,-56));
+                view.WeaponIcons=IconReferences(view.Weapons);view.Validate();
             });
             Edit("Assets/Remains/Resources/Presentation/CombatHud.prefab",root=>
             {
                 var view=root.GetComponent<CombatHudView>();
                 view.Weapons=Configure(view.Weapons,view.Loadout.transform,new Vector2(14,-6));
+                view.WeaponIcons=IconReferences(view.Weapons);
             });
             SelectedItemHudAuthoring.Apply();
             AssetDatabase.SaveAssets();WeaponInventoryUiChecks.BuildAndRender();
@@ -42,6 +44,13 @@ namespace Remains.Editor
             var root=PrefabUtility.LoadPrefabContents(path);
             try {change(root);PrefabUtility.SaveAsPrefabAsset(root,path);}
             finally {PrefabUtility.UnloadPrefabContents(root);}
+        }
+        public static Image[] IconReferences(Button[] buttons)
+        {
+            var result=new Image[buttons.Length];
+            for(int i=0;i<buttons.Length;i++)
+                result[i]=buttons[i].transform.Find("Иконка предмета")?.GetComponent<Image>();
+            ShortcutIconBindings.Validate(buttons,result);return result;
         }
         public static Button[] Configure(Button[] previous,Transform parent,Vector2 position)
         {

@@ -98,7 +98,7 @@ namespace Remains.Presentation
             for(int i=0;i<weaponButtons.Length;i++)
             {
                 string weapon=i<weapons.Length?weapons[i]:null,slot=ItemShortcuts.Keys[i];
-                weaponIcons[i]=weaponButtons[i].transform.Find("Иконка предмета")?.GetComponent<Image>() ?? throw new InvalidOperationException($"Нет иконки назначения {slot}.");
+                weaponIcons[i]=view.WeaponIcons[i];
                 weaponButtons[i].onClick.AddListener(()=>
                 {
                     var actor=session.LocalActor;

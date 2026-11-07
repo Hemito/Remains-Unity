@@ -18,10 +18,12 @@ namespace Remains.Presentation
         [InspectorName("Шкала здоровья")] public Image Health;
         [InspectorName("Шкала маны")] public Image Mana;
         [InspectorName("Быстрые клавиши предметов")] public Button[] Weapons;
+        [InspectorName("Иконки быстрых клавиш")] public Image[] WeaponIcons;
         [InspectorName("Оружие старых данных: первые четыре клавиши (диагностика)")] public string[] WeaponIds;
         [InspectorName("Кадры предупреждения здоровья")] public Sprite[] HealthWarningFrames;
         public void Validate()
         {
+            ShortcutIconBindings.Validate(Weapons,WeaponIcons);
             if(Vitals==null || Loadout==null || CharacterName==null || HealthText==null || ManaText==null || Ammunition==null ||
                 Grenades==null || GrenadeIcon==null || GrenadeIcon.sprite==null || Health==null || Health.sprite==null || Mana==null || Mana.sprite==null || Weapons==null || WeaponIds==null || Weapons.Length!=Remains.Domain.ItemShortcuts.Keys.Count || WeaponIds.Length!=4)
                 throw new InvalidOperationException("HUD: отсутствуют ссылки или не совпадают кнопки и ID оружия.");

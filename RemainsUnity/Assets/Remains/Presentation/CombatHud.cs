@@ -43,8 +43,7 @@ namespace Remains.Presentation
             for(int i=0;i<weapons.Length;i++)
             {
                 string id=i<ids.Length?ids[i]:null,slot=ItemShortcuts.Keys[i];
-                shortcutIcons[i]=weapons[i].transform.Find("Иконка предмета")?.GetComponent<Image>() ??
-                    throw new InvalidOperationException($"Нет иконки быстрого слота {slot}.");
+                shortcutIcons[i]=view.WeaponIcons[i];
                 weapons[i].onClick.AddListener(()=>
                 {
                     if(displayedActor==null || displayedActor.weaponInventoryVersion!=0 && displayedActor.weaponInventoryVersion!=1) return;

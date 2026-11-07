@@ -50,7 +50,7 @@ namespace Remains.Presentation
         private void Reconcile()
         {
             var listener=session.LocalActor;
-            if(!session.LastChange.Any(WorldChangeKind.Props|WorldChangeKind.Doors) && listener?.level==reconciledLevel && listener!=null) return;
+            if(!session.LastChange.Any(WorldChangeKind.Containers|WorldChangeKind.Props|WorldChangeKind.Doors) && listener?.level==reconciledLevel && listener!=null) return;
             reconciledLevel=listener?.level;
             active.Clear();
             if(session.World!=null && props?.World!=session.World) props=new WorldPropView(session.World);

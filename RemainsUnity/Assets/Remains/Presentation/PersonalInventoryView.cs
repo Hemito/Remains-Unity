@@ -10,6 +10,7 @@ namespace Remains.Presentation
         [InspectorName("Строки предметов")] public Button[] Rows;
         [InspectorName("Иконки строк")] public Image[] Icons;
         [InspectorName("Назначения клавиш")] public Button[] Weapons;
+        [InspectorName("Иконки быстрых клавиш")] public Image[] WeaponIcons;
         [InspectorName("Оружие старых данных: первые четыре клавиши (диагностика)")] public string[] WeaponIds;
         [InspectorName("Иконка выбранного предмета")] public Image DetailIcon;
         [InspectorName("Широкий просмотр оружия")] public Image WeaponPreview;
@@ -33,6 +34,7 @@ namespace Remains.Presentation
         }
         public void Validate()
         {
+            ShortcutIconBindings.Validate(Weapons,WeaponIcons);
             if(Description==null || Description.Content!=Detail || !Description.transform.IsChildOf(transform))
                 throw new InvalidOperationException("Личный инвентарь: не назначена сохранённая прокручиваемая область полного описания.");
             Description.Validate();

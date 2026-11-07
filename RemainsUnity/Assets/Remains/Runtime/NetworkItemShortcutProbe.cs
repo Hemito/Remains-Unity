@@ -27,7 +27,7 @@ namespace Remains.Runtime
         private int phase,total,healBefore,sourceBefore,targetBefore;
         private string sender,recipient,dropId;
         private float deadline;
-        private bool traveled,setup,healIssued,tossIssued,claimIssued,ready,finished,selectionIssued;
+        private bool traveled,setup,healIssued,tossIssued,claimIssued,ready,finished,selectionIssued,stowIssued;
         private bool heldObserved,dropObserved,heldReleased,dropReleased;
         private int visualChangedFrame,phaseStartedFrame;
         private PropView observedDropView;
@@ -82,7 +82,7 @@ namespace Remains.Runtime
                         sourceBefore=InventoryJournal.Count(value.Session.World.Find(sender),"p10");
                         targetBefore=InventoryJournal.Count(value.Session.World.Find(recipient),"p10");
                     }
-                    phase=step.stage+1;tossIssued=claimIssued=ready=selectionIssued=false;dropId=null;
+                    phase=step.stage+1;tossIssued=claimIssued=ready=selectionIssued=stowIssued=false;dropId=null;
                     voicesBeforeThrow.Clear();
                     foreach(var voice in runtime.Audio.GetComponentsInChildren<AudioSource>()) voicesBeforeThrow.Add(voice.GetInstanceID());
                     heldObserved=dropObserved=heldReleased=dropReleased=directSelected=false;phaseStartedFrame=Time.frameCount;observedDropView=null;
@@ -137,6 +137,12 @@ namespace Remains.Runtime
                     var holdAim=actor.Position+new Vector2(.6f,1.25f);
                     if(!selectionIssued)
                     {
+                        // A partial throw leaves the stack held. Stow it before selecting it with the other key.
+                        if(!Direct && phase==4 && HeldItemSelection.Selected(actor)?.definition=="p10")
+                        {
+                            if(stowIssued) {Finish(false,"Клавиша [=] не убрала остаток патронов перед полным броском.");return default;}
+                            stowIssued=true;return new PlayerCommand {weaponShortcut="=",hasAim=true,aim=holdAim};
+                        }
                         selectionIssued=true;heldAt=Time.unscaledTime;
                         selectedCountBefore=InventoryJournal.Count(actor,"p10");selectedUsesBefore=actor.inventoryUses.Count;
                         selectedDropsBefore=runtime.Session.World.containers.Count(container=>container.presentationItem!=null);
@@ -329,6 +335,16 @@ namespace Remains.Runtime
             if(HeldItemSelection.Selected(actor)?.id!=selectedBefore || InventoryJournal.Count(actor,"p10")!=selectedCountBefore || actor.inventoryUses.Count!=selectedUsesBefore)
                 {Finish(false,"Один выбор строки уже использовал предмет.");yield break;}
             var use=runtime.Hud.UseItemRect.GetComponent<Button>();
+            if(phase==4 && selectedBefore==ammo.id)
+            {
+                if(!use.interactable || use.GetComponentInChildren<Text>().text!="Убрать из копыт")
+                    {Finish(false,"UI не предлагает убрать остаток патронов после одиночного броска.");yield break;}
+                yield return UiPointerProbe.Click(runtime.Hud.UseItemRect);
+                actor=runtime.Session.LocalActor;
+                if(!runtime.Hud.InventoryOpen || HeldItemSelection.HasSelection(actor) ||
+                    InventoryJournal.Count(actor,"p10")!=selectedCountBefore || actor.inventoryUses.Count!=selectedUsesBefore)
+                    {Finish(false,"UI не убрал остаток патронов без расхода и закрытия инвентаря.");yield break;}
+            }
             if(!use.interactable || use.GetComponentInChildren<Text>().text!="Взять в копыта")
                 {Finish(false,"UI не показывает доступное действие удерживания патронов.");yield break;}
             yield return UiPointerProbe.Click(runtime.Hud.UseItemRect);
