@@ -18,6 +18,7 @@ namespace Remains.Editor
         {
             Anatomy.Load();PonyVisual.Prepare();
             var settings=MovementSettings.Load();
+            CheckJunctions(settings);
             var trace=new StringBuilder("sequence,rate,facing,tick,inputY,jump,x,y,vy,pose,phase,sampledFrame,drawnClip,drawnFrame,lowestFootY,climbing\n");
             foreach(int rate in new[]{30,60,144})
             foreach(int facing in new[]{-1,1})
@@ -31,6 +32,53 @@ namespace Remains.Editor
             var directory=Path.GetFullPath(Path.Combine(Application.dataPath,"../..", ".reference/tests/ladder-entry"));
             Directory.CreateDirectory(directory);File.WriteAllText(Path.Combine(directory,"commands.csv"),trace.ToString());
             Debug.Log("Вход на лестницу: PASS — обычные Up→stop, Up→Down, Up→jump, фактические четыре контакта и PonyVisual, общий pose/phase без подъёма тела, 30/60/144 Гц, обе стороны, сохранение входа, явный старт climb, проход балки и потолок. Trace: "+directory);
+        }
+
+        public static void RunJunctions()
+        {
+            Anatomy.Load();
+            CheckJunctions(MovementSettings.Load());
+        }
+
+        private static void CheckJunctions(MovementSettings settings)
+        {
+            foreach(int rate in new[]{30,60,144})
+            foreach(int facing in new[]{-1,1})
+                CheckOffsetJunction(rate,facing,settings);
+            Debug.Log("Z-лестницы: PASS — удержание и повторный W, оба направления и порядка, 30/60/144 Гц.");
+        }
+
+        private static void CheckOffsetJunction(int rate,int facing,MovementSettings settings)
+        {
+            var lower=new RoomLadder {x=0,bottom=0,top=3,facing=(LadderFacing)facing};
+            var upper=new RoomLadder {x=.5f*facing,bottom=2.9f,top=6,facing=(LadderFacing)(-facing)};
+            var room=new RoomLayout {id="offset-ladder-junction",left=-6,right=6,bottom=-2,top=10,
+                platforms=new[]{new RoomSurface {x=-6,y=-.4f,width=12,height=.4f},
+                    new RoomSurface {x=-2,y=2.8f,width=4,height=.2f,oneWay=true},
+                    new RoomSurface {x=-2,y=5.8f,width=4,height=.2f,oneWay=true}}};
+            RoomSurfaces.Prepare(room);
+            foreach(bool reversed in new[]{false,true})
+            {
+                room.ladders=reversed?new[]{upper,lower}:new[]{lower,upper};
+                var actor=new ActorState {id="offset-player",player=true,connected=true,x=.62f*facing,y=2.79f};
+                var motion=new MovementController(room,settings);
+                float dt=1f/rate;
+                motion.Step(actor,Vector2.up,false,dt);
+                Require(actor.climbing && actor.facing==facing,"Первый W не захватил нижнюю лестницу");
+                for(int step=0;step<rate && actor.climbing;step++) motion.Step(actor,Vector2.up,false,dt);
+                Require(!actor.climbing && Mathf.Abs(actor.y-lower.top)<.001f,"Нижняя лестница не закончилась на своей площадке");
+                float x=actor.x;
+                for(int step=0;step<rate/2;step++)
+                {
+                    motion.Step(actor,Vector2.up,false,dt);
+                    Require(!actor.climbing && Mathf.Abs(actor.y-lower.top)<.001f && Mathf.Abs(actor.x-x)<.001f,
+                        "Удерживаемый W перескочил с нижней лестницы на верхнюю");
+                }
+                motion.Step(actor,Vector2.zero,false,dt);
+                motion.Step(actor,Vector2.up,false,dt);
+                Require(actor.climbing && actor.facing==-facing && actor.y>lower.top,
+                    "Новый W не захватил верхнюю лестницу после отпускания клавиши");
+            }
         }
 
         private static void CheckFirstUp(int rate,int facing,MovementSettings settings,StringBuilder trace)

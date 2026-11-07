@@ -18,8 +18,10 @@ namespace Remains.Gameplay
         private readonly PassengerMotionRegistry passengers=new();
         private float? droppedSurface;
         private RoomLadder heldLadder;
+        private RoomLadder completedUpwardLadder;
         private string ladderActorId;
         private long ladderGeneration;
+        private int ladderLifecycle;
         public MovementController(RoomLayout room,MovementSettings settings=null,LadderEntryPose ladderEntry=null)
         {
             this.room=room;this.settings=settings??MovementSettings.Load();this.settings.Validate();
@@ -31,16 +33,25 @@ namespace Remains.Gameplay
         {
             if(lookAtX.HasValue && !float.IsFinite(lookAtX.Value))
                 throw new System.InvalidOperationException($"Некорректная цель взгляда: actor={actor?.id}, room={room.id}, lookAtX={lookAtX.Value}.");
-            if(ActorPositionRecovery.Repair(actor,room,"движение")) PositionRecovered?.Invoke(actor);
+            bool recovered=ActorPositionRecovery.Repair(actor,room,"движение");
+            if(recovered) PositionRecovered?.Invoke(actor);
             bool dropPressed=downTap.Step(input.y<-.1f,dt) || dropThrough;
             float accelerationTime=sprintPreparation.AccelerationTime(actor,input.x,sprint,dt,settings.sprintPreparationSeconds);
             if(droppedSurface.HasValue && Mathf.Abs(actor.y-droppedSurface.Value)>RoomSupport.ContactTolerance) droppedSurface=null;
             ActorBodySupport.SetDropping(actor,droppedSurface.HasValue);
             if(room.dynamicSurfaces?.Count>0) passenger??=passengers.ForActor(actor);
-            if (ActorSessionRules.IsPassive(actor)) { PassiveActorMotion.Step(actor,room,dt,settings,passenger);return; }
+            if (ActorSessionRules.IsPassive(actor))
+            {
+                completedUpwardLadder=null;
+                PassiveActorMotion.Step(actor,room,dt,settings,passenger);
+                return;
+            }
             var previous=actor.Position;
             var hull=Anatomy.Movement(actor);
-            var selected=SelectLadder(actor);
+            bool sameLadderActor=ladderActorId==actor.id && ladderGeneration==actor.generation &&
+                ladderLifecycle==actor.lifecycleSequence && !recovered;
+            if(!sameLadderActor || input.y<=.1f) completedUpwardLadder=null;
+            var selected=SelectLadder(actor,sameLadderActor);
             bool wasClimbing=actor.climbing && selected!=null;
             bool detach=jump && input.y<=.1f;
             bool grounded=ActorTerrainMotion.Supported(room,hull,actor.Position) || PassengerMotion.PreviouslySupported(room,hull,actor.Position,dt);
@@ -105,6 +116,11 @@ namespace Remains.Gameplay
                 (actor.y<=selected.bottom+.001f || actor.y>=selected.top-.001f)) ladder=false;
             if(ladder && (input.y>.1f && actor.y>=selected.top-.001f || input.y<-.1f && actor.y<=selected.bottom+.001f))
             {
+                if(actor.player && input.y>.1f)
+                {
+                    completedUpwardLadder=selected;
+                    actor.vx=0;
+                }
                 ladder=false;
                 // A real landing stops the climb; an unsupported end releases the
                 // same body into normal gravity with its existing climb momentum.
@@ -112,16 +128,24 @@ namespace Remains.Gameplay
             }
             actor.climbing=ladder;
             heldLadder=ladder?selected:null;ladderActorId=actor.id;ladderGeneration=actor.generation;
+            ladderLifecycle=actor.lifecycleSequence;
             if(!ladder && lookAtX.HasValue) actor.facing=lookAtX.Value>=actor.x?1:-1;
             StanceAnimation.Select(actor,actor.crouched?(Mathf.Abs(actor.vx)>.1f?"crawl":"crouch"):ladder ? ladderEntry.Select(actor,room) : !supported ? AirbornePose.Select(actor,launched,grounded || wasClimbing || drop) : Mathf.Abs(actor.vx) > 0.1f ? sprint ? "run" : "walk" : "idle",wasCrouched,standingPose,room,slopePose);
         }
-        private RoomLadder SelectLadder(ActorState actor)
+        private RoomLadder SelectLadder(ActorState actor,bool sameLadderActor)
         {
             bool InReach(RoomLadder ladder)=>Mathf.Abs(actor.x-ladder.x-ladder.movementOffset)<.65f &&
                 actor.y>=ladder.bottom-.1f && actor.y<ladder.top+.2f;
             // Overlapping entry envelopes at a Z junction must not change an existing grip.
-            if(actor.climbing && ladderActorId==actor.id && ladderGeneration==actor.generation &&
+            if(actor.climbing && sameLadderActor &&
                 heldLadder!=null && System.Array.IndexOf(room.ladders,heldLadder)>=0 && InReach(heldLadder)) return heldLadder;
+            // End the up gesture at this landing while it is still in reach.
+            if(completedUpwardLadder!=null)
+            {
+                if(actor.y>=completedUpwardLadder.top-.001f && InReach(completedUpwardLadder) &&
+                    System.Array.IndexOf(room.ladders,completedUpwardLadder)>=0) return completedUpwardLadder;
+                completedUpwardLadder=null;
+            }
             RoomLadder selected=null;float bestHeight=float.PositiveInfinity,bestAxis=float.PositiveInfinity;
             foreach(var ladder in room.ladders)
             {
