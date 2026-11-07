@@ -10,7 +10,9 @@ namespace Remains.Presentation
     {
         private readonly Dictionary<Sprite,(Sprite halo,Material material,Bounds bounds)> frames=new();
         private Sprite current;
+        private SpriteRenderer artwork;
         private SpriteRenderer halo;
+        private Vector3 localScale;
         private MaterialPropertyBlock properties;
         private Color currentColor;
         public bool Visible=>halo!=null && halo.enabled;
@@ -39,6 +41,7 @@ namespace Remains.Presentation
                 material.SetFloat("_Border",border);material.SetColor("_Color",color);
                 frames.Add(frame,(haloSprite,material,new Bounds(bounds.center,bounds.size+new Vector3(border*2,border*2,0))));
             }
+            this.artwork=artwork;localScale=transform.localScale;
             halo=gameObject.AddComponent<SpriteRenderer>();
             properties=new MaterialPropertyBlock();
             halo.sortingLayerID=artwork.sortingLayerID;halo.sortingOrder=artwork.sortingOrder+1;SetFrame(sprite);
@@ -62,7 +65,16 @@ namespace Remains.Presentation
             if(sprite==null || !frames.TryGetValue(sprite,out var prepared)) throw new InvalidOperationException("Кадр свечения не подготовлен: "+sprite?.name);
             halo.sprite=prepared.halo;halo.sharedMaterial=prepared.material;halo.localBounds=prepared.bounds;current=sprite;
         }
-        public void Draw(bool held) {if(halo.enabled!=held) halo.enabled=held;}
+        public void Draw(bool held)
+        {
+            if(held)
+            {
+                var scale=new Vector3(artwork.flipX?-localScale.x:localScale.x,
+                    artwork.flipY?-localScale.y:localScale.y,localScale.z);
+                if(transform.localScale!=scale) transform.localScale=scale;
+            }
+            if(halo.enabled!=held) halo.enabled=held;
+        }
         private void OnDestroy()
         {
             foreach(var frame in frames.Values)

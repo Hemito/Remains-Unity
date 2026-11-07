@@ -197,7 +197,7 @@ namespace Remains.Presentation
             {if(generatedView) SpriteArtworkMaterial.Apply(view,sprite);else view.sprite=sprite;}
             if(heldGlow!=null)
             {
-                heldGlow.SetFrame(sprite);heldGlow.Renderer.flipX=view.flipX;heldGlow.Renderer.flipY=view.flipY;
+                heldGlow.SetFrame(sprite);
                 heldGlow.Draw(ActorHoldRules.Active(state) && heldRejection==null);
             }
         }

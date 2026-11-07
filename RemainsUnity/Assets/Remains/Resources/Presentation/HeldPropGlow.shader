@@ -10,7 +10,8 @@ Shader "Remains/HeldPropGlow"
     }
     SubShader
     {
-        Tags { "Queue"="Transparent" "RenderType"="Transparent" }
+        // Expand the quad in local metres before applying the artwork transform.
+        Tags { "Queue"="Transparent" "RenderType"="Transparent" "DisableBatching"="True" }
         Cull Off ZWrite Off Lighting Off
         Blend One OneMinusSrcAlpha
         Pass
@@ -36,7 +37,10 @@ Shader "Remains/HeldPropGlow"
                 float2 feather=_MainTex_TexelSize.xy/_SpriteRect.zw;
                 float2 coverage=smoothstep(-feather,feather,edge);
                 float inside=coverage.x*coverage.y;
-                return tex2D(_MainTex,_SpriteRect.xy+saturate(uv)*_SpriteRect.zw).a*inside;
+                float2 texel=.5*_MainTex_TexelSize.xy;
+                float2 sampleUV=clamp(_SpriteRect.xy+saturate(uv)*_SpriteRect.zw,
+                    _SpriteRect.xy+texel,_SpriteRect.xy+_SpriteRect.zw-texel);
+                return tex2D(_MainTex,sampleUV).a*inside;
             }
             float4 frag(outputData i):SV_Target
             {
