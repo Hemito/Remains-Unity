@@ -205,11 +205,20 @@ namespace Remains.Presentation
         public void RenderMuzzleFlashes(IReadOnlyList<SpriteEmission> emissions,IReadOnlyList<ProjectedLightShadow> masks,IReadOnlyList<string> sourceIds,IReadOnlyList<WorldLightEmission> worldLights=null)
         {
             if(!IsReady || lightView==null) return;
-            try {lightView.Present(viewArea,emissions,masks,sourceIds,worldLights);if(!levelLight.HasPendingPublication)ApplyLampArtwork();}
+            try
+            {
+                lightView.Present(viewArea,emissions,masks,sourceIds,worldLights);
+                if(!levelLight.HasPendingPublication)
+                {
+                    PresentedDoorRevision=AppliedDoorRevision;ApplyLampArtwork();
+                }
+            }
             catch(Exception error) {ReportFailure(error);throw;}
         }
         // Revision of the last door snapshot in the light (-1: none yet); the loader admits actors after it.
         public long AppliedDoorRevision {get;private set;}=-1;
+        // Applied doors change collision and start field work; this revision reached the camera.
+        public long PresentedDoorRevision {get;private set;}=-1;
 
         // Original Box.door_opac: 1 unless the object type sets opac (door1: 0.8). Definition opacity 0 = not set.
         public const double OriginalDoorOpacity=1;
@@ -620,7 +629,7 @@ namespace Remains.Presentation
             shaderContext.Release();
             if(terrain!=null) Destroy(terrain);
             if(ambient!=null) {ambient.SetActive(false);Destroy(ambient);}
-            terrain=ambient=null;root=null;pictures.Clear();doors.Clear();lightDoors.Clear();lamps.Clear();lampByPicture.Clear();darkLamps.Clear();brokenLamps.Clear();pendingLampArtwork.Clear();lampPlacements.Clear();AppliedDoorRevision=-1;AppliedLampRevision=-1;windowRooms=new RectInt(-1,-1,0,0);
+            terrain=ambient=null;root=null;pictures.Clear();doors.Clear();lightDoors.Clear();lamps.Clear();lampByPicture.Clear();darkLamps.Clear();brokenLamps.Clear();pendingLampArtwork.Clear();lampPlacements.Clear();AppliedDoorRevision=PresentedDoorRevision=-1;AppliedLampRevision=-1;windowRooms=new RectInt(-1,-1,0,0);
             shadowSources.Clear();windowSourceIds.Clear();shadowTerrain=null;ShadowSourceRevision++;
             Room=null;PresentationChanged?.Invoke(this);
         }

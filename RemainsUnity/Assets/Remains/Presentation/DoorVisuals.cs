@@ -10,12 +10,14 @@ namespace Remains.Presentation
 {
     public sealed class DoorVisuals : MonoBehaviour
     {
-        private sealed class Entry {public DoorView view;public long revision;public bool open,destroyed;}
+        private sealed class Entry {public DoorView view;public long revision;public bool open,destroyed,pendingArtwork;}
         private readonly Dictionary<string,Entry> views=new(StringComparer.Ordinal);
         private readonly Dictionary<string,DoorView> prefabs=new(StringComparer.Ordinal);
         private CoopSession session;
         private GameplayAudio playback;
         private WorldVisualOrderTable orders;
+        private Func<bool> canPublishArtwork;
+        private bool hasPendingArtwork;
         private string worldId,level;
         public int SoundChanges {get;private set;}
         public int PlayedSounds {get;private set;}
@@ -30,8 +32,21 @@ namespace Remains.Presentation
             if(prefabs.ContainsKey(prefab.Definition.Id)) throw new InvalidOperationException("Повторный префаб проёма: "+prefab.Definition.Id);
             prefabs.Add(prefab.Definition.Id,prefab);
         }
-        public void Initialize(CoopSession value,GameplayAudio audio,WorldVisualOrderTable orderTable)
-        {session=value;playback=audio;orders=orderTable??throw new ArgumentNullException(nameof(orderTable));session.Changed+=Refresh;Refresh();}
+        public void Initialize(CoopSession value,GameplayAudio audio,WorldVisualOrderTable orderTable,Func<bool> canPublishArtwork=null)
+        {
+            session=value;playback=audio;orders=orderTable??throw new ArgumentNullException(nameof(orderTable));
+            this.canPublishArtwork=canPublishArtwork;session.Changed+=Refresh;Refresh();
+        }
+        public void PublishPreparedArtwork()
+        {
+            if(!hasPendingArtwork || canPublishArtwork?.Invoke()==false)return;
+            foreach(var entry in views.Values)
+                if(entry.pendingArtwork)
+                {
+                    entry.view.Show(entry.open,entry.destroyed);entry.view.Artwork.enabled=true;entry.pendingArtwork=false;
+                }
+            hasPendingArtwork=false;
+        }
         public void SetOrders(WorldVisualOrderTable value)=>orders=value??throw new ArgumentNullException(nameof(value));
         // Door views change only with doors, the visible level or the world (CoopSession.LastChange).
         private void Refresh()
@@ -49,6 +64,7 @@ namespace Remains.Presentation
             if(worldId!=world?.worldId || level!=visibleLevel)
             {Clear();worldId=world?.worldId;level=visibleLevel;}
             if(world==null || visibleLevel==null) {Clear();return;}
+            bool publish=canPublishArtwork?.Invoke()!=false;
             var selected=world.doors.Where(d=>d.level==visibleLevel).ToArray();
             var ids=new HashSet<string>(StringComparer.Ordinal);
             foreach(var door in selected)
@@ -90,7 +106,15 @@ namespace Remains.Presentation
                 entry.view.transform.localPosition=new Vector3(door.x+door.width*.5f,door.y,0);
                 var size=entry.view.Definition.Size;
                 entry.view.transform.localScale=new Vector3(door.width/size.x,door.height/size.y,1);
-                entry.view.Show(door);
+                if(publish)
+                {
+                    entry.view.Show(door);entry.view.Artwork.enabled=true;entry.pendingArtwork=false;
+                }
+                else
+                {
+                    if(!exists)entry.view.Artwork.enabled=false;
+                    entry.pendingArtwork=true;hasPendingArtwork=true;
+                }
                 if(exists && door.revision>entry.revision)
                 {
                     var clip=!entry.destroyed && door.Destroyed?entry.view.Definition.DestroySound:
@@ -106,7 +130,7 @@ namespace Remains.Presentation
         }
         private void Remove(string id)
         {var entry=views[id];entry.view.gameObject.SetActive(false);if(Application.isPlaying) Destroy(entry.view.gameObject);else DestroyImmediate(entry.view.gameObject);views.Remove(id);}
-        private void Clear() {foreach(string id in views.Keys.ToArray()) Remove(id);}
+        private void Clear() {foreach(string id in views.Keys.ToArray()) Remove(id);hasPendingArtwork=false;}
         private void OnDestroy() {if(session!=null) session.Changed-=Refresh;}
     }
 }

@@ -18,6 +18,11 @@ namespace Remains.Editor
     {
         public static void RunBatch()
         {
+            try {Run();EditorApplication.Exit(0);}
+            catch(Exception error) {Debug.LogException(error);EditorApplication.Exit(1);}
+        }
+        public static void Run()
+        {
             GameObject visual=null;
             try
             {
@@ -35,6 +40,8 @@ namespace Remains.Editor
                 CheckFactoryConsumers(visual,world,room);
                 view.Synchronize(room,world,1);
                 view.Focus(new Vector2(room.spawnX,room.spawnY));
+                view.SetViewArea(new Rect(room.spawnX-7,room.spawnY-4,14,8));
+                view.RenderMuzzleFlashes(null,null,null);
                 var light=view.Light;int readbacks=LightSpriteShapes.Readbacks;
                 var states=world.doors.Where(door=>door.level==room.id).ToArray();
                 var hatch=states.Where(door=>door.definition=="hatch1").OrderBy(door=>Vector2.Distance(door.Bounds.center,new Vector2(room.spawnX,room.spawnY))).First();
@@ -49,15 +56,16 @@ namespace Remains.Editor
                     timer.Stop();
                     if(!ReferenceEquals(view.Light,light) || LightSpriteShapes.Readbacks!=readbacks || !view.IsReady || view.AppliedDoorRevision!=2+i)
                         throw new InvalidOperationException("Обновление люка пересоздало свет уровня, повторило чтение формы или потеряло готовность/ревизию.");
+                    if(view.PresentedDoorRevision!=1+i)throw new InvalidOperationException("Ревизия света сменилась до композиции кадра.");
+                    view.RenderMuzzleFlashes(null,null,null);
+                    if(view.PresentedDoorRevision!=2+i)throw new InvalidOperationException("Камера не опубликовала свет для новой ревизии двери.");
                     if(hatch.open) openAlpha=alpha;else closedAlpha=alpha;
                     Debug.Log($"Люк: open={hatch.open}, обновление света с GPU-синхронизацией {timer.Elapsed.TotalMilliseconds:F2} мс, чтений форм {readbacks}, поглощение в люке={alpha:F2}.");
                 }
                 hatch.open=initial;
                 if(!(closedAlpha>openAlpha)) throw new InvalidOperationException("Открытый люк не убрал свою альфу препятствия из сцены света.");
                 Debug.Log("FactoryDoorLightChecks: PASS — один свет уровня, никаких повторных чтений форм, закрытие/открытие люка меняет поглощение в сцене света.");
-                EditorApplication.Exit(0);
             }
-            catch(Exception error) {Debug.LogException(error);EditorApplication.Exit(1);}
             finally
             {
                 if(visual!=null) UnityEngine.Object.DestroyImmediate(visual);

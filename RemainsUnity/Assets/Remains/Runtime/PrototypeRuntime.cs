@@ -228,6 +228,7 @@ namespace Remains.Runtime
                     lightArea,worldLightEmissions);
                 using(Remains.Diagnostics.FrameHitchLog.Section("Тени: проекции вспышек")) actorShadows.CollectProjectedLightShadows(projectedFlashShadows);
                 using(Remains.Diagnostics.FrameHitchLog.Section("Свет: вспышки и тени")) ActiveFactoryLighting.RenderMuzzleFlashes(emissions,projectedFlashShadows,interactionVisuals.MuzzleSourceIds,worldLightEmissions);
+                DoorVisuals.PublishPreparedArtwork();
             },(attack,emission)=>
             {
                 if(LevelPresentationReady && ActiveFactoryLighting?.Light!=null)
@@ -256,7 +257,7 @@ namespace Remains.Runtime
             Audio.ObservePickups(Pickup);
             HealingAudio=CreateOwnedObject("Звуки лечения").AddComponent<HealingItemAudio>();HealingAudio.Initialize(Session.HealingAudio,Audio);
             DeathAudio=CreateOwnedObject("Звуки смерти NPC").AddComponent<ActorDeathAudio>();DeathAudio.Initialize(Session,DamageFeedback,Audio);
-            DoorVisuals=CreateOwnedObject("Двери мира").AddComponent<DoorVisuals>();DoorVisuals.Initialize(Session,Audio,visualOrders);
+            DoorVisuals=CreateOwnedObject("Двери мира").AddComponent<DoorVisuals>();DoorVisuals.Initialize(Session,Audio,visualOrders,DoorArtworkReady);
             var mechanismVisuals=CreateOwnedObject("Механизмы мира").AddComponent<MechanismVisuals>();mechanismVisuals.Initialize(Session,Platforms,visualOrders);
             MineVisuals=CreateOwnedObject("Мины мира").AddComponent<MineVisuals>();MineVisuals.Initialize(Session,Audio,visualOrders);
             HazardVisuals=CreateOwnedObject("Ловушки мира").AddComponent<HazardVisuals>();HazardVisuals.Initialize(Session,Audio,visualOrders);
@@ -447,6 +448,13 @@ namespace Remains.Runtime
         }
 
         private void RefreshVisualOrders()=>visualOrders.Reconcile(Session.World,Session.LocalActor?.level,Session.LastChangedParts);
+
+        private bool DoorArtworkReady()
+        {
+            var factory=ActiveFactoryLighting;string level=Session.LocalActor?.level;
+            return factory==null || level==null || factory.Room==null || !ReferenceEquals(factory.Room,Geometry.Find(level)) ||
+                factory.PresentedDoorRevision==Geometry.OcclusionRevision(level);
+        }
 
         private void RefreshRoomOcclusion(string level,RoomLayout room,long revision)
         {
