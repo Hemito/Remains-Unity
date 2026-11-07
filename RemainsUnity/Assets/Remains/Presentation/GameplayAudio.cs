@@ -22,14 +22,21 @@ namespace Remains.Presentation
             public float remaining;
             public bool paused;
             public float gain=1;
+            public string fire;
             public ReloadSoundMessage? reload;
         }
+        private const int MaxFireVoices=8;
         private CoopSession session;
         private LooseItemPickup pickup;
         private ItemPickupAudioCatalog pickupSounds;
         private WeaponReloadController reload;
         private readonly Dictionary<string,SoundEntry> sounds=new();
         private readonly List<Voice> voices=new();
+        private readonly Dictionary<string,Voice> fireVoices=new(StringComparer.Ordinal);
+        private readonly List<(FireAudioPoint Point,float Distance)> audibleFires=new();
+        private readonly HashSet<string> fireIds=new(StringComparer.Ordinal);
+        private FireVisuals fireVisuals;
+        private AudioClip fireCrackle;
         private readonly HashSet<string> seen=new(),missing=new();
         private readonly Queue<string> recent=new();
         // Presentation randomness must not advance a gameplay random sequence.
@@ -96,22 +103,68 @@ namespace Remains.Presentation
             if(PlayContact(clip,actor.level,actor.BodyPosition,1))PickupSounds++;
         }
         public static float Attenuation(float distance)=>Mathf.Clamp01(1-Mathf.Max(0,distance-2)/23);
+        public void ObserveFire(FireVisuals source)
+        {
+            if(fireVisuals!=null) throw new InvalidOperationException("Звук горения уже подключён.");
+            fireCrackle=GameAssets.Load<AudioClip>("Presentation/fire-crackle");
+            if(fireCrackle==null || fireCrackle.samples<=0) throw new InvalidOperationException("Нет петли звука горения.");
+            fireVisuals=source??throw new ArgumentNullException(nameof(source));
+            fireVisuals.AudioFrame+=UpdateFireVoices;
+        }
+
+        private void UpdateFireVoices(IReadOnlyList<FireAudioPoint> points)
+        {
+            if(points.Count==0 && fireVoices.Count==0) return;
+            var listener=session.LocalActor;
+            audibleFires.Clear();fireIds.Clear();
+            if(listener!=null)
+            {
+                var origin=listener.BodyPosition;
+                foreach(var point in points)
+                {
+                    if(point.Level!=listener.level || point.Gain<=0 && !fireVoices.ContainsKey(point.Id)) continue;
+                    float distance=Vector2.Distance(origin,point.Position);
+                    if(Attenuation(distance)>0 && fireIds.Add(point.Id)) audibleFires.Add((point,distance));
+                }
+            }
+            if(audibleFires.Count>MaxFireVoices) audibleFires.Sort((a,b)=>a.Distance.CompareTo(b.Distance));
+            int count=Mathf.Min(audibleFires.Count,MaxFireVoices);
+            fireIds.Clear();
+            for(int i=0;i<count;i++) fireIds.Add(audibleFires[i].Point.Id);
+            for(int i=voices.Count-1;i>=0;i--)
+            {
+                var voice=voices[i];
+                if(voice.fire!=null && (!fireIds.Contains(voice.fire) || voice.level!=listener?.level)) RemoveVoice(i);
+            }
+            for(int i=0;i<count;i++)
+            {
+                var point=audibleFires[i].Point;
+                if(!fireVoices.TryGetValue(point.Id,out var voice))
+                {
+                    voice=Play(fireCrackle,point.Level,point.Position,point.Gain,point.Id);
+                    if(voice!=null) fireVoices.Add(point.Id,voice);
+                }
+                else {voice.position=point.Position;voice.gain=point.Gain;}
+            }
+        }
+
         public bool PlayContact(AudioClip clip,string level,Vector2 position,float gain)
         {
             if(session.LocalActor?.level!=level || session.Pause.IsPaused(level) ||
                 Attenuation(Vector2.Distance(position,session.LocalActor.BodyPosition))<=0) return false;
             return Play(clip,level,position,gain)!=null;
         }
-        private Voice Play(AudioClip clip,string level,Vector2 position,float gain=1)
+        private Voice Play(AudioClip clip,string level,Vector2 position,float gain=1,string fire=null)
         {
             if(voices.Count>=64) {Debug.LogWarning($"Превышен лимит 64 звуков: clip={clip.name}, level={level}.",this);return null;}
             var source=new GameObject("Звук "+clip.name).AddComponent<AudioSource>();source.transform.SetParent(transform,false);
             source.playOnAwake=false;source.spatialBlend=0;source.clip=clip;
+            source.loop=fire!=null;
             // Background verification must not make sound on the user's desktop.
             source.mute=Application.isBatchMode;
             source.volume=Mathf.Clamp01(Volume)*gain*Attenuation(Vector2.Distance(position,session.LocalActor.BodyPosition));
             source.panStereo=mix.Pan(position.x,view.transform.position.x);
-            var voice=new Voice {source=source,level=level,position=position,remaining=clip.length,gain=gain};voices.Add(voice);
+            var voice=new Voice {source=source,level=level,position=position,remaining=source.loop?float.PositiveInfinity:clip.length,gain=gain,fire=fire};voices.Add(voice);
             source.Play();
             if(session.Pause.IsPaused(level)) {source.Pause();voice.paused=true;}
             return voice;
@@ -189,7 +242,8 @@ namespace Remains.Presentation
         }
         private void RemoveVoice(int index)
         {
-            var voice=voices[index];voice.source.Stop();Destroy(voice.source.gameObject);voices.RemoveAt(index);
+            var voice=voices[index];if(voice.fire!=null) fireVoices.Remove(voice.fire);
+            voice.source.Stop();Destroy(voice.source.gameObject);voices.RemoveAt(index);
         }
         private void Update()
         {
@@ -215,6 +269,7 @@ namespace Remains.Presentation
         }
         private void OnDestroy()
         {
+            if(fireVisuals!=null) fireVisuals.AudioFrame-=UpdateFireVoices;
             if(pickup!=null)pickup.Confirmed-=PickupConfirmed;
             if(session!=null) {session.AttackReceived-=Attack;session.ReloadAudio.Received-=RemoteReload;}
             if(reload!=null) {reload.Started-=ReloadStarted;reload.Finished-=ReloadFinished;}
