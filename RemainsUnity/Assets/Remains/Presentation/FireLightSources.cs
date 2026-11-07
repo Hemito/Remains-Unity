@@ -32,7 +32,7 @@ namespace Remains.Presentation
                 float total=0;Vector2 min=new(float.PositiveInfinity,float.PositiveInfinity),max=new(float.NegativeInfinity,float.NegativeInfinity);
                 for(int i=0;i<count;i++)
                 {
-                    var patch=patches[(int)((long)i*patches.Count/count)];var at=wick??patch.position+Vector2.up*.22f;
+                    var patch=patches[(int)((long)i*patches.Count/count)];var at=wick??patch.position+patch.Normal*.22f;
                     float weight=Mathf.Max(.05f,patch.radius*2);points[i]=new Vector4(at.x,at.y,weight,0);total+=weight;min=Vector2.Min(min,at);max=Vector2.Max(max,at);
                 }
                 for(int i=0;i<count;i++)points[i].z/=total;
@@ -46,7 +46,8 @@ namespace Remains.Presentation
         {
             if(previous==null || previous.Length!=current.Count) return false;
             for(int i=0;i<previous.Length;i++)
-                if(!previous[i].position.Equals(current[i].position) || previous[i].radius!=current[i].radius) return false;
+                if(!previous[i].position.Equals(current[i].position) || previous[i].radius!=current[i].radius ||
+                    previous[i].attachment!=current[i].attachment) return false;
             return true;
         }
         public void Bottle(string id,Vector2 position)=>Moving(1,id,position+Vector2.up*.12f,.15f,2.5f);

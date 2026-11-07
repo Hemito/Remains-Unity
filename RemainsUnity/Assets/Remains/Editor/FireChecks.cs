@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Remains.Content;
 using Remains.Domain;
@@ -19,6 +20,7 @@ namespace Remains.Editor
             WeaponCatalog.Load();ActorTypesLoad();
             CheckWick();
             CheckDropletPaths();
+            CheckSurfaceAttachments();
             CheckFireLoopClip();
             var molotov=WeaponCatalog.Get("item:molotov");var incendiary=WeaponCatalog.Get("item:fgren");
             Require(molotov.IsFire && incendiary.IsFire && molotov.fire.shatter && !molotov.fire.radial && incendiary.fire.radial && !incendiary.fire.shatter,
@@ -85,6 +87,8 @@ namespace Remains.Editor
             foreach(string weapon in new[]{"item:molotov","item:fgren"})
             {
                 var room=Room();
+                room.platforms=Array.FindAll(room.platforms,surface=>surface.x!=4);
+                RoomSurfaces.Prepare(room);
                 var profile=WeaponCatalog.Get(weapon).fire;
                 var grenade=new GrenadeState {id="timed-"+weapon,weapon=weapon,level=room.id,x=0,y=1.7f,
                     shattered=profile.shatter,impactVx=8,impactVy=-6,fuel=FireRules.Fuel(profile)};
@@ -115,6 +119,76 @@ namespace Remains.Editor
                     StateJson.ToJson(received).Length<6000,"план не продлил последнее пятно или содержит лишние данные");
             }
             Debug.Log("Полёт горящих капель: PASS — Молотов и граната, план хоста, точный переход в очаг и восстановление.");
+        }
+
+        private static void CheckSurfaceAttachments()
+        {
+            foreach(float origin in new[]{0f,395f})
+            {
+                var room=new RoomLayout {id="surface-fire",left=origin-4,right=origin+4,bottom=origin-2,top=origin+4,
+                    platforms=new[]{new RoomSurface {x=origin-4,y=origin-1,width=8,height=1},
+                        new RoomSurface {x=origin-.85f,y=origin,width=.2f,height=1.25f},
+                        new RoomSurface {x=origin+.65f,y=origin,width=.2f,height=1.25f},
+                        new RoomSurface {x=origin-1,y=origin+1.25f,width=2,height=.2f}}};
+                RoomSurfaces.Prepare(room);
+                var seen=new HashSet<FireAttachment>();
+                for(int seed=0;seed<6;seed++)
+                {
+                    var grenade=new GrenadeState {id="surface-"+seed,weapon="item:fgren",level=room.id,x=origin,y=origin+.8f};
+                    var world=new WorldState {grenades={grenade}};
+                    var fire=StateJson.Copy(FireRules.Ignite(world,grenade,10,room));
+                    foreach(var patch in FireRules.Patches(fire,null))
+                    {
+                        seen.Add(patch.attachment);
+                        float plane=patch.attachment switch
+                        {
+                            FireAttachment.WallLeft=>patch.position.x-(origin+.65f),
+                            FireAttachment.WallRight=>patch.position.x-(origin-.65f),
+                            FireAttachment.Ceiling=>patch.position.y-(origin+1.25f),
+                            _=>patch.position.y-origin
+                        };
+                        Require(Mathf.Abs(plane)<.001f,"очаг не прикреплён к плоскости контакта");
+                        if(patch.attachment==FireAttachment.Floor) continue;
+                        foreach(float edge in new[]{-10f,10f})
+                        {
+                            var onSurface=patch.OffsetAlongSurface(edge);
+                            Require(patch.attachment==FireAttachment.Ceiling
+                                    ? onSurface.x>=origin-1.001f && onSurface.x<=origin+1.001f
+                                    : onSurface.y>=origin-.001f && onSurface.y<=origin+1.251f,
+                                "пламя вышло за край несущей поверхности");
+                        }
+                        var lights=new FireLightSources();lights.Begin();lights.Fire(fire,new[]{patch},1);
+                        var sample=lights.Emissions.Single().Samples.Single();
+                        Require(Vector2.Distance(new Vector2(sample.x,sample.y),patch.position+patch.Normal*.22f)<.001f,
+                            "свет направлен в стену или потолок");
+                        var actor=new ActorState {id="surface-target",anatomy="pony"};
+                        var hull=Anatomy.Movement(actor);
+                        var center=Vector2.up*hull.height*.5f;
+                        float extent=Mathf.Abs(Vector2.Dot(patch.Normal,new Vector2(hull.width,hull.height)*.5f));
+                        actor.Position=patch.position+patch.Normal*(extent+.2f)-center;
+                        Require(FireRules.Touches(patch,actor),"очаг на поверхности не обжигает рядом");
+                        actor.Position=patch.position-patch.Normal*(extent+.2f)-center;
+                        Require(!FireRules.Touches(patch,actor),"очаг обжигает за преградой");
+                        actor.Position=patch.position+patch.Normal*(extent+FireRules.Reach+.1f)-center;
+                        Require(!FireRules.Touches(patch,actor),"очаг обжигает за пределом досягаемости");
+                        float width=Mathf.Abs(Vector2.Dot(patch.Tangent,new Vector2(hull.width,hull.height)*.5f));
+                        actor.Position=patch.OffsetAlongSurface(10)+patch.Tangent*(width+.1f)+patch.Normal*(extent+.2f)-center;
+                        Require(!FireRules.Touches(patch,actor),"очаг обжигает за концом поверхности");
+                    }
+                }
+                Require(seen.Count==4,$"Нет контакта с одной из поверхностей, координаты {origin:R}");
+                room.left=origin-.65f;room.right=origin+.65f;
+                room.platforms=new[]{room.platforms[0],new RoomSurface {x=origin-1,y=origin+1.25f,width=2,height=.2f,oneWay=true}};
+                room.platforms=DoorGeometry.Compose(room.platforms,new[]{new DoorState {id="moving-door",definition="fixture",
+                    level=room.id,surfaceTexture="wall",x=origin+.32f,y=origin,width=.18f,height=1.25f}},room.id);
+                RoomSurfaces.Prepare(room);
+                var loose=new GrenadeState {id="surface-0",weapon="item:fgren",level=room.id,x=origin,y=origin+.8f};
+                var looseWorld=new WorldState {grenades={loose}};
+                var looseFire=FireRules.Ignite(looseWorld,loose,10,room);
+                Require(FireRules.Patches(looseFire,room).All(patch=>patch.attachment==FireAttachment.Floor),
+                    "дверь, односторонняя поверхность или невидимая граница стали стеной горения");
+            }
+            Debug.Log("Очаги на поверхностях: PASS — обе стены, потолок, пол, свет, урон и координаты завода.");
         }
 
         private static void CheckFireLoopClip()

@@ -23,6 +23,8 @@ namespace Remains.Presentation
     public sealed class FireVisuals : MonoBehaviour
     {
         private const float FlameSpacing=.25f,FadeIn=.15f,FadeOut=.6f,TorchScale=.6f,ActorScale=.8f,DropletScale=.28f;
+        private static readonly Quaternion LeftFlame=Quaternion.Euler(0,0,90),RightFlame=Quaternion.Euler(0,0,-90),
+            CeilingFlame=Quaternion.Euler(0,0,180);
         private CoopSession session;private FireController fires;private GrenadeController grenades;private FireArtwork artwork;
         private readonly List<SpriteRenderer> flames=new();private int used;
         private readonly List<FirePatch> activePatches=new();
@@ -83,7 +85,8 @@ namespace Remains.Presentation
                         {
                             float offset=count==1?0:Mathf.Lerp(-patch.radius,patch.radius,i/(float)(count-1));
                             float jitter=Hash(fire.seed,p,i);
-                            Flame(patch.position+Vector2.right*(offset+(jitter-.5f)*FlameSpacing*.5f),.7f+.4f*jitter,patchAge,p*7+i,alpha);
+                            Flame(patch.OffsetAlongSurface(offset+(jitter-.5f)*FlameSpacing*.5f),
+                                .7f+.4f*jitter,patchAge,p*7+i,alpha,patch.attachment);
                         }
                     }
                     Lights.Fire(fire,activePatches,lightGain);
@@ -131,7 +134,7 @@ namespace Remains.Presentation
             audioPoints.Add(new FireAudioPoint(fire.id,fire.level,nearest,activePatches.Count==0?.4f:.75f*gain));
         }
 
-        private void Flame(Vector2 at,float scale,float age,int phase,float alpha)
+        private void Flame(Vector2 at,float scale,float age,int phase,float alpha,FireAttachment attachment=FireAttachment.Floor)
         {
             if(used==flames.Count)
             {
@@ -143,6 +146,14 @@ namespace Remains.Presentation
             var frames=artwork.Frames;int frame=(int)(age*artwork.FramesPerSecond+(phase&0xFFFF))%frames.Length;
             renderer.sprite=frames[frame<0?frame+frames.Length:frame];renderer.enabled=true;
             renderer.transform.position=new Vector3(at.x,at.y,0);renderer.transform.localScale=new Vector3(scale,scale,1);
+            var orientation=attachment switch
+            {
+                FireAttachment.WallLeft=>LeftFlame,
+                FireAttachment.WallRight=>RightFlame,
+                FireAttachment.Ceiling=>CeilingFlame,
+                _=>Quaternion.identity
+            };
+            if(renderer.transform.rotation!=orientation) renderer.transform.rotation=orientation;
             properties.SetFloat("_Emission",1);properties.SetColor("_Color",new Color(1,1,1,alpha));renderer.SetPropertyBlock(properties);
         }
         private Vector2 WickOffset(string weapon)
