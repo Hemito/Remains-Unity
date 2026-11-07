@@ -5,6 +5,8 @@
 #pragma kernel AddField
 #pragma kernel LitRects
 
+#include "LightRangeWeight.hlsl"
+
 Texture2D<float> _Scene;                 // per-texel absorption (LevelLightScene)
 StructuredBuffer<float4> _Samples;       // xy world point, z normalised weight; this source's from _SampleOffset
 RWTexture2D<float4> _Field;              // the source's field, aligned to the level grid at _FieldOrigin
@@ -50,7 +52,7 @@ float3 Irradiance(float2 target)
     [loop] for(int i=0;i<_SampleCount;i++)
     {
         float4 source=_Samples[_SampleOffset+i];float distanceWorld=distance(target,source.xy);
-        float edge=1-smoothstep(_Radius*0.9,_Radius,distanceWorld);
+        float edge=LightRangeWeight(distanceWorld,_Radius);
         if(edge<=0) continue;
         // Finite angular extent of this part of the form: far field width/distance, no divergence at the point.
         float patchWidth=source.z*_ProjectedWidth;

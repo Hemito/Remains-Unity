@@ -13,15 +13,50 @@ namespace Remains.Editor
     {
         private static string Output=>Path.GetFullPath("../.reference/world-light-20261106");
         [Serializable] private sealed class Report
-        {public bool success;public int stableBuilds,movingBuilds,doorBuilds;public float maskError;public long cachedBytes;}
+        {public bool success;public int stableBuilds,movingBuilds,doorBuilds;public float maskError;public long cachedBytes;
+            public float[] rangeDistances,rayRange,polarRange;}
         public static void RunBatch()
         {try{Run();EditorApplication.Exit(0);}catch(Exception error){Debug.LogException(error);EditorApplication.Exit(1);}}
         public static void Run()
         {
             Directory.CreateDirectory(Output);var report=new Report();long before=LightTextureBudget.Bytes;
-            Check(report);Require(LightTextureBudget.Bytes==before,"Утечка текстур: "+(LightTextureBudget.Bytes-before));
+            CheckRange(report);Check(report);Require(LightTextureBudget.Bytes==before,"Утечка текстур: "+(LightTextureBudget.Bytes-before));
             CheckFireSources();CheckAffine();report.success=true;File.WriteAllText(Path.Combine(Output,"checks.json"),JsonUtility.ToJson(report,true));
-            Debug.Log("WorldLightChecks PASS: цвет, маски, fade без transport, движение своего источника, дверь, expiry, пустой кадр, Dispose.");
+            Debug.Log("WorldLightChecks PASS: затухание по дальности, цвет, маски, fade без transport, движение своего источника, дверь, expiry, пустой кадр, Dispose.");
+        }
+        private static void CheckRange(Report report)
+        {
+            const int pixelsPerMetre=10, sourceX=10, sourceY=19;
+            const float width=.4f;
+            var point=new Vector2((sourceX+.5f)/pixelsPerMetre,(sourceY+.5f)/pixelsPerMetre);
+            using var scene=new LevelLightScene(new float[120,40],Vector2.zero,pixelsPerMetre,Array.Empty<LevelLightScene.ObjectSprite>());
+            foreach(float reach in new[]{.8f,8f})
+            {
+                var source=new LevelLightSource("range",LevelLightSourceKind.Lamp,new[]{new Vector4(point.x,point.y,1,0)},
+                    Color.white,width,reach,new Rect(point-Vector2.one*.01f,Vector2.one*.02f),new RectInt(0,0,120,40),true);
+                var sources=new LevelLightSources(new[]{source},120,40);
+                using var rays=new DirectLight(scene,sources,8*1024*1024);
+                using var polar=new PolarDirectLight(scene,sources,8*1024*1024);
+                rays.BuildAll();polar.BuildAll();
+                var rayPixels=Read(rays.Sum);var polarPixels=Read(polar.Sum);
+                int last=Mathf.RoundToInt(reach*pixelsPerMetre)+2;
+                var distances=new float[last+1];var raySamples=new float[last+1];var polarSamples=new float[last+1];
+                float reference=Mathf.Min(1,reach/4);
+                float referenceWindow=1-Mathf.Pow(reference/reach,2);
+                for(int offset=0;offset<=last;offset++)
+                {
+                    float distance=offset/(float)pixelsPerMetre;
+                    float window=Mathf.Max(0,1-Mathf.Pow(distance/reach,2))/referenceWindow;
+                    float expected=2*Mathf.Atan(width/(2*Mathf.Max(distance,.5f/pixelsPerMetre)))*window*window;
+                    int sample=sourceY*rays.Sum.width+sourceX+offset;
+                    float ray=rayPixels[sample].r,pol=polarPixels[sample].r;
+                    float tolerance=Mathf.Max(.00003f,expected*.0015f);
+                    Require(Mathf.Abs(ray-expected)<tolerance && Mathf.Abs(pol-expected)<tolerance,
+                        $"Дальность {reach} м, отсчёт {distance} м: ожидается {expected}, лучи {ray}, полярный {pol}.");
+                    distances[offset]=distance;raySamples[offset]=ray;polarSamples[offset]=pol;
+                }
+                report.rangeDistances=distances;report.rayRange=raySamples;report.polarRange=polarSamples;
+            }
         }
         private static WorldLightEmission Point(string id,Vector2 at,Color color,float gain=1)
             =>new(id,new[]{new Vector4(at.x,at.y,1,0)},new Rect(at-Vector2.one*.02f,Vector2.one*.04f),color,.3f,4,gain);

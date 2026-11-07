@@ -5,6 +5,8 @@
 #pragma kernel RenderExact
 #pragma kernel ValidateFalloff
 
+#include "../../Resources/Presentation/LightRangeWeight.hlsl"
+
 Texture2D<float> _Scene;
 StructuredBuffer<float> _MarchDistances;
 RWTexture2D<float> _MapOut;
@@ -92,21 +94,12 @@ float ExactTransmission(float2 target)
     }
     return transmission;
 }
-float RangeWeight(float distanceWorld)
-{
-    // Fade across the entire range, not a bright disk followed by an 80cm cutoff.
-    // Both value and first derivative reach zero at R. Preserve brightness at 1m (or R/4 for tiny lights).
-    float window=saturate(1-distanceWorld*distanceWorld/(_Radius*_Radius));
-    float reference=min(1,_Radius*.25)/_Radius;
-    float normalise=1-reference*reference;
-    return window*window/(normalise*normalise);
-}
 float UnboundedPower(float distanceWorld)
 {return _SourcePower*2*atan(_ProjectedWidth/(2*max(distanceWorld,.5/_PPU)));}
 float3 Irradiance(float2 target,bool exact)
 {
     float2 delta=target-_Source;float distanceWorld=length(delta);
-    float edge=RangeWeight(distanceWorld);
+    float edge=LightRangeWeight(distanceWorld,_Radius);
     if(edge<=0) return 0;
     float transmission=exact?ExactTransmission(target):PolarTransmission(delta,distanceWorld);
     return _SourceColor.rgb*(UnboundedPower(distanceWorld)*edge*transmission);
@@ -117,7 +110,7 @@ void ValidateFalloff(uint3 id:SV_DispatchThreadID)
 {
     if(any(id.xy>=uint2(_OutputSize)))return;
     float2 world=_OutputRect.xy+(float2(id.xy)+.5)/_OutputSize*_OutputRect.zw;
-    float d=distance(world,_Source),raw=UnboundedPower(d),weight=RangeWeight(d);
+    float d=distance(world,_Source),raw=UnboundedPower(d),weight=LightRangeWeight(d,_Radius);
     _FalloffDiagnostic[id.xy]=float4(raw,weight,raw*weight,d);
 }
 float3 Receiver(float2 world,bool exact)

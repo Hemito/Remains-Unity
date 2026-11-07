@@ -9,6 +9,8 @@
 #pragma kernel Detail
 #pragma kernel DetailFlash
 
+#include "LightRangeWeight.hlsl"
+
 Texture2D<float> _Scene;
 StructuredBuffer<float4> _Samples;
 StructuredBuffer<float> _MarchDistances;
@@ -110,7 +112,7 @@ float3 Irradiance(float2 target,bool exact)
     [loop] for(int pointIndex=0;pointIndex<_SampleCount;pointIndex++)
     {
         float4 source=_Samples[_SampleOffset+pointIndex];float2 delta=target-source.xy;float d=length(delta);
-        float edge=1-smoothstep(_Radius*.9,_Radius,d);
+        float edge=LightRangeWeight(d,_Radius);
         if(edge<=0)continue;
         ActiveSample=pointIndex;
         float transmission=exact?ExactTransmission(source.xy,target):PolarTransmission(delta,d);
