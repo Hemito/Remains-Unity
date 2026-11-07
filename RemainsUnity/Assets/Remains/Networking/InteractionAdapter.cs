@@ -178,8 +178,8 @@ namespace Remains.Networking
                 !float.IsFinite(message.remaining) || message.remaining<0 || message.remaining>grenade.remaining+.001f)
             {Debug.LogWarning($"Некорректное состояние гранаты: id={message.id}, generation={message.generation}, remaining={message.remaining}.");return;}
             bool fire=message.detonate && WeaponCatalog.Get(grenade.weapon).IsFire;
-            var room=message.detonate && !fire && grenadeRoom!=null
-                ? grenadeRoom(grenade.level)??RoomLayout.Load(grenade.level,session.ServerWorld) : null;
+            var room=message.detonate && !fire && roomForLevel!=null
+                ? roomForLevel(grenade.level)??RoomLayout.Load(grenade.level,session.ServerWorld) : null;
             Apply(grenade,message);
             if(fire)
             {
