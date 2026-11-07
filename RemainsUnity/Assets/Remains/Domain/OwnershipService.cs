@@ -95,6 +95,9 @@ namespace Remains.Domain
                 // simulates it, as an untargeted NPC, so the one who bumps or shoots a box usually owns it already.
                 var current=active.FirstOrDefault(a=>a.owner==prop.owner && a.level==prop.level);
                 if(prop.held && current!=null) continue;
+                // A resting body stays with an owner still on its level until someone acts on it (decisions.md, 2026-11-07):
+                // nearest-player handoff of every resting body made each walk resend hundreds of parts.
+                if(!prop.held && prop.vx==0 && prop.vy==0 && OwnerOnLevel(connected,prop)) continue;
                 // An incapacitated connected player still runs a client and keeps
                 // this level active. Use its real connection ID when nobody stands.
                 var candidate=connected.Where(a=>a.level==prop.level).OrderBy(a=>a.down?1:0)
@@ -111,6 +114,12 @@ namespace Remains.Domain
                 changed=true;
             }
             return changed;
+        }
+        private static bool OwnerOnLevel(ActorState[] connected,PropState prop)
+        {
+            if(string.IsNullOrEmpty(prop.owner)) return false;
+            foreach(var actor in connected) if(actor.owner==prop.owner && actor.level==prop.level) return true;
+            return false;
         }
     }
 }
