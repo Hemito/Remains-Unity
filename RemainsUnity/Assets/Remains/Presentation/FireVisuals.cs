@@ -16,6 +16,7 @@ namespace Remains.Presentation
         private CoopSession session;private FireController fires;private GrenadeController grenades;private FireArtwork artwork;
         private readonly List<SpriteRenderer> flames=new();private int used;
         private readonly Dictionary<string,SpriteRenderer> bottles=new(System.StringComparer.Ordinal);
+        private readonly Dictionary<string,Vector2> wickOffsets=new(System.StringComparer.Ordinal);
         private readonly HashSet<string> shownBottles=new(System.StringComparer.Ordinal);
         private readonly List<string> gone=new();
         private MaterialPropertyBlock properties;
@@ -38,11 +39,17 @@ namespace Remains.Presentation
                     var patches=fires.Patches(fire);if(patches==null) continue;
                     float age=(float)(now-fire.start),left=(float)(fire.start+FireRules.Duration(fire)-now);
                     float alpha=Mathf.Clamp01(age/FadeIn)*Mathf.Clamp01(left/FadeOut);
+                    if(fire.torch && patches.Count>0)
+                    {
+                        var wick=Bottle(fire,patches[0].position);
+                        Lights.Fire(fire,patches,alpha,wick);
+                        Flame(wick,TorchScale,age,0,alpha);
+                        continue;
+                    }
                     Lights.Fire(fire,patches,alpha);
                     for(int p=0;p<patches.Count;p++)
                     {
                         var patch=patches[p];
-                        if(fire.torch) {Bottle(fire,patch.position);Flame(patch.position+Vector2.right*.12f,TorchScale,age,p,alpha);continue;}
                         int count=Mathf.Max(1,Mathf.RoundToInt(patch.radius*2/FlameSpacing));
                         for(int i=0;i<count;i++)
                         {
@@ -55,7 +62,11 @@ namespace Remains.Presentation
                 // A lit bottle in flight burns at its neck.
                 foreach(var flight in grenades.Flights)
                     if(flight.state.level==viewer.level && flight.state.fuel>0 && WeaponCatalog.Get(flight.state.weapon) is {IsFire:true,fire:{shatter:true}})
-                    {Flame(flight.position,TorchScale*.8f,(float)now,flight.state.id.GetHashCode(),1);Lights.Bottle(flight.state.id,flight.position);}
+                    {
+                        var wick=GrenadeArtwork.WickPosition(flight.position,flight.state.angle,flight.state.mirrored,WickOffset(flight.state.weapon));
+                        Flame(wick,TorchScale*.8f,(float)now,flight.state.id.GetHashCode(),1);
+                        Lights.Bottle(flight.state.id,wick);
+                    }
                 foreach(var actor in world.actors)
                     if(actor.level==viewer.level && actor.burnLevel==actor.level && actor.burnUntil>now && ActorPresence.IsPresent(actor))
                     {Flame(actor.BodyPosition+Vector2.down*.3f,ActorScale,(float)now,actor.id.GetHashCode(),1);Lights.Actor(actor.id,actor.BodyPosition);}
@@ -86,7 +97,17 @@ namespace Remains.Presentation
             renderer.transform.position=new Vector3(at.x,at.y,0);renderer.transform.localScale=new Vector3(scale,scale,1);
             properties.SetFloat("_Emission",1);properties.SetColor("_Color",new Color(1,1,1,alpha));renderer.SetPropertyBlock(properties);
         }
-        private void Bottle(FireState fire,Vector2 at)
+        private Vector2 WickOffset(string weapon)
+        {
+            if(!wickOffsets.TryGetValue(weapon,out var offset))
+            {
+                offset=GrenadeArtwork.WickOffset(GrenadeArtwork.LoadPrefab(weapon));
+                wickOffsets.Add(weapon,offset);
+            }
+            return offset;
+        }
+
+        private Vector2 Bottle(FireState fire,Vector2 at)
         {
             if(!bottles.TryGetValue(fire.id,out var bottle))
             {
@@ -94,6 +115,7 @@ namespace Remains.Presentation
                 bottle.transform.rotation=Quaternion.Euler(0,0,90);bottles.Add(fire.id,bottle);
             }
             shownBottles.Add(fire.id);bottle.enabled=true;bottle.transform.position=new Vector3(at.x,at.y+.06f,0);
+            return GrenadeArtwork.WickPosition(bottle.transform.position,bottle.transform.eulerAngles.z,bottle.flipY,WickOffset(fire.weapon));
         }
         private static float Hash(int seed,int patch,int flame)
         {

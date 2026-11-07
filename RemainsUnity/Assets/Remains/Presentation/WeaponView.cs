@@ -9,11 +9,13 @@ namespace Remains.Presentation
         [SerializeField,InspectorName("ID графики оружия")] private string id;
         [SerializeField,InspectorName("Основной спрайт")] private SpriteRenderer artwork;
         [SerializeField,InspectorName("Дуло (для стрелкового оружия)")] private Transform muzzle;
+        [SerializeField,InspectorName("Фитиль бутылки")] private Transform wick;
         [SerializeField,InspectorName("Кадр покоя и исходная регистрация")] private CatalogSpriteReference restReference;
         private MaterialPropertyBlock properties;
         public string Id=>id;
         public SpriteRenderer Artwork=>artwork;
         public Transform Muzzle=>muzzle;
+        public Transform Wick=>wick;
         // Source geometry belongs to authoring, independently of the screen-dependent drawing resolution.
         public CatalogSpriteReference RestReference=>restReference!=null && restReference.IsConfigured?restReference:
             artwork!=null && artwork.sprite!=null?CatalogSpriteReference.FromSprite(artwork.sprite):null;
@@ -38,6 +40,7 @@ namespace Remains.Presentation
             artwork.flipY=false;
         }
         public void Configure(string value,SpriteRenderer renderer,Transform barrel) {id=value;artwork=renderer;muzzle=barrel;}
+        public void ConfigureWick(Transform attachment)=>wick=attachment;
         public WeaponRig ReadRig()
         {
             if(artwork==null || artwork.transform!=transform || transform.localScale!=Vector3.one)

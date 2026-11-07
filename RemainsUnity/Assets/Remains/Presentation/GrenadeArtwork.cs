@@ -33,5 +33,18 @@ namespace Remains.Presentation
             }
             return prefab.sprite??throw new InvalidOperationException($"Префаб гранаты {prefab.name}: нет прямого рисунка или ссылки каталога.");
         }
+
+        public static Vector2 WickOffset(SpriteRenderer prefab)
+        {
+            var wick=prefab.GetComponent<WeaponView>()?.Wick;
+            return wick==null?Vector2.zero:
+                Vector2.Scale(prefab.transform.InverseTransformPoint(wick.position),prefab.transform.localScale);
+        }
+
+        public static Vector2 WickPosition(Vector2 position,float angle,bool mirrored,Vector2 offset)
+        {
+            if(mirrored) offset.y=-offset.y;
+            return position+(Vector2)(Quaternion.Euler(0,0,angle)*offset);
+        }
     }
 }

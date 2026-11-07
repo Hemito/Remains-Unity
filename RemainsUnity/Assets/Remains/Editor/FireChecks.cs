@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using Remains.Content;
 using Remains.Domain;
+using Remains.Presentation;
 using UnityEngine;
 
 namespace Remains.Editor
@@ -15,6 +16,7 @@ namespace Remains.Editor
         public static void Run()
         {
             WeaponCatalog.Load();ActorTypesLoad();
+            CheckWick();
             var molotov=WeaponCatalog.Get("item:molotov");var incendiary=WeaponCatalog.Get("item:fgren");
             Require(molotov.IsFire && incendiary.IsFire && molotov.fire.shatter && !molotov.fire.radial && incendiary.fire.radial && !incendiary.fire.shatter,
                 "коктейль — бутылка с инерцией, зажигательная — граната во все стороны");
@@ -75,6 +77,22 @@ namespace Remains.Editor
             Require(!FireRules.Expire(world,_=>4) && FireRules.Expire(world,_=>3+FireRules.Duration(broke)+.01) && world.fires.Count==1 && world.fires[0]==lit,"догоревший огонь убирается");
             Debug.Log($"Огонь: PASS — оригинальные числа, порог разбивания, брызги бутылки {splash.Count} по ходу и до стены, граната во все стороны, повторяемость, горелка, вспышки, касание, хост и догорание.");
         }
+        private static void CheckWick()
+        {
+            var prefab=GrenadeArtwork.LoadPrefab("item:molotov");
+            var offset=GrenadeArtwork.WickOffset(prefab);
+            Require(Vector2.Distance(offset,new Vector2(.032f,.433f))<.0001f,
+                "фитиль не совпал с исходным пикселем горлышка");
+            var origin=new Vector2(4,5);
+            foreach(var (angle,mirrored,expected) in new[]{
+                (0f,false,new Vector2(.032f,.433f)),(90f,false,new Vector2(-.433f,.032f)),
+                (180f,false,new Vector2(-.032f,-.433f)),(270f,false,new Vector2(.433f,-.032f)),
+                (0f,true,new Vector2(.032f,-.433f)),(90f,true,new Vector2(.433f,.032f))})
+                Require(Vector2.Distance(GrenadeArtwork.WickPosition(origin,angle,mirrored,offset),origin+expected)<.0001f,
+                    $"поворот или отражение переместили фитиль, angle={angle}, mirrored={mirrored}");
+            Debug.Log("Фитиль Молотова: PASS — исходный кадр, четыре угла и отражение.");
+        }
+
         private static void ActorTypesLoad() {ActorTypes.Load();Anatomy.Load();}
         private static RoomLayout Room(float floor=0)
         {

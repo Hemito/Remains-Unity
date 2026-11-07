@@ -72,6 +72,7 @@ namespace Remains.Editor
                 renderer.sharedMaterial=AssetDatabase.LoadAssetAtPath<Material>(PrefabFolder+"/"+file+".mat");
                 var artwork=node.AddComponent<WeaponView>();artwork.Configure(id,renderer,null);
                 artwork.ConfigureRest(CatalogSpriteAuthoring.Reference(flying[0]));
+                if(id=="item:molotov") ConfigureMolotovWick(artwork,flying[0]);
                 flight=PrefabUtility.SaveAsPrefabAsset(node,flightPath).GetComponent<SpriteRenderer>();
             }
             finally {UnityEngine.Object.DestroyImmediate(node);}
@@ -86,6 +87,20 @@ namespace Remains.Editor
             if(!listed) {list.arraySize++;list.GetArrayElementAtIndex(list.arraySize-1).objectReferenceValue=asset;}
             audio.Add(new JObject {["weapon"]=id,["clip"]="grenade-explosion",["kind"]="explosion",["minGain"]=1,["maxGain"]=1});
             return null;
+        }
+
+        internal static void ConfigureMolotovWick(WeaponView artwork,Sprite source)
+        {
+            // Wick at (64, 256) in the 144 × 264 flight export, in bottom-up sprite pixels.
+            var pixel=new Vector2(source.rect.width*(64f/144),source.rect.height*(256f/264));
+            var wick=artwork.Wick;
+            if(wick==null)
+            {
+                wick=new GameObject("Фитиль").transform;
+                wick.SetParent(artwork.transform,false);
+                artwork.ConfigureWick(wick);
+            }
+            wick.localPosition=(pixel-source.pivot)/source.pixelsPerUnit;
         }
     }
 }

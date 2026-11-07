@@ -18,6 +18,9 @@ namespace Remains.Presentation
         public static readonly Color Radiance=new(10,2.6f,.35f,1);
         public void Begin(){retained.Clear();emissions.Clear();}
         public void Fire(FireState fire,IReadOnlyList<FirePatch> patches,float gain)
+            =>Fire(fire,patches,gain,null);
+
+        internal void Fire(FireState fire,IReadOnlyList<FirePatch> patches,float gain,Vector2? wick)
         {
             if(patches.Count==0 || gain<=0)return;
             var key=(0,fire.id);retained.Add(key);
@@ -27,7 +30,7 @@ namespace Remains.Presentation
                 float total=0;Vector2 min=new(float.PositiveInfinity,float.PositiveInfinity),max=new(float.NegativeInfinity,float.NegativeInfinity);
                 for(int i=0;i<count;i++)
                 {
-                    var patch=patches[(int)((long)i*patches.Count/count)];var at=patch.position+Vector2.up*.22f;
+                    var patch=patches[(int)((long)i*patches.Count/count)];var at=wick??patch.position+Vector2.up*.22f;
                     float weight=Mathf.Max(.05f,patch.radius*2);points[i]=new Vector4(at.x,at.y,weight,0);total+=weight;min=Vector2.Min(min,at);max=Vector2.Max(max,at);
                 }
                 for(int i=0;i<count;i++)points[i].z/=total;
