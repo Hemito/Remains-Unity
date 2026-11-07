@@ -48,9 +48,13 @@ namespace Remains.Editor
                 for(int i=0;i<asset.ShotAnimation.FrameCount;i++) Require(asset.ShotAnimation.LoadFrameNow(i) is {} s && Mathf.Approximately(s.pixelsPerUnit,restSprite.pixelsPerUnit),"кадр выстрела "+i+" "+asset.Id);
                 for(int i=0;i<(asset.ReloadAnimation?.FrameCount??0);i++) Require(asset.ReloadAnimation.LoadFrameNow(i) is {} s && Mathf.Approximately(s.pixelsPerUnit,restSprite.pixelsPerUnit),"кадр перезарядки "+i+" "+asset.Id);
                 Require(ShotArtwork.TryGet(asset.Id,out _),"нет графики снаряда "+asset.Id);
-                // The catalog loads only the rest frame (and the casing): animation frames are named, not referenced.
-                int textures=AssetDatabase.GetDependencies(AssetDatabase.GetAssetPath(asset),true).Count(p=>AssetDatabase.GetMainAssetTypeAtPath(p)==typeof(Texture2D));
-                Require(textures<=2,$"определение тянет {textures} текстур: {asset.Id}");
+                // The authored muzzle masks are direct references. The ordinary shot/reload
+                // frames must remain deferred; only rest and casing can add other textures.
+                var muzzleTextures=new HashSet<string>((asset.ShotAnimation.EmissionFrames??Array.Empty<Sprite>()).Where(mask=>mask!=null)
+                    .Select(mask=>AssetDatabase.GetAssetPath(mask.texture)),StringComparer.Ordinal);
+                var textures=AssetDatabase.GetDependencies(AssetDatabase.GetAssetPath(asset),true)
+                    .Where(path=>AssetDatabase.GetMainAssetTypeAtPath(path)==typeof(Texture2D) && !muzzleTextures.Contains(path)).ToArray();
+                Require(textures.Length<=2,$"определение {asset.Id} тянет {textures.Length} текстур без масок вспышки: {string.Join(", ",textures)}");
                 Require(audio.Contains("{\"weapon\":\""+asset.Id+"\",\"clip\":\"exported:") && audio.Contains("\"weapon\":\""+asset.Id+"\",\"clip\":\"exported:sound"),"нет звука "+asset.Id);
             }
             var hunt=WeaponCatalog.Get("weapon:hunt:grade:0");

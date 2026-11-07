@@ -99,27 +99,29 @@ namespace Remains.Editor
             var damageLegs=Array.Find(pony.regions,value=>value.id=="legs");
             Require(damageLegs.shapes.Length==2 && damageLegs.shapes[0]=="25" && damageLegs.shapes[1]=="275",
                 "Исправление контактов изменило независимые области урона");
-            int count=0,edgeCount=0,legacyPoses=0;
+            var legacyFrames=new Dictionary<string,int> {{"idle",1},{"walk",17},{"slowWalk",25},{"run",58},{"jump",32},{"climb",13},
+                {"down",40},{"crouch",1},{"crawl",14},{"crouchLower",9},{"crouchRise",9},{"landing",6},{"fall",42}};
+            int edgeCount=0,legacyPoses=0;
             foreach(var clip in PonyAnimationData.Library.clips.Where(c=>BedRest.HasFootSupport(c.id)))
             {
                 // The new slope contact set has its own asset/controller verification.
                 if(clip.id is "slopeStandUp" or "slopeStandDown" or "slopeWalkUp" or "slopeWalkDown") continue;
                 bool edge=clip.id.StartsWith("edgeStand",StringComparison.Ordinal) || clip.id.StartsWith("edgeCrouch",StringComparison.Ordinal);
                 if(edge) Require(clip.frames.Length==1,"Краевая поза перестала быть одно-кадровой: "+clip.id);
-                else legacyPoses++;
+                else if(legacyFrames.TryGetValue(clip.id,out int frames))
+                {
+                    Require(clip.frames.Length==frames,"Прежняя поза потеряла свои кадры: "+clip.id);
+                    legacyPoses++;
+                }
+                else Require(PonyAuthoredClips.Bank.clips.Contains(clip),"Неизвестная исходная поза: "+clip.id);
                 for(int frame=0;frame<clip.frames.Length;frame++)
                 {
                     Require(Array.FindAll(clip.frames[frame].parts,part=>Array.IndexOf(shapes,part.shape)>=0).Length==4,
                         $"Не объявлены все четыре нижние ноги: pose={clip.id}, frame={frame}");
-                    count++;
                     if(edge) edgeCount++;
                 }
             }
-            Require(legacyPoses==13 && count-edgeCount==267 && edgeCount==44 && count==311,"Проверяемый ресурс изменился: пересмотрите полноту декларации копыт");
-            foreach(var expected in new Dictionary<string,int> {{"idle",1},{"walk",17},{"slowWalk",25},{"run",58},{"jump",32},{"climb",13},
-                {"down",40},{"crouch",1},{"crawl",14},{"crouchLower",9},{"crouchRise",9},{"landing",6},{"fall",42}})
-                Require(Array.Find(PonyAnimationData.Library.clips,clip=>clip.id==expected.Key)?.frames.Length==expected.Value,
-                    "Прежняя поза потеряла свои кадры: "+expected.Key);
+            Require(legacyPoses==legacyFrames.Count && edgeCount==44,"Проверяемый ресурс изменился: пересмотрите полноту декларации копыт");
             CheckDrawnFoot("idle",0,0,"57/1/1","3",-.036454f);
             CheckDrawnFoot("climb",4,.1f,"57/1/1","298",-.509750f);
             CheckDrawnFoot("crouch",0,0,"frleg3/1/1","102",-.027330f);
