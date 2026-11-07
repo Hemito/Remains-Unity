@@ -8,7 +8,7 @@ namespace Remains.Presentation
     // Bottle/corpse movement changes only their own light. Flame frame swaps have no effect on the field.
     public sealed class FireLightSources
     {
-        private sealed class Entry {public string Id;public Vector4[] Points;public Rect Bounds;public float Width,Reach;}
+        private sealed class Entry {public string Id;public Vector4[] Points;public Rect Bounds;public float Width,Reach;public FirePatch[] Patches;}
         private readonly Dictionary<(int Kind,string Id),Entry> entries=new();
         private readonly HashSet<(int Kind,string Id)> retained=new();
         private readonly List<(int Kind,string Id)> gone=new();
@@ -24,9 +24,11 @@ namespace Remains.Presentation
         {
             if(patches.Count==0 || gain<=0)return;
             var key=(0,fire.id);retained.Add(key);
-            if(!entries.TryGetValue(key,out var entry))
+            if(!entries.TryGetValue(key,out var entry) || fire.dropletPaths!=null && !SamePatches(entry.Patches,patches))
             {
                 int count=Mathf.Min(DirectLight.MaximumSamples,patches.Count);var points=new Vector4[count];
+                FirePatch[] active=fire.dropletPaths==null?null:new FirePatch[patches.Count];
+                if(active!=null) for(int i=0;i<active.Length;i++) active[i]=patches[i];
                 float total=0;Vector2 min=new(float.PositiveInfinity,float.PositiveInfinity),max=new(float.NegativeInfinity,float.NegativeInfinity);
                 for(int i=0;i<count;i++)
                 {
@@ -34,9 +36,18 @@ namespace Remains.Presentation
                     float weight=Mathf.Max(.05f,patch.radius*2);points[i]=new Vector4(at.x,at.y,weight,0);total+=weight;min=Vector2.Min(min,at);max=Vector2.Max(max,at);
                 }
                 for(int i=0;i<count;i++)points[i].z/=total;
-                entry=new Entry{Id="fire:"+fire.id,Points=points,Bounds=Rect.MinMaxRect(min.x-.02f,min.y-.02f,max.x+.02f,max.y+.02f),Width=Mathf.Clamp(total,.2f,2),Reach=fire.torch?2.5f:4};entries.Add(key,entry);
+                entry=new Entry{Id="fire:"+fire.id,Points=points,Bounds=Rect.MinMaxRect(min.x-.02f,min.y-.02f,max.x+.02f,max.y+.02f),
+                    Width=Mathf.Clamp(total,.2f,2),Reach=fire.torch?2.5f:4,Patches=active};
+                entries[key]=entry;
             }
             Add(entry,gain);
+        }
+        private static bool SamePatches(FirePatch[] previous,IReadOnlyList<FirePatch> current)
+        {
+            if(previous==null || previous.Length!=current.Count) return false;
+            for(int i=0;i<previous.Length;i++)
+                if(!previous[i].position.Equals(current[i].position) || previous[i].radius!=current[i].radius) return false;
+            return true;
         }
         public void Bottle(string id,Vector2 position)=>Moving(1,id,position+Vector2.up*.12f,.15f,2.5f);
         public void Actor(string id,Vector2 position)=>Moving(2,id,position,.3f,3);

@@ -12,9 +12,10 @@ namespace Remains.Presentation
     // lying with a small flame; a burning actor carries a flame. Pooled renderers, drawn each frame (animation only).
     public sealed class FireVisuals : MonoBehaviour
     {
-        private const float FlameSpacing=.25f,FadeIn=.15f,FadeOut=.6f,TorchScale=.6f,ActorScale=.8f;
+        private const float FlameSpacing=.25f,FadeIn=.15f,FadeOut=.6f,TorchScale=.6f,ActorScale=.8f,DropletScale=.28f;
         private CoopSession session;private FireController fires;private GrenadeController grenades;private FireArtwork artwork;
         private readonly List<SpriteRenderer> flames=new();private int used;
+        private readonly List<FirePatch> activePatches=new();
         private readonly Dictionary<string,SpriteRenderer> bottles=new(System.StringComparer.Ordinal);
         private readonly Dictionary<string,Vector2> wickOffsets=new(System.StringComparer.Ordinal);
         private readonly HashSet<string> shownBottles=new(System.StringComparer.Ordinal);
@@ -37,27 +38,36 @@ namespace Remains.Presentation
                 {
                     if(fire.level!=viewer.level || !FireRules.Burning(fire,now)) continue;
                     var patches=fires.Patches(fire);if(patches==null) continue;
-                    float age=(float)(now-fire.start),left=(float)(fire.start+FireRules.Duration(fire)-now);
-                    float alpha=Mathf.Clamp01(age/FadeIn)*Mathf.Clamp01(left/FadeOut);
+                    double age=now-fire.start;
                     if(fire.torch && patches.Count>0)
                     {
                         var wick=Bottle(fire,patches[0].position);
+                        float alpha=FlameGain((float)age,fire.fuel);
                         Lights.Fire(fire,patches,alpha,wick);
-                        Flame(wick,TorchScale,age,0,alpha);
+                        Flame(wick,TorchScale,(float)age,0,alpha);
                         continue;
                     }
-                    Lights.Fire(fire,patches,alpha);
+                    var paths=fire.dropletPaths;
+                    if(paths!=null)
+                        for(int i=0;i<paths.Length;i++)
+                            if(paths[i].TryPosition(age,out var position)) Flame(position,DropletScale,(float)age,i*7,1);
+                    float patchSeconds=FireRules.Profile(fire).PatchSeconds,lightGain=0;
+                    activePatches.Clear();
                     for(int p=0;p<patches.Count;p++)
                     {
                         var patch=patches[p];
+                        if(!patch.IsBurning(age,patchSeconds)) continue;
+                        float patchAge=(float)(age-patch.landedAt),alpha=FlameGain(patchAge,patchSeconds);
+                        activePatches.Add(patch);lightGain=Mathf.Max(lightGain,alpha);
                         int count=Mathf.Max(1,Mathf.RoundToInt(patch.radius*2/FlameSpacing));
                         for(int i=0;i<count;i++)
                         {
                             float offset=count==1?0:Mathf.Lerp(-patch.radius,patch.radius,i/(float)(count-1));
                             float jitter=Hash(fire.seed,p,i);
-                            Flame(patch.position+Vector2.right*(offset+(jitter-.5f)*FlameSpacing*.5f),.7f+.4f*jitter,age,p*7+i,alpha);
+                            Flame(patch.position+Vector2.right*(offset+(jitter-.5f)*FlameSpacing*.5f),.7f+.4f*jitter,patchAge,p*7+i,alpha);
                         }
                     }
+                    Lights.Fire(fire,activePatches,lightGain);
                 }
                 // A lit bottle in flight burns at its neck.
                 foreach(var flight in grenades.Flights)
@@ -82,6 +92,9 @@ namespace Remains.Presentation
                 foreach(var id in gone) {Destroy(bottles[id].gameObject);bottles.Remove(id);}
             }
         }
+
+        private static float FlameGain(float age,float lifetime)
+            =>Mathf.Clamp01(age/FadeIn)*Mathf.Clamp01((lifetime-age)/FadeOut);
 
         private void Flame(Vector2 at,float scale,float age,int phase,float alpha)
         {

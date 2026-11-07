@@ -178,14 +178,24 @@ namespace Remains.Networking
                 !float.IsFinite(message.remaining) || message.remaining<0 || message.remaining>grenade.remaining+.001f)
             {Debug.LogWarning($"Некорректное состояние гранаты: id={message.id}, generation={message.generation}, remaining={message.remaining}.");return;}
             bool fire=message.detonate && WeaponCatalog.Get(grenade.weapon).IsFire;
-            var room=message.detonate && !fire && roomForLevel!=null
-                ? roomForLevel(grenade.level)??RoomLayout.Load(grenade.level,session.ServerWorld) : null;
+            // Blast cover and fire droplets both need the level with its current doors (a level no one has loaded is read here).
+            RoomLayout room=null;
+            if(message.detonate && roomForLevel!=null)
+            {
+                room=roomForLevel(grenade.level);
+                if(room==null)
+                {
+                    room=RoomLayout.Load(grenade.level,session.ServerWorld);
+                    room.platforms=DoorGeometry.Compose(room.platforms,session.ServerWorld.doors,grenade.level);
+                    RoomSurfaces.Prepare(room);
+                }
+            }
             Apply(grenade,message);
             if(fire)
             {
                 // A fire grenade or bottle splashes burning droplets instead of a blast (FireRules).
                 // No fire when a bottle burnt all its fuel in flight; the bottle is gone either way.
-                FireRules.Ignite(session.ServerWorld,grenade,session.LevelTime.ReadServer(grenade.level));
+                FireRules.Ignite(session.ServerWorld,grenade,session.LevelTime.ReadServer(grenade.level),room);
                 session.CommitWorld();
             }
             else if(message.detonate)

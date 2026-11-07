@@ -26,7 +26,7 @@ namespace Remains.Gameplay
         public IReadOnlyList<FirePatch> Patches(FireState fire)
         {
             if(patches.TryGetValue(fire.id,out var known)) return known;
-            var room=geometry.Find(fire.level);if(room==null) return null;
+            var room=geometry.Find(fire.level);if(room==null && fire.dropletPaths==null) return null;
             return patches[fire.id]=FireRules.Patches(fire,room);
         }
 
@@ -55,8 +55,10 @@ namespace Remains.Gameplay
                     if(fire.level!=actor.level) continue;
                     int pulse=FireRules.Pulse(fire,now);if(pulse<0) continue;
                     string contact="fire:"+fire.id+":"+pulse;
-                    if(actor.resolvedAttacks.Contains(contact) || Patches(fire) is not { } burning || !Touching(burning,actor)) continue;
+                    if(actor.resolvedAttacks.Contains(contact) || Patches(fire) is not { } burning) continue;
                     var profile=FireRules.Profile(fire);
+                    double pulseAge=pulse*(double)profile.pulseSeconds;
+                    if(!Touching(burning,actor,now-fire.start,pulseAge,fire.torch?fire.fuel:profile.PatchSeconds)) continue;
                     if(!combat.ApplyContact(actor,contact,DamageTypes.Fire,profile.pulseDamage)) continue;
                     Hits++;changed=true;
                     if(profile.igniteDamage>0 && profile.igniteSeconds>0) Ignite(actor,now,profile);
@@ -64,9 +66,10 @@ namespace Remains.Gameplay
                 if(changed) session.PublishActor(actor);
             }
         }
-        private static bool Touching(IReadOnlyList<FirePatch> burning,ActorState actor)
+        private static bool Touching(IReadOnlyList<FirePatch> burning,ActorState actor,double age,double pulseAge,double seconds)
         {
-            foreach(var patch in burning) if(FireRules.Touches(patch,actor)) return true;
+            foreach(var patch in burning)
+                if(pulseAge>=patch.landedAt && patch.IsBurning(age,seconds) && FireRules.Touches(patch,actor)) return true;
             return false;
         }
         // Unit.damage → addEffect("burning", dopDamage): the longer and the stronger of the old and the new burning.

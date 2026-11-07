@@ -3,6 +3,7 @@ using System.Linq;
 using Remains.Content;
 using Remains.Domain;
 using Remains.Presentation;
+using Remains.Serialization;
 using UnityEngine;
 
 namespace Remains.Editor
@@ -17,6 +18,7 @@ namespace Remains.Editor
         {
             WeaponCatalog.Load();ActorTypesLoad();
             CheckWick();
+            CheckDropletPaths();
             var molotov=WeaponCatalog.Get("item:molotov");var incendiary=WeaponCatalog.Get("item:fgren");
             Require(molotov.IsFire && incendiary.IsFire && molotov.fire.shatter && !molotov.fire.radial && incendiary.fire.radial && !incendiary.fire.shatter,
                 "коктейль — бутылка с инерцией, зажигательная — граната во все стороны");
@@ -77,6 +79,43 @@ namespace Remains.Editor
             Require(!FireRules.Expire(world,_=>4) && FireRules.Expire(world,_=>3+FireRules.Duration(broke)+.01) && world.fires.Count==1 && world.fires[0]==lit,"догоревший огонь убирается");
             Debug.Log($"Огонь: PASS — оригинальные числа, порог разбивания, брызги бутылки {splash.Count} по ходу и до стены, граната во все стороны, повторяемость, горелка, вспышки, касание, хост и догорание.");
         }
+        private static void CheckDropletPaths()
+        {
+            foreach(string weapon in new[]{"item:molotov","item:fgren"})
+            {
+                var room=Room();
+                var profile=WeaponCatalog.Get(weapon).fire;
+                var grenade=new GrenadeState {id="timed-"+weapon,weapon=weapon,level=room.id,x=0,y=1.7f,
+                    shattered=profile.shatter,impactVx=8,impactVy=-6,fuel=FireRules.Fuel(profile)};
+                var world=new WorldState {worldId="droplets",grenades={grenade}};
+                var fire=FireRules.Ignite(world,grenade,10,room);
+                Require(fire.dropletPaths.Length==profile.droplets && fire.dropletPaths.All(path=>path.TryPosition(.05,out _)),
+                    "план не показывает все капли в начале полёта");
+                var received=StateJson.Copy(world).fires.Single();
+                // A peer may have a later door state. It still draws and applies the host's contacts.
+                var patches=FireRules.Patches(received,null);
+                Require(patches.Count>=10 && patches.All(patch=>!patch.IsBurning(.05,profile.PatchSeconds)),
+                    "очаг загорелся до прилёта капли");
+                var legacy=StateJson.Copy(received);legacy.dropletPaths=null;
+                Require(patches.Select(patch=>patch.position).SequenceEqual(FireRules.Patches(legacy,room).Select(patch=>patch.position)),
+                    "время полёта изменило рассчитанные точки попадания");
+                int index=0;
+                foreach(var path in received.dropletPaths)
+                {
+                    if(!path.landed) continue;
+                    var patch=patches[index++];
+                    Require(path.TryPosition(path.Arrival-.0001,out var near) && Vector2.Distance(near,patch.position)<.005f &&
+                        !path.TryPosition(path.Arrival,out _) && patch.IsBurning(path.Arrival,profile.PatchSeconds),
+                        "пламя и очаг разошлись в момент попадания");
+                    Require(!patch.IsBurning(path.Arrival+profile.PatchSeconds,profile.PatchSeconds),
+                        "очаг не погас по окончании своего времени горения");
+                }
+                Require(FireRules.Duration(received)>profile.PatchSeconds &&
+                    StateJson.ToJson(received).Length<6000,"план не продлил последнее пятно или содержит лишние данные");
+            }
+            Debug.Log("Полёт горящих капель: PASS — Молотов и граната, план хоста, точный переход в очаг и восстановление.");
+        }
+
         private static void CheckWick()
         {
             var prefab=GrenadeArtwork.LoadPrefab("item:molotov");
