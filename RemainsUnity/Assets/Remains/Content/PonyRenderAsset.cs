@@ -136,13 +136,17 @@ namespace Remains.Content
                 throw new InvalidOperationException($"Неконечный цвет части: context={context}, path={part.sourcePath}.");
             var expected=new Bounds();expected.SetMinMax(minimum,maximum);ValidateBounds(part.mesh.bounds,expected,context+"/"+part.sourcePath);
         }
-        // Preserve the validation in Null graphics mode. A missing shader property and
-        // unreadable mesh require different repairs; neither means the source bank is necessarily corrupt.
+        // Null Player does not necessarily expose the material's property table. The declared
+        // shader properties still have to exist, and the material still has to carry a texture.
+        private static bool HasShaderProperty(Material material,string property)=>material.HasProperty(property) ||
+            SystemInfo.graphicsDeviceType==UnityEngine.Rendering.GraphicsDeviceType.Null && material.shader.FindPropertyIndex(property)>=0;
         private static string PartProblem(PonyRenderPart part)=>part==null?"part-null":
             part.mesh==null?"mesh-null":!part.mesh.isReadable?"mesh-unreadable":
-            part.material==null?"material-null":part.material.mainTexture==null?"texture-null":
-            part.material.shader==null?"shader-null":!part.material.HasProperty("_MainTex")?"shader-main-texture":
-            !part.material.HasProperty("_Color")?"shader-color":!part.material.HasProperty("_Emission")?"shader-emission":
+            part.material==null?"material-null":
+            part.material.shader==null?"shader-null":!HasShaderProperty(part.material,"_MainTex")?
+                $"shader-main-texture ({part.material.shader.name}, properties={part.material.shader.GetPropertyCount()})":
+            !HasShaderProperty(part.material,"_Color")?"shader-color":!HasShaderProperty(part.material,"_Emission")?"shader-emission":
+            part.material.mainTexture==null?"texture-null":
             part.points==null?"points-null":part.points.Length!=4?"points-count":
             string.IsNullOrEmpty(part.sourcePath)?"source-path-empty":string.IsNullOrEmpty(part.symbolId)?"symbol-id-empty":null;
         public static void ValidateBounds(Bounds actual,Bounds expected,string context)

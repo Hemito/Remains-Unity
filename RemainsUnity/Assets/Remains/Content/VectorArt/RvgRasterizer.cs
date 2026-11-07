@@ -67,18 +67,26 @@ namespace Remains.Content.VectorArt
         // filled by a GPU copy, without a pipeline stall — for sprites the game draws straight away.
         public Texture2D Render(RvgDocument source,RvgResource resource,RvgResourceFrame frame,float scale)=>Draw(source,resource,frame,scale,true);
         public Texture2D RenderGpu(RvgDocument source,RvgResource resource,RvgResourceFrame frame,float scale)=>Draw(source,resource,frame,scale,false);
-        private Texture2D Draw(RvgDocument source,RvgResource resource,RvgResourceFrame frame,float scale,bool readable)
+        internal static (RvgSprite sprite,int index,Vector2Int size) CheckCanvas(
+            RvgDocument source,RvgResource resource,RvgResourceFrame frame,float scale,int samples)
         {
             if(source==null || resource==null || frame==null) throw new ArgumentNullException(nameof(source));
             if(!float.IsFinite(scale) || scale<=0) throw new ArgumentOutOfRangeException(nameof(scale));
-            if(Supersample<1 || Supersample>4) throw new ArgumentOutOfRangeException(nameof(Supersample),Supersample,"RVG: суперсэмплинг 1…4.");
-            document=source;supersample=Supersample;zoom=scale*supersample;
+            if(samples<1 || samples>4) throw new ArgumentOutOfRangeException(nameof(Supersample),samples,"RVG: суперсэмплинг 1…4.");
             int outputWidth=Mathf.CeilToInt(frame.size[0]*scale-1e-4f),outputHeight=Mathf.CeilToInt(frame.size[1]*scale-1e-4f);
-            width=outputWidth*supersample;height=outputHeight*supersample;
+            int width=outputWidth*samples,height=outputHeight*samples;
             if(outputWidth<1 || outputHeight<1 || width>16384 || height>16384) throw new InvalidDataException($"RVG {resource.id}, кадр {frame.frame}: холст {width}×{height}.");
-            var sprite=document.Sprite(resource.sprite);
+            var sprite=source.Sprite(resource.sprite);
             int index=frame.frame-1;
             if(index<0 || index>=sprite.frameCount) throw new InvalidDataException($"RVG {resource.id}: кадр {frame.frame} вне 1…{sprite.frameCount}.");
+            return (sprite,index,new Vector2Int(outputWidth,outputHeight));
+        }
+        private Texture2D Draw(RvgDocument source,RvgResource resource,RvgResourceFrame frame,float scale,bool readable)
+        {
+            var (sprite,index,size)=CheckCanvas(source,resource,frame,scale,Supersample);
+            document=source;supersample=Supersample;zoom=scale*supersample;
+            int outputWidth=size.x,outputHeight=size.y;
+            width=outputWidth*supersample;height=outputHeight*supersample;
             // twips → top-left pixels → canvas (Y up).
             var root=Affine.Scale(zoom/20f).Then(Affine.Translate(frame.origin[0]*zoom,frame.origin[1]*zoom)).Then(new Affine(1,0,0,-1,0,height));
             var canvas=Temporary(true);

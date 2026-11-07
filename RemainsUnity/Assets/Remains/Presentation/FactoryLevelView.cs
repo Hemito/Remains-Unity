@@ -86,7 +86,7 @@ namespace Remains.Presentation
         // nothing never gets one and does not hold the selection back).
         public bool ActorShadowFieldsReady(IReadOnlyList<ActorShadowSource> sources)
         {
-            if(!IsReady) return false;
+            if(!IsReady || levelLight==null) return false;
             for(int i=0;i<sources.Count;i++) if(!levelLight.Direct.ReadyOrNone(sources[i].Id)) return false;
             return true;
         }
@@ -94,7 +94,7 @@ namespace Remains.Presentation
         // The direct fields actor shadows need now: kept in the cache, missing ones built a few per frame.
         public void PrepareActorShadowFields(IReadOnlyCollection<string> ids)
         {
-            if(!IsReady) return;
+            if(!IsReady || levelLight==null) return;
             levelLight.Direct.Request(ids);
             StartLightWork();
         }
@@ -175,7 +175,8 @@ namespace Remains.Presentation
         public long AppliedOcclusionRevision=>AppliedDoorRevision;
         public event Action<IRoomLighting> PresentationChanged;
         public event Action<IRoomLighting,Exception> PresentationFailed;
-        public bool IsReady=>root!=null && levelLight!=null && Failure==null;
+        private bool noGraphics;
+        public bool IsReady=>root!=null && (levelLight!=null || noGraphics) && Failure==null;
         public void Synchronize(RoomLayout room,WorldState world,long revision)
         {
             if(!ReferenceEquals(room,Room)) throw new InvalidOperationException("Свет завода ссылается на другую игровую геометрию.");
@@ -202,7 +203,7 @@ namespace Remains.Presentation
         // Every frame from the presentation: actor shadow masks and the frame's muzzle flashes over the camera area.
         public void RenderMuzzleFlashes(IReadOnlyList<SpriteEmission> emissions,IReadOnlyList<ProjectedLightShadow> masks,IReadOnlyList<string> sourceIds,IReadOnlyList<WorldLightEmission> worldLights=null)
         {
-            if(!IsReady) return;
+            if(!IsReady || lightView==null) return;
             try {lightView.Present(viewArea,emissions,masks,sourceIds,worldLights);if(!levelLight.HasPendingPublication)ApplyLampArtwork();}
             catch(Exception error) {ReportFailure(error);throw;}
         }
@@ -279,6 +280,7 @@ namespace Remains.Presentation
         {
             if(level==null) throw new ArgumentNullException(nameof(level));
             if(root!=null) throw new InvalidOperationException("Вид уровня уже подготовлен: повторная подготовка запрещена.");
+            noGraphics=Application.isPlaying && SystemInfo.graphicsDeviceType==UnityEngine.Rendering.GraphicsDeviceType.Null;
             brokenLampArt=GameAssets.Load<BrokenLampArt>(BrokenLampArt.ResourcePath)??throw new InvalidOperationException("Нет каталога разбитой графики ламп: "+BrokenLampArt.ResourcePath);
             brokenLampArt.Validate();
             Room=geometry??level.Physics;
@@ -356,6 +358,12 @@ namespace Remains.Presentation
         public void Focus(Vector2 world)
         {
             if(root==null) throw new InvalidOperationException("Вид уровня не подготовлен.");
+            if(noGraphics)
+            {
+                var visible=WindowFor(world);
+                if(visible!=windowRooms) {windowRooms=visible;ShowWindowRooms();}
+                return;
+            }
             bool first=levelLight==null;
             if(first)
             {

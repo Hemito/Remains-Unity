@@ -165,7 +165,8 @@ namespace Remains.Content.VectorArt
             if(sprites.TryGetValue(key,out sprite)) return true;
             if(!frames.TryGetValue(key,out var source)) return false;
             var watch=Stopwatch.StartNew();
-            var texture=Draw(key,Zoom,false);
+            var texture=SystemInfo.graphicsDeviceType==UnityEngine.Rendering.GraphicsDeviceType.Null?
+                GeometryTexture(key,source.Document,source.Resource,source.Frame):Draw(key,Zoom,false);
             var frame=source.Frame;
             // Registration as the PNG importer sets it (ImportedArtPadding.Pivot): origin from the top-left, Y up in Unity.
             var pivot=new Vector2(frame.origin[0]*Zoom/texture.width,1-frame.origin[1]*Zoom/texture.height);
@@ -174,6 +175,14 @@ namespace Remains.Content.VectorArt
             sprites.Add(key,sprite);
             RasterSeconds+=watch.Elapsed.TotalSeconds;
             return true;
+        }
+        // Keep the verified canvas and pivot for gameplay geometry without issuing a draw on Null.
+        private Texture2D GeometryTexture(string key,RvgDocument document,RvgResource resource,RvgResourceFrame frame)
+        {
+            var size=RvgRasterizer.CheckCanvas(document,resource,frame,Zoom,1).size;
+            var texture=new Texture2D(size.x,size.y,TextureFormat.RGBA32,false,false,true) {name=key};
+            texture.Apply(false,true);
+            return texture;
         }
         public RvgResourceFrame Frame(string key)=>frames.TryGetValue(key,out var source)?source.Frame:throw new KeyNotFoundException("Нет векторного кадра: "+key);
         // The key's frame at any zoom, not kept: readable for checks, GPU-only for sprites.

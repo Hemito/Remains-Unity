@@ -22,7 +22,7 @@ namespace Remains.Presentation
         private void LateUpdate()
         {
             using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("FactoryLightFocus.LateUpdate");
-            if(camera==null || view==null || !view.IsReady) return;
+            if(camera==null || view==null || !view.IsReady || view.Light==null) return;
             Vector2 position=camera.transform.position;
             float height=2*camera.orthographicSize,width=height*camera.aspect;
             view.SetViewArea(new Rect(position.x-width*.5f,position.y-height*.5f,width,height));

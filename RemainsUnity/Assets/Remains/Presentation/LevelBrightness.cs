@@ -9,7 +9,7 @@ namespace Remains.Presentation
         // Null when this computer has no light of that level.
         public static float? Read(FactoryLevelView view,string level,Vector2 position)
         {
-            if(view==null || !view.IsReady || view.LampWorldLevel!=level || view.Light.Fill==null) return null;
+            if(view==null || !view.IsReady || view.LampWorldLevel!=level || view.Light?.Fill==null) return null;
             return Read(view.Light.Fill,position);
         }
         public static float Read(LevelGridFill fill,Vector2 position)
