@@ -15,6 +15,7 @@ namespace Remains.Runtime
 {
     public struct GrenadeProbePhase : NetworkMessage {public int phase;}
     public struct GrenadeProbeFinish : NetworkMessage { }
+    [DefaultExecutionOrder(1100)] // Capture the flash after the game's LateUpdate light publication.
     public sealed class NetworkGrenadeProbe : MonoBehaviour
     {
         private PrototypeRuntime runtime;
@@ -30,8 +31,13 @@ namespace Remains.Runtime
         private Func<string,int,Vector2?> resolveBlastPosition;
         private BlastEvidence blastEvidence;
         private int immediateContacts;
+        private int blastFlashes;
+        private ExplosionVisual peakFlash;
+        private Vector2 flashPosition;
+        private bool capturedFlash;
         private readonly System.Collections.Generic.Dictionary<string,int> contactFrames=new();
         private bool Held=>runtime.Options.Smoke.Contains("-held-");
+        private bool CheckBlastFlash=>runtime.Options.Smoke.Contains("-flash-");
         private readonly System.Collections.Generic.HashSet<string> explosionIds=new();
         private bool Resume=>runtime.Options.Smoke.Contains("-resume-");
         private bool Host=>runtime.Options.Role=="host";
@@ -61,7 +67,14 @@ namespace Remains.Runtime
                 if(Host) NetworkServer.SendToAll(Remains.Networking.AttackMessage.From(attack));
             };
             value.Explosions.Created+=effect=>
-            {if(Host && value.Options.Smoke.Contains("-frames-")) StartCoroutine(CaptureExplosion(effect));};
+            {
+                if(CheckBlastFlash && effect.TryGetFlash(out var flash) && flash.Gain==1)
+                {
+                    blastFlashes++;flashPosition=flash.Position;
+                    if(Host)peakFlash=effect;
+                }
+                if(Host && value.Options.Smoke.Contains("-frames-")) StartCoroutine(CaptureExplosion(effect));
+            };
             value.Grenades.Created+=flight=>
             {
                 if(Held && Source && !Resume && !finished)
@@ -232,6 +245,12 @@ namespace Remains.Runtime
             File.WriteAllText(Path.Combine(directory,"session-host-report.json.active-world.json"),snapshot.Json);
             checkpointSaved=true;
         }
+        private void LateUpdate()
+        {
+            if(peakFlash==null || finished)return;
+            NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".flash.png",runtime.Hud.GetComponent<Canvas>());
+            peakFlash=null;capturedFlash=true;
+        }
         private bool Validate()
         {
             var world=runtime.Session.World;
@@ -267,8 +286,11 @@ namespace Remains.Runtime
             detail+=$" Эффектов взрыва: {runtime.Explosions.Shown}, ожидалось {expectedSounds}, уведомление повторено для проверки дедупликации.";
             detail+=$" Звуков взрыва: {runtime.Audio.ExplosionSounds}, ожидалось {expectedSounds}; старое событие при возвращении не озвучивается.";
             var world=runtime.Session.World;string attack=world?.explosions.FirstOrDefault()?.attack.id;
+            var position=world?.explosions.FirstOrDefault()?.attack.Origin??Vector2.zero;
+            if(CheckBlastFlash && (blastFlashes!=expectedSounds || Host && !capturedFlash ||
+                blastFlashes>0 && Vector2.Distance(flashPosition,position)>.0001f))success=false;
             var evidence=new Report {success=success,detail=detail,held=Held,heldLaunch=heldLaunch,handoff=handoff,phase=phase,explosions=explosions,
-                activeGrenades=world?.grenades.Count??-1,attack=attack,explosionPosition=world?.explosions.FirstOrDefault()?.attack.Origin??Vector2.zero,
+                activeGrenades=world?.grenades.Count??-1,attack=attack,explosionPosition=position,blastFlashes=blastFlashes,flashPosition=flashPosition,capturedFlash=capturedFlash,
                 players=world?.actors.Where(a=>a.player).Select(a=>new PlayerEvidence {id=a.id,connected=a.connected,health=a.health,position=a.Position,
                     grenades=a.inventory.Where(i=>i.definition=="grenade").Sum(i=>i.count),receipts=a.resolvedExplosions.Count(id=>id==attack)}).ToArray(),blast=blastEvidence};
             File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(evidence,true));StartCoroutine(Exit(success));
@@ -312,6 +334,6 @@ namespace Remains.Runtime
             public Vector2 anchor,body,heldOffset,plannedOrigin,requestOrigin,createdOrigin,requestVelocity,createdVelocity,aim,pivot;
             public Vector4 rect;
         }
-        [Serializable] private sealed class Report {public bool success,held,handoff;public string detail,attack;public int phase,explosions,activeGrenades;public Vector2 explosionPosition;public PlayerEvidence[] players;public HeldLaunchEvidence heldLaunch;public BlastEvidence blast;}
+        [Serializable] private sealed class Report {public bool success,held,handoff,capturedFlash;public string detail,attack;public int phase,explosions,activeGrenades,blastFlashes;public Vector2 explosionPosition,flashPosition;public PlayerEvidence[] players;public HeldLaunchEvidence heldLaunch;public BlastEvidence blast;}
     }
 }

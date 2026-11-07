@@ -14,6 +14,7 @@ namespace Remains.Presentation
         private WorldVisualOrderTable orders;
         private readonly HashSet<string> seen=new();
         private readonly Queue<string> recent=new();
+        private readonly List<ExplosionVisual> flashes=new();
         public int Shown {get;private set;}
         public event Action<ExplosionVisual> Created;
         public void Initialize(CoopSession session,WorldVisualOrderTable orderTable)
@@ -24,8 +25,20 @@ namespace Remains.Presentation
             recent.Enqueue(attack.id);if(recent.Count>512) seen.Remove(recent.Dequeue());
             var effect=Instantiate(prefab,transform,false);effect.name="Взрыв "+attack.id;
             var renderer=effect.GetComponentInChildren<SpriteRenderer>(true);
-            effect.gameObject.AddComponent<WorldVisualOrderBinding>().Initialize(orders,WorldVisualKind.Effect,"explosion:"+attack.id,null,renderer,attack.level);
-            effect.Initialize(session,attack.level,attack.Origin);Shown++;Created?.Invoke(effect);
+            string id="explosion:"+attack.id;
+            effect.gameObject.AddComponent<WorldVisualOrderBinding>().Initialize(orders,WorldVisualKind.Effect,id,null,renderer,attack.level);
+            effect.Initialize(session,attack.level,attack.Origin,id);flashes.Add(effect);Shown++;Created?.Invoke(effect);
+        }
+        public void AppendLights(List<WorldLightEmission> output,Rect? visibleArea)
+        {
+            for(int i=flashes.Count-1;i>=0;i--)
+            {
+                var effect=flashes[i];
+                if(effect==null || !effect.TryGetFlash(out var emission)){flashes.RemoveAt(i);continue;}
+                var size=Vector2.one*emission.Reach;
+                if(!visibleArea.HasValue || visibleArea.Value.Overlaps(new Rect(emission.Position-size,2*size)))
+                    output.Add(emission);
+            }
         }
         // A blast picture without damage (a destroyed turret's "miniexpl"), scaled down; nothing is recorded in the world.
         public void PlayCosmetic(string id,string level,Vector2 position,float scale)
