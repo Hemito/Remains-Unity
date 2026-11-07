@@ -17,10 +17,15 @@ namespace Remains.Gameplay
         private bool statsDirty;
         private readonly BodyTelekinesisController bodies;
         private readonly MineTelekinesis mines;
+        private readonly GrenadeTelekinesis grenades;
         private readonly MovementHull hull=new();
         private WorldPropView props;
-        public TelekinesisController(CoopSession session,InteractionAdapter adapter,SimulationGeometry geometry)
-        {this.session=session;this.adapter=adapter;this.geometry=geometry;bodies=new BodyTelekinesisController(session,geometry);mines=new MineTelekinesis(session,geometry);}
+        public TelekinesisController(CoopSession session,InteractionAdapter adapter,SimulationGeometry geometry,GrenadeController flights)
+        {
+            this.session=session;this.adapter=adapter;this.geometry=geometry;
+            bodies=new BodyTelekinesisController(session,geometry);mines=new MineTelekinesis(session,geometry);
+            grenades=new GrenadeTelekinesis(session,adapter,geometry,flights);
+        }
         public void Step(bool held,Vector2 aim,float dt)
         {
             var actor=session.LocalActor;
@@ -32,8 +37,12 @@ namespace Remains.Gameplay
             {
                 var target=TelekinesisTarget.Nearest(session.World,actor,aim);
                 // A seen mine competes with props and bodies by its distance to the cursor (within the same 1 m).
-                var mine=mines.Candidate(actor,aim,target.HasValue?Vector2.Distance(target.Value.Center,aim):1);
-                if(mine!=null) mines.Begin(actor,mine);
+                float nearestDistance=target.HasValue?Vector2.Distance(target.Value.Center,aim):1;
+                var mine=mines.Candidate(actor,aim,nearestDistance);
+                if(mine!=null) nearestDistance=Vector2.Distance(MineRules.Bounds(mine,MineRules.Profile(mine)).center,aim);
+                var grenade=grenades.Candidate(actor,aim,nearestDistance);
+                if(grenade!=null) grenades.Begin(actor,grenade);
+                else if(mine!=null) mines.Begin(actor,mine);
                 else if(target?.Body!=null) bodies.Begin(target.Value.Body);
                 else if(target?.Prop!=null)
                 {
@@ -63,13 +72,15 @@ namespace Remains.Gameplay
             }
             wasHeld=held;
             float bodyCost=bodies.Step(held,aim,dt,publish,out bool holding);
+            float grenadeCost=grenades.Step(actor,held,aim,dt,out bool holdingGrenade);
+            holding|=holdingGrenade;
             if(mines.Active)
             {
                 float mineCost=mines.Step(actor,held,aim,dt);
                 if(mines.Active) {holding=true;actor.mana=Mathf.Max(0,actor.mana-mineCost);actor.revision++;statsDirty=true;}
             }
             if(holding)
-            {actor.mana=Mathf.Max(0,actor.mana-bodyCost);actor.revision++;statsDirty=true;}
+            {actor.mana=Mathf.Max(0,actor.mana-bodyCost-grenadeCost);actor.revision++;statsDirty=true;}
             if(held && selected!=null)
             {
                 var prop=WorldProps.Find(session.World,selected);

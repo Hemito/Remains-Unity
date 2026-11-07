@@ -18,6 +18,7 @@ namespace Remains.Gameplay
     public sealed class GrenadeController
     {
         public IReadOnlyList<GrenadeFlight> Flights=>flights;
+        public GrenadeFlight Find(string id)=>flights.Find(flight=>flight.state.id==id);
         public event Action<GrenadeFlight> Created;
         public event Action<GrenadeState,float> Impact;
         private readonly List<GrenadeFlight> flights=new();

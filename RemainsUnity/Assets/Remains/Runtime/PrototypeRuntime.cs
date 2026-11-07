@@ -195,9 +195,9 @@ namespace Remains.Runtime
                 gameObject.AddComponent<SessionTimingDiagnostics>().Initialize(this);
             Combat.DamageApplied+=DamageFeedback.Publish;
             Revival=new RevivalController(Session);
-            Interactions=new InteractionAdapter(Session);
+            Interactions=new InteractionAdapter(Session,Geometry.Find);
             Grenades=new GrenadeController(Session,Interactions,Combat,Geometry);
-            Telekinesis=new TelekinesisController(Session,Interactions,Geometry);
+            Telekinesis=new TelekinesisController(Session,Interactions,Geometry,Grenades);
             freeProps=new FreePropSimulation(Session,Geometry,Interactions,Platforms);
             visualLayers=new ActorVisualLayers(transform,visualOrders);
             var interactionVisuals=CreateOwnedObject("Визуальные взаимодействия").AddComponent<InteractionVisuals>();
@@ -397,6 +397,7 @@ namespace Remains.Runtime
                 else if(Options.Smoke=="world-management") gameObject.AddComponent<WorldManagementProbe>().Initialize(this);
                 else if(Options.Smoke=="history") gameObject.AddComponent<WorldSelectionProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("session")) gameObject.AddComponent<NetworkSessionProbe>().Initialize(this);
+                else if(Options.Smoke.StartsWith("grenade-telekinesis-")) gameObject.AddComponent<NetworkGrenadeTelekinesisProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("grenade")) gameObject.AddComponent<NetworkGrenadeProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("revival")) gameObject.AddComponent<NetworkRevivalProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("weapon-transfer")) gameObject.AddComponent<NetworkWeaponTransferProbe>().Initialize(this);

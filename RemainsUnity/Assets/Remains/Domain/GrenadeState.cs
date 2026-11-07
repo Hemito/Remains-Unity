@@ -9,7 +9,7 @@ namespace Remains.Domain
     [Serializable]
     public sealed class GrenadeState : Remains.Serialization.ExtensibleState
     {
-        public string id,attacker,level,owner;
+        public string id,attacker,level,owner,holder;
         // Which grenade (WeaponCatalog.IsGrenade): its flight, fuse and blast. Older saves hold the hand-made grenade.
         public string weapon="grenade";
         public bool sourcePlayer;
@@ -79,9 +79,33 @@ namespace Remains.Domain
         public const double SimulationStep=1d/120;
         private const float BottleRest=.25f;   // m/s: a bottle this slow on the ground lies still
         private static readonly MovementHull Hull=new() {width=.2f,height=.2f};
+        // A rule view only: it is never inserted into the world's props or persisted separately.
+        public static PropState TelekinesisBody(GrenadeState grenade,PropState view=null)
+        {
+            view??=new PropState {mass=.5f,width=.2f,height=.2f,anchorHeight=.1f,movable=true,hasPhysicalBody=true};
+            view.id=grenade.id;view.definition=grenade.weapon;view.level=grenade.level;view.Position=grenade.Position;
+            view.owner=grenade.owner;view.held=grenade.holder!=null;view.generation=grenade.generation;
+            return view;
+        }
+        public static void Hold(GrenadeState grenade,ActorState actor)
+        {
+            grenade.holder=actor.id;grenade.owner=actor.owner;grenade.Velocity=Vector2.zero;grenade.angularVelocity=0;
+            grenade.generation++;grenade.sequence=0;
+        }
+        public static void ReleaseHold(GrenadeState grenade)
+        {grenade.holder=null;grenade.generation++;grenade.sequence=0;}
+        public static void MoveHeld(GrenadeState grenade,RoomLayout room,Vector2 target,float dt)
+        {
+            if(grenade.holder==null || dt<=0 || grenade.remaining<=0) return;
+            var start=grenade.Position;
+            var delta=Vector2.ClampMagnitude(TelekinesisFollow.Displacement(start,target,dt),10*dt);
+            var feet=start-Vector2.up*.1f;
+            grenade.Position=ActorTerrainMotion.Move(room,Hull,feet,delta,ignoreOneWay:delta.y<0,bodyTops:false)+Vector2.up*.1f;
+            grenade.Velocity=(grenade.Position-start)/dt;
+        }
         public static void BeginSession(WorldState world)
         {
-            foreach(var grenade in world.grenades) {GrenadeRotation.Prepare(grenade);grenade.owner=null;grenade.generation++;grenade.sequence=0;}
+            foreach(var grenade in world.grenades) {GrenadeRotation.Prepare(grenade);grenade.owner=null;ReleaseHold(grenade);}
         }
         public static float Step(GrenadeState state,RoomLayout room,float dt)
         {
@@ -97,7 +121,7 @@ namespace Remains.Domain
             {
                 double step=Math.Min(SimulationStep,state.remaining);
                 if(state.simulationRemainder+1e-7<step) break;
-                impact=Mathf.Max(impact,Advance(state,room,(float)step,definition));
+                if(state.holder==null) impact=Mathf.Max(impact,Advance(state,room,(float)step,definition));
                 state.simulationRemainder=Math.Max(0,state.simulationRemainder-step);
                 state.remaining=Mathf.Max(0,state.remaining-(float)step);
             }
@@ -153,10 +177,13 @@ namespace Remains.Domain
             var players=world.actors.Where(a=>a.player && a.connected && owners.Contains(a.owner)).ToArray();
             foreach(var grenade in world.grenades)
             {
-                if(players.Any(a=>a.owner==grenade.owner && a.level==grenade.level)) continue;
-                string owner=NearbySimulationClient.Select(players,grenade.level,grenade.Position);
-                if(grenade.owner==owner) continue;
-                grenade.owner=owner;grenade.generation++;grenade.sequence=0;
+                bool ownerHere=players.Any(a=>a.owner==grenade.owner && a.level==grenade.level);
+                bool lostHolder=grenade.holder!=null && !players.Any(a=>a.id==grenade.holder && a.owner==grenade.owner &&
+                    a.level==grenade.level && !a.down && a.mana>0);
+                if(ownerHere && !lostHolder) continue;
+                string owner=ownerHere?grenade.owner:NearbySimulationClient.Select(players,grenade.level,grenade.Position);
+                if(grenade.owner==owner && !lostHolder) continue;
+                grenade.owner=owner;ReleaseHold(grenade);
                 changed=true;
             }
             return changed;

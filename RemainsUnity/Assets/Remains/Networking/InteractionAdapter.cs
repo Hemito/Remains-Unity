@@ -11,11 +11,12 @@ namespace Remains.Networking
     public sealed class InteractionAdapter
     {
         private readonly CoopSession session;
+        private readonly Func<string,RoomLayout> roomForLevel;
         public event Action<GrenadeState> GrenadeUpdated;
         public event Action<PropState,Vector2> PropMoved;
-        public InteractionAdapter(CoopSession session)
+        public InteractionAdapter(CoopSession session,Func<string,RoomLayout> roomForLevel=null)
         {
-            this.session=session;
+            this.session=session;this.roomForLevel=roomForLevel;
             session.ServerReady+=()=>
             {
                 NetworkServer.RegisterHandler<PropGrabMessage>(Remains.Networking.MessageTiming.Server<PropGrabMessage>(Grab));
@@ -23,6 +24,7 @@ namespace Remains.Networking
                 NetworkServer.RegisterHandler<ThrowRequest>(Remains.Networking.MessageTiming.Server<ThrowRequest>(Throw));
                 NetworkServer.RegisterHandler<DebugGrantRequest>(Remains.Networking.MessageTiming.Server<DebugGrantRequest>(DebugGrant));
                 NetworkServer.RegisterHandler<GrenadePoseMessage>(Remains.Networking.MessageTiming.Server<GrenadePoseMessage>(GrenadePose));
+                NetworkServer.RegisterHandler<GrenadeHoldRequest>(Remains.Networking.MessageTiming.Server<GrenadeHoldRequest>(GrenadeHold));
             };
             session.ClientReady+=()=>
             {
@@ -122,6 +124,41 @@ namespace Remains.Networking
                 remaining=WeaponCatalog.Get(weapon).grenadeFuseSeconds});
             session.CommitWorld();
         }
+        private void GrenadeHold(NetworkConnectionToClient connection,GrenadeHoldRequest request)
+        {
+            var actor=session.ConnectedActor(connection);
+            var world=session.ServerWorld;
+            var grenade=world?.grenades.Find(value=>value.id==request.grenade);
+            if(actor==null || grenade==null || actor.generation!=request.actorGeneration || actor.lifecycleSequence!=request.actorLifecycle ||
+                grenade.generation!=request.generation || grenade.level!=actor.level || grenade.remaining<=0) return;
+            if(request.release)
+            {
+                if(grenade.holder!=actor.id || grenade.owner!=actor.owner) return;
+                GrenadeRules.ReleaseHold(grenade);
+            }
+            else
+            {
+                var room=roomForLevel?.Invoke(grenade.level);
+                if(room==null || session.Pause.IsServerPaused(actor.level)) return;
+                if(grenade.holder!=null || actor.hold!=null || world.grenades.Any(value=>value.holder==actor.id) ||
+                    world.actors.Any(value=>value.hold?.holder==actor.id) || world.mines.Any(value=>value.holder==actor.id) ||
+                    WorldProps.All(world).Any(value=>value.held && value.owner==actor.owner)) return;
+                var body=GrenadeRules.TelekinesisBody(grenade);
+                var rule=session.Rules.Telekinesis;
+                string reason=rule.Rejection(actor,body,false);
+                if(reason==null && rule is ITelekinesisSightRule sight) reason=sight.SightRejection(actor,body,room);
+                if(reason!=null) {connection.Send(new NoticeMessage {text=reason});return;}
+                GrenadeRules.Hold(grenade,actor);
+            }
+            session.CommitWorld();
+        }
+        public void RequestGrenadeHold(string id,int generation,bool release)
+        {
+            var actor=session.LocalActor;
+            if(actor==null || !NetworkClient.isConnected) return;
+            NetworkClient.Send(new GrenadeHoldRequest {grenade=id,generation=generation,actorGeneration=actor.generation,
+                actorLifecycle=actor.lifecycleSequence,release=release});
+        }
         private static void Apply(GrenadeState state,GrenadePoseMessage message)
         {state.x=message.x;state.y=message.y;state.vx=message.vx;state.vy=message.vy;state.remaining=message.remaining;state.simulationRemainder=message.simulationRemainder;state.sequence=message.sequence;
             state.rotationVersion=1;state.angle=message.angle;state.angularVelocity=message.angularVelocity;state.mirrored=message.mirrored;
@@ -132,6 +169,8 @@ namespace Remains.Networking
             var grenade=session.ServerWorld?.grenades.Find(g=>g.id==message.id);
             if(actor==null || grenade==null || grenade.owner!=actor.owner || grenade.generation!=message.generation ||
                 unchecked((int)(message.sequence-grenade.sequence))<=0) return;
+            if(grenade.holder!=null && (grenade.holder!=actor.id || actor.down || actor.level!=grenade.level || actor.mana<=0))
+            {session.CommitWorld();return;}
             if(message.detonate && session.Pause.Defer(grenade.level,()=>GrenadePose(connection,message))) return;
             if(!float.IsFinite(message.x) || !float.IsFinite(message.y) || !float.IsFinite(message.vx) || !float.IsFinite(message.vy) ||
                 !float.IsFinite(message.angle) || !float.IsFinite(message.angularVelocity) ||
