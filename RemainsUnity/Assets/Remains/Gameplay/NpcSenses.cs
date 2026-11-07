@@ -60,7 +60,7 @@ namespace Remains.Gameplay
             var definition=ActorTypes.Get(actor.actorType);
             if(definition.combatAi) policies.Add(definition.id,new NpcPerception(definition.perception));
         }
-        public void Step(ActorState actor,float dt)
+        public void Step(ActorState actor,float dt,IReadOnlyList<ActorState> players=null)
         {
             elapsed.TryGetValue(actor.id,out float seconds);seconds+=dt;
             if(seconds<.1f) {elapsed[actor.id]=seconds;return;}
@@ -69,7 +69,7 @@ namespace Remains.Gameplay
                 throw new InvalidOperationException($"Нет политики восприятия: actor={actor.id}, type={actor.actorType}.");
             string previous=actor.target;
             var room=geometry.Get(actor.level);
-            perception.Step(actor,actor.perception,session.World.actors,(from,to)=>RoomVisibility.Clear(room,from,to),seconds,
+            perception.Step(actor,actor.perception,players??session.World.actors,(from,to)=>RoomVisibility.Clear(room,from,to),seconds,
                 NpcCreatureBehaviours.Mechanical(ActorTypes.Get(actor.actorType).behavior)?null:brightness);
             if(previous!=actor.target) {actor.revision++;session.PublishActor(actor);}
         }

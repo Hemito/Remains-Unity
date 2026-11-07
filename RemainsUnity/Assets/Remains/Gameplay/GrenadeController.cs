@@ -74,15 +74,16 @@ namespace Remains.Gameplay
             {flight.state=state.Copy();flight.requested=false;}
         }
         private readonly ConnectedPlayers connected=new();
-        public void Step(float dt)
+        public void Step(float dt,ConnectedPlayers framePlayers=null)
         {
             if(session.World==null) return;
             if(session.LocalActor is { } local && !session.Pause.IsPaused(local.level)) throwCooldown.Advance(dt);
-            connected.Refresh(session.World);
+            if(flights.Count==0) return;
+            if(framePlayers==null) {connected.Refresh(session.World);framePlayers=connected;}
             foreach(var flight in flights)
             {
                 var state=flight.state;
-                if(state.owner==null || !connected.OnLevel(state.level)) continue;
+                if(state.owner==null || !framePlayers.OnLevel(state.level)) continue;
                 if(session.Pause.IsPaused(state.level)) continue;
                 if(state.remaining>0)
                 {

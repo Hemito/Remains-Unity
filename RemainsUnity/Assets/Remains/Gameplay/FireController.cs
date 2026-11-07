@@ -17,6 +17,7 @@ namespace Remains.Gameplay
         private readonly CombatController combat;
         private readonly Dictionary<string,List<FirePatch>> patches=new(StringComparer.Ordinal);
         private readonly HashSet<string> live=new(StringComparer.Ordinal);
+        private readonly List<ActorState> burningActors=new();
         public int Hits {get;private set;}
         public FireController(CoopSession session,SimulationGeometry geometry,CombatController combat)
         {this.session=session;this.geometry=geometry;this.combat=combat;}
@@ -29,7 +30,7 @@ namespace Remains.Gameplay
             return patches[fire.id]=FireRules.Patches(fire,room);
         }
 
-        public void Step()
+        public void Step(ActorFrameIndex actors=null)
         {
             var world=session.World;
             if(world==null) return;
@@ -37,7 +38,13 @@ namespace Remains.Gameplay
                 FireRules.Expire(session.ServerWorld,level=>session.LevelTime.ReadServer(level))) session.CommitWorld();
             live.Clear();foreach(var fire in world.fires) live.Add(fire.id);
             if(patches.Count>live.Count) {var gone=new List<string>();foreach(var id in patches.Keys) if(!live.Contains(id)) gone.Add(id);foreach(var id in gone) patches.Remove(id);}
-            foreach(var actor in world.actors)
+            var candidates=world.actors;
+            if(actors!=null && world.fires.Count==0)
+            {
+                actors.CollectBurning(burningActors);
+                candidates=burningActors;
+            }
+            foreach(var actor in candidates)
             {
                 if(actor.owner!=session.LocalOwner || !ActorPresence.IsPresent(actor) || actor.health<=0 || session.Pause.IsPaused(actor.level) ||
                     !session.LevelTime.HasLocal(actor.level)) continue;

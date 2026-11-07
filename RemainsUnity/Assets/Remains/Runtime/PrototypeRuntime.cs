@@ -80,11 +80,16 @@ namespace Remains.Runtime
         private RadiationController radiation;
         private FreePropSimulation freeProps;
         private readonly Dictionary<string,ActorVisual> visuals = new();
+        private readonly Dictionary<string,ActorVisual> activeVisuals=new();
+        private readonly HashSet<string> visibleActors=new();
+        private readonly List<string> sleepingVisuals=new(),posesToPublish=new();
+        private readonly ActorFrameIndex actorFrames=new();
         private ActorShadowPresentation actorShadows;
         private readonly List<ProjectedLightShadow> projectedFlashShadows=new();
         private readonly PonyMagicActivitySource ponyMagic=new();
         private readonly RemoteActorMotion remoteMotion=new();
         private readonly ActorActivity actorActivity=new();
+        private InteractionVisuals interactionVisuals;
         internal ActorVisual FindActorVisual(string id)=>visuals.TryGetValue(id,out var visual)?visual:null;
         private ActorVisualLayers visualLayers;
         private readonly WorldVisualOrderTable visualOrders=new();
@@ -184,6 +189,8 @@ namespace Remains.Runtime
             Platforms.TopologyChanged+=ActorBodySupport.InvalidateRoom;
             Session.Changed+=RefreshBodyBindings;
             Geometry.OcclusionChanged+=RefreshBodyGeometry;
+            Session.Changed+=RefreshActorFrameIndex;
+            Session.PoseReceived+=actorFrames.Observe;
             MechanismInteraction=new MechanismInteraction(Session);
             Combat=new CombatController(Session,Geometry);
             Session.PropImpacts.Configure(Combat.ApplyPhysicalContact);
@@ -200,8 +207,9 @@ namespace Remains.Runtime
             Telekinesis=new TelekinesisController(Session,Interactions,Geometry,Grenades);
             freeProps=new FreePropSimulation(Session,Geometry,Interactions,Platforms);
             visualLayers=new ActorVisualLayers(transform,visualOrders);
-            var interactionVisuals=CreateOwnedObject("Визуальные взаимодействия").AddComponent<InteractionVisuals>();
+            interactionVisuals=CreateOwnedObject("Визуальные взаимодействия").AddComponent<InteractionVisuals>();
             interactionVisuals.Initialize(Session,Interactions,Grenades,Geometry,visualLayers,Combat.Reload);
+            interactionVisuals.ConfigureActorFrame(actorFrames.Frame);
             actorShadows=new ActorShadowPresentation(this,transform);
             FireVisuals fireVisuals=null;
             interactionVisuals.ConfigureMuzzleLighting(emissions=>
@@ -211,15 +219,15 @@ namespace Remains.Runtime
                 var lightArea=Session.LocalActor is {} litViewer?(Rect?)cameraFollower.AnimationArea(litViewer):null;
                 if(fireVisuals!=null)foreach(var e in fireVisuals.Lights.Emissions)
                     if(!lightArea.HasValue || lightArea.Value.Overlaps(Rect.MinMaxRect(e.Bounds.xMin-e.Reach,e.Bounds.yMin-e.Reach,e.Bounds.xMax+e.Reach,e.Bounds.yMax+e.Reach)))worldLightEmissions.Add(e);
-                hornLights.Append(visuals,worldLightEmissions,lightArea);
-                using(Remains.Diagnostics.FrameHitchLog.Section("Тени: персонажи")) actorShadows.Present(ActiveFactoryLighting,visuals,interactionVisuals,emissions,interactionVisuals.MuzzleSourceIds,
+                hornLights.Append(activeVisuals,worldLightEmissions,lightArea);
+                using(Remains.Diagnostics.FrameHitchLog.Section("Тени: персонажи")) actorShadows.Present(ActiveFactoryLighting,activeVisuals,interactionVisuals,emissions,interactionVisuals.MuzzleSourceIds,
                     lightArea,worldLightEmissions);
                 using(Remains.Diagnostics.FrameHitchLog.Section("Тени: проекции вспышек")) actorShadows.CollectProjectedLightShadows(projectedFlashShadows);
                 using(Remains.Diagnostics.FrameHitchLog.Section("Свет: вспышки и тени")) ActiveFactoryLighting.RenderMuzzleFlashes(emissions,projectedFlashShadows,interactionVisuals.MuzzleSourceIds,worldLightEmissions);
             },(attack,emission)=>
             {
                 if(LevelPresentationReady && ActiveFactoryLighting?.Light!=null)
-                    using(Remains.Diagnostics.FrameHitchLog.Section("Тени: подготовка вспышки")) actorShadows.PrepareFlash(ActiveFactoryLighting,visuals,interactionVisuals,"flash:"+attack.id,emission,
+                    using(Remains.Diagnostics.FrameHitchLog.Section("Тени: подготовка вспышки")) actorShadows.PrepareFlash(ActiveFactoryLighting,activeVisuals,interactionVisuals,"flash:"+attack.id,emission,
                         Session.LocalActor is {} viewer?(Rect?)cameraFollower.AnimationArea(viewer):null);
             });
             heldAppearance=CreateOwnedObject("Цвет удерживаемых предметов").AddComponent<HeldPropGlowPresentation>();
@@ -450,7 +458,7 @@ namespace Remains.Runtime
                 ActiveLevelLighting?.Release();
                 foreach(var visual in visuals.Values) {visual.SetVisible(false);Destroy(visual.gameObject);}
                 actorVisualWorld=actorVisualLevel=null;
-                visuals.Clear();visualLayers.Synchronize(Session.World,Session.LocalActor?.level);travelPointVisuals.Clear();return;
+                visuals.Clear();activeVisuals.Clear();visualLayers.Synchronize(Session.World,Session.LocalActor?.level);travelPointVisuals.Clear();return;
             }
             string definition=WorldRooms.Definition(Session.World,Session.LocalActor.level);
             bool adoptEntry=entryRoom?.HasRoom==true;
@@ -515,14 +523,14 @@ namespace Remains.Runtime
                 var removed=new List<string>();
                 foreach(var pair in visuals)
                 {
-                    var actor=world.Find(pair.Key);
+                    var actor=actorFrames.Find(pair.Key);
                     if(!ActorPresence.IsPresent(actor) || actor.level!=visible) removed.Add(pair.Key);
                 }
                 foreach(string id in removed) RefreshActorVisual(id,null,visible);
             }
             // A holder's appearance can change an unchanged held target. Keep this shared-source pass
             // independent of sparse actor binding; a wire key is not the complete tint dependency set.
-            foreach(var visual in visuals.Values) visual.ApplyHeldAppearance(colors);
+            foreach(var visual in activeVisuals.Values) visual.ApplyHeldAppearance(colors);
             actorVisualWorld=world.worldId;actorVisualLevel=visible;
         }
         private string actorVisualWorld,actorVisualLevel;
@@ -531,7 +539,11 @@ namespace Remains.Runtime
             if(!ActorPresence.IsPresent(actor) || actor.level!=visibleLevel)
             {
                 if(visuals.TryGetValue(id,out var removed))
-                {removed.SetVisible(false);if(Application.isPlaying) Destroy(removed.gameObject);else DestroyImmediate(removed.gameObject);visuals.Remove(id);}
+                {
+                    removed.SetVisible(false);
+                    if(Application.isPlaying) Destroy(removed.gameObject);else DestroyImmediate(removed.gameObject);
+                    visuals.Remove(id);activeVisuals.Remove(id);
+                }
                 return;
             }
             if(!visuals.TryGetValue(id,out var visual))
@@ -541,7 +553,34 @@ namespace Remains.Runtime
                 if(visual is AtlasActorVisual atlas) atlas.ConfigureVisibleArea(actorActivity.InVisibleArea);
             }
             if(visual is PonyVisual pony) pony.ConfigureMagicSource(ponyMagic);
-            visual.Bind(actor);visual.SetVisible(true);
+            visual.Bind(actor);
+            visual.SetVisible(id==Session.LocalActorId || activeVisuals.ContainsKey(id));
+        }
+
+        private void RefreshActorFrameIndex()
+        {
+            if(Session.World==null || Session.LastChange.Any(WorldChangeKind.Actors|WorldChangeKind.Identity))
+                actorFrames.Reconcile(Session.World,Session.LastChangedParts);
+        }
+
+        private void UpdateActorPresentation(string level)
+        {
+            visibleActors.Clear();sleepingVisuals.Clear();
+            foreach(var actor in actorFrames.Frame)
+                if(actor.level==level && visuals.TryGetValue(actor.id,out var view))
+                {
+                    visibleActors.Add(actor.id);
+                    if(!activeVisuals.ContainsKey(actor.id))
+                    {
+                        view.ApplyHeldAppearance(heldAppearance.Colors);view.SetVisible(true);activeVisuals.Add(actor.id,view);
+                    }
+                }
+            foreach(var pair in activeVisuals)
+                if(!visibleActors.Contains(pair.Key))
+                {
+                    pair.Value.SetVisible(false);interactionVisuals.HideActorWeapon(pair.Key);sleepingVisuals.Add(pair.Key);
+                }
+            foreach(string id in sleepingVisuals) activeVisuals.Remove(id);
         }
         private void BindEntryPresentation(IRoomLighting lighting,RoomLayout room,bool pending)
         {
@@ -616,20 +655,27 @@ namespace Remains.Runtime
             // Tops of physical bodies as actor supports, current before any actor moves this frame.
             using(Remains.Diagnostics.FrameHitchLog.Section("Опоры на телах"))
                 foreach(string level in Geometry.LoadedLevels) BodyTopSurfaces.Update(Geometry.Get(level),Session.World,level);
-            using(Remains.Diagnostics.FrameHitchLog.Section("Удалённое движение")) remoteMotion.Step(Session.World,Session.LocalOwner,Time.deltaTime,Session.Pause.IsPaused,Time.unscaledTimeAsDouble,true);
             using(Remains.Diagnostics.FrameHitchLog.Section("Актёры: активность"))
-            {actorActivity.Refresh(Session.World);
-            actorActivity.SetVisibleArea(actor.level,cameraFollower.AnimationArea(actor));}
+            {
+                actorActivity.Refresh(Session.World,actorFrames.Players);
+                var area=cameraFollower.AnimationArea(actor);
+                actorActivity.SetVisibleArea(actor.level,area);
+                actorFrames.Select(actorActivity,actor.level,area);
+                UpdateActorPresentation(actor.level);
+            }
+            using(Remains.Diagnostics.FrameHitchLog.Section("Удалённое движение"))
+                remoteMotion.Step(Session.World,Session.LocalOwner,Time.deltaTime,Session.Pause.IsPaused,Time.unscaledTimeAsDouble,true,
+                    actorFrames.Frame,actorActivity.Connected);
             using(Remains.Diagnostics.FrameHitchLog.Section("Актёры: движение и позы"))
             {
-            foreach(var body in Session.World.actors)
+            foreach(var body in actorFrames.Frame)
                 if(body.owner==Session.LocalOwner &&
                     actorActivity.Connected.OnLevel(body.level) && !Session.Pause.IsPaused(body.level))
                 {
                     if(ActorHoldRules.Active(body)) ActorHoldMotion.Step(body,Geometry.Get(body.level),Time.deltaTime);
                     else if(body!=actor && ActorSessionRules.IsPassive(body)) PassiveActorMotion.Step(body,Geometry.Get(body.level),Time.deltaTime,passiveMovementSettings,passengers.ForActor(body));
                 }
-            foreach(var animated in Session.World.actors)
+            foreach(var animated in actorFrames.Frame)
             {
                 if(animated.owner==Session.LocalOwner) animated.poseCorrectionRemaining=0;
                 if(actorActivity.Active(animated) && !Session.Pause.IsPaused(animated.level) &&
@@ -640,10 +686,11 @@ namespace Remains.Runtime
                 }
             }
             }
-            using(Remains.Diagnostics.FrameHitchLog.Section("Отдача и гранаты")) {Session.Recoil.Step(Time.deltaTime);Grenades.Step(Time.deltaTime);}
+            using(Remains.Diagnostics.FrameHitchLog.Section("Отдача и гранаты"))
+            {Session.Recoil.Step(Time.deltaTime,actorFrames);Grenades.Step(Time.deltaTime,actorActivity.Connected);}
             if (Options.Smoke==null || Options.Smoke.StartsWith("factory-number") || Options.Smoke.StartsWith("actor-death") || Options.Smoke.StartsWith("legacy-doors") || Options.Smoke.StartsWith("cosmetics") || Options.Smoke.StartsWith("lighting-preparation") || (Options.Smoke is "performance-audit" or "seed104-baseline") || Options.Smoke.StartsWith("warehouse-furniture") || Options.Smoke.StartsWith("warehouse-metal-doors") || Options.Smoke.StartsWith("warehouse-reload") || Options.Smoke.StartsWith("raid-entry") || (Options.Smoke.StartsWith("warehouse-seam") || Options.Smoke.StartsWith("continuation-seam")) || Options.Smoke.StartsWith("office-furniture") || Options.Smoke.StartsWith("office-opening") || Options.Smoke.StartsWith("office-recovery") || Options.Smoke.StartsWith("tool-stand") || Options.Smoke.StartsWith("office-cabinet") || Options.Smoke.StartsWith("ladder-contact") || Options.Smoke.StartsWith("mechanism") || Options.Smoke.StartsWith("crawler") || Options.Smoke.StartsWith("creatures-") || Options.Smoke.StartsWith("surface-audio") || Options.Smoke.StartsWith("contact-audio") || Options.Smoke.StartsWith("prop-body") || Options.Smoke.StartsWith("factory-room") || Options.Smoke.StartsWith("raid-reload") || Options.Smoke.StartsWith("travel-points") || Options.Smoke.StartsWith("door") || Options.Smoke.StartsWith("ladder-body") || Options.Smoke.StartsWith("weapon-transfer") || Options.Smoke.StartsWith("projectile-handoff") || Options.Smoke.StartsWith("training") || Options.Smoke.StartsWith("shot-spread") || Options.Smoke.StartsWith("weapon-reload") || Options.Smoke.StartsWith("held-prop-color") || Options.Smoke.StartsWith("obstacle") || Options.Smoke.StartsWith("journey") || Options.Smoke.StartsWith("session") || Options.Smoke.StartsWith("ammo") || Options.Smoke.StartsWith("revival") || Options.Smoke.StartsWith("grenade") || Options.Smoke.StartsWith("npc") || Options.Smoke.StartsWith("container") || Options.Smoke.StartsWith("receipt") || Options.Smoke.StartsWith("shortcuts") || Options.Smoke.StartsWith("direct-items") || Options.Smoke.StartsWith("slope-poses") || Options.Smoke.StartsWith("body") || Options.Smoke.StartsWith("extensions") || Options.Smoke.StartsWith("freeze") || Options.Smoke.StartsWith("telekinesis") || Options.Smoke.StartsWith("actor-hold") || Options.Smoke.StartsWith("melee") || Options.Smoke.StartsWith("rules") || Options.Smoke.StartsWith("pause"))
             {
-                using(Remains.Diagnostics.FrameHitchLog.Section("NPC")) npcs.Step(Time.deltaTime);
+                using(Remains.Diagnostics.FrameHitchLog.Section("NPC")) npcs.Step(Time.deltaTime,actorFrames,actorActivity.Connected);
                 // Do not consume a probe/input source's one-shot actions until its room is
                 // ready. Real Escape still passes through; physics/network continue below.
                 var command=IsLevelPreparing?ReadCommand():CommandSource?.Invoke() ?? ReadCommand();
@@ -652,16 +699,23 @@ namespace Remains.Runtime
             }
             // After every local motion of the frame: the owner decides its actors' spike hits from their motion.
             using(Remains.Diagnostics.FrameHitchLog.Section("Шипы")) spikes.Step();
-            using(Remains.Diagnostics.FrameHitchLog.Section("Огонь")) Fires.Step();
+            using(Remains.Diagnostics.FrameHitchLog.Section("Огонь")) Fires.Step(actorFrames);
             using(Remains.Diagnostics.FrameHitchLog.Section("Радиация")) radiation.Step(Time.deltaTime);
             using(Remains.Diagnostics.FrameHitchLog.Section("Физические тела")) freeProps.Step(Time.deltaTime,actorActivity.Connected.Players);
             using(Remains.Diagnostics.FrameHitchLog.Section("Бой")) Combat.Step(Time.deltaTime);
             if (poseCadence.TryAdvance(Time.unscaledTimeAsDouble))
             using(Remains.Diagnostics.FrameHitchLog.Section("Актёры: публикация поз"))
             {
-                foreach (var owned in Session.World.actors)
-                    if (owned.owner==Session.LocalOwner && actorActivity.TakePosePublication(owned,out bool final,Session.Pause.IsPaused(owned.level)))
-                        Session.PublishPose(owned,final);
+                foreach(var owned in actorFrames.Frame)
+                    if(owned.owner==Session.LocalOwner &&
+                        actorActivity.TakePosePublication(owned,out bool final,Session.Pause.IsPaused(owned.level))) Session.PublishPose(owned,final);
+                posesToPublish.Clear();posesToPublish.AddRange(actorActivity.PendingPoses);
+                foreach(string id in posesToPublish)
+                {
+                    var owned=actorFrames.Find(id);
+                    if(owned==null || owned.owner!=Session.LocalOwner) {actorActivity.ForgetPose(id);continue;}
+                    if(actorActivity.TakePosePublication(owned,out bool final,Session.Pause.IsPaused(owned.level))) Session.PublishPose(owned,final);
+                }
             }
             // Follow the resolved body that the visuals will draw in LateUpdate.
             // Input above used the camera from the last displayed frame.
@@ -867,7 +921,12 @@ namespace Remains.Runtime
             roomPresentation?.Dispose();
             // Stop UI subscriptions before disconnect resets lobby state; children may already be destroyed at exit.
             if(hud!=null) hud.Dispose();
-            if(Session!=null) {Session.Changed-=RefreshVisualOrders;Session.Changed-=RefreshVisuals;Session.Changed-=RefreshBodyBindings;Session.GameplayPreparationFailed-=GameplayPreparationFailed;}
+            if(Session!=null)
+            {
+                Session.Changed-=RefreshVisualOrders;Session.Changed-=RefreshVisuals;Session.Changed-=RefreshBodyBindings;
+                Session.Changed-=RefreshActorFrameIndex;Session.PoseReceived-=actorFrames.Observe;
+                Session.GameplayPreparationFailed-=GameplayPreparationFailed;
+            }
             if(Geometry!=null) {Geometry.OcclusionChanged-=RefreshRoomOcclusion;Geometry.OcclusionChanged-=RefreshBodyGeometry;}
             if(AudioPreferences!=null) AudioPreferences.Changed-=ApplyAudioPreferences;
             // Keep content and presentation consumers alive until stop callbacks have

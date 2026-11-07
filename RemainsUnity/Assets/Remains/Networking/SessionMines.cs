@@ -268,7 +268,7 @@ namespace Remains.Networking
                 foreach(var mine in lost) LoseHolder(mine);
                 lost.Clear();
             }
-            connected.Refresh(world);
+            connected.RefreshActors(session.ServerPlayers);
             foreach(var mine in world.mines)
             {
                 if(!connected.OnLevel(mine.level) || session.Pause.IsServerPaused(mine.level)) continue;

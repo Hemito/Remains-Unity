@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Remains.Domain;
 using Remains.Networking;
 using UnityEngine;
@@ -15,6 +14,7 @@ namespace Remains.Gameplay
         public Func<string,Vector2,float?> LevelBrightness {set=>senses.LevelBrightness=value;}
         private readonly Remains.Content.MovementSettings movementSettings;
         private readonly Dictionary<(string level,string type),MovementController> movement=new();
+        private readonly List<(string level,string type)> retiredMovement=new();
         private readonly NpcCreatureController creatures=new();
         private readonly NpcRaiderController raiders;
         private readonly Dictionary<string,List<ActorState>> downed=new(StringComparer.Ordinal);
@@ -34,17 +34,10 @@ namespace Remains.Gameplay
             session.AttackReceived+=raiders.Heard;
             session.Changed+=()=>
             {
-                var needed=session.World==null?Array.Empty<(string level,string type)>():session.World.actors
-                    .Where(a=>!a.player && Remains.Content.ActorTypes.Get(a.actorType).combatAi && a.owner==session.LocalOwner && !a.down && LevelActivity.HasConnectedPlayer(session.World,a.level))
-                    .Select(a=>(level:a.level,type:a.actorType)).Distinct().ToArray();
-                var keys=needed.ToHashSet();
-                foreach(var key in movement.Keys.Where(key=>!keys.Contains(key)).ToArray()) movement.Remove(key);
-                foreach(var value in needed)
-                {
-                    var key=value;
-                    if(movement.TryGetValue(key,out var controller) && ReferenceEquals(controller.Room,geometry.Get(value.level))) continue;
-                    movement[key]=new MovementController(geometry.Get(value.level),Movement(movementSettings,Remains.Content.ActorTypes.Get(value.type)));
-                }
+                retiredMovement.Clear();
+                foreach(var pair in movement)
+                    if(!ReferenceEquals(pair.Value.Room,geometry.Find(pair.Key.level))) retiredMovement.Add(pair.Key);
+                foreach(var key in retiredMovement) movement.Remove(key);
             };
         }
         // The ground movement of an NPC type: the player's settings with a natural attacker's approach speed, or the walk
@@ -69,29 +62,32 @@ namespace Remains.Gameplay
             if(actor.down || !NpcCreatureBehaviours.Fixed(type.behavior) || attacker==null || !attacker.player) return;
             if(NpcTurret.Alarm(actor,type,attacker.Position)) {senses.Alarm(actor,attacker);actor.revision++;}
         }
-        public void Step(float dt)
+        public void Step(float dt,ActorFrameIndex index=null,ConnectedPlayers framePlayers=null)
         {
             if(session.World==null) return;
-            connected.Refresh(session.World);
+            if(framePlayers==null) {connected.Refresh(session.World);framePlayers=connected;}
+            var actors=index?.Frame??session.World.actors;
             // Downed sapient NPCs by level, once a frame: the raiders' allies to revive (a short list, not all against all).
             foreach(var list in downed.Values) list.Clear();
-            foreach(var body in session.World.actors)
-                if(body.down && !body.player && connected.OnLevel(body.level) && SapientPonies.Is(body))
+            foreach(var body in actors)
+                if(body.down && !body.player && framePlayers.OnLevel(body.level) && SapientPonies.Is(body))
                 {if(!downed.TryGetValue(body.level,out var list)) downed[body.level]=list=new List<ActorState>();list.Add(body);}
-            foreach(var actor in session.World.actors)
+            foreach(var actor in actors)
             {
                 if(actor.player || actor.owner!=session.LocalOwner || actor.down) continue;
                 // The cheap activity filters first: most NPCs of a factory sleep far from every player.
-                if(!connected.OnLevel(actor.level) || !NpcActivity.Awake(connected.Players,actor)) continue;
+                if(!framePlayers.OnLevel(actor.level) || !NpcActivity.Awake(framePlayers.Players,actor)) continue;
                 var type=Remains.Content.ActorTypes.Get(actor.actorType);
                 if(ActorHoldRules.Active(actor) && !NpcCreatureBehaviours.Fixed(type.behavior)) continue;
                 if(!type.combatAi) continue;
                 bool natural=type.naturalAttack!=null;
                 if(session.Pause.IsPaused(actor.level)) continue;
-                if(!movement.TryGetValue((actor.level,actor.actorType),out var controller))
-                    throw new InvalidOperationException($"Не загружена геометрия симуляции NPC: actor={actor.id}, level={actor.level}.");
-                senses.Step(actor,dt);
-                var target=session.World.Find(actor.attackBusy?actor.attackTarget:actor.target);
+                var key=(actor.level,actor.actorType);
+                if(!movement.TryGetValue(key,out var controller))
+                    movement[key]=controller=new MovementController(geometry.Get(actor.level),Movement(movementSettings,type));
+                senses.Step(actor,dt,framePlayers.Players);
+                string targetId=actor.attackBusy?actor.attackTarget:actor.target;
+                var target=index!=null?index.Find(targetId):session.World.Find(targetId);
                 bool visible=target!=null && target.level==actor.level && RoomVisibility.Clear(geometry.Get(actor.level),
                     natural?NpcNaturalAttack.Origin(actor):WeaponPose.RangedAnchor(actor),target.BodyPosition+Vector2.up*(natural?type.perception.targetHeight:.55f));
                 if(!natural) recharge.Step(actor,dt,actor.attackBusy?dt:actor.attackCooldown);

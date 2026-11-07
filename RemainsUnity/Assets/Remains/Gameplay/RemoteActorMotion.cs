@@ -38,12 +38,16 @@ namespace Remains.Gameplay
             sample.pose==actor.pose && sample.poseSequence==actor.poseSequence;
 
         private readonly ConnectedPlayers connected=new();
-        public void Step(WorldState world,string localOwner,float dt,System.Func<string,bool> paused,double now,bool pairBoundBodyPhase=false)
+        public void Step(WorldState world,string localOwner,float dt,System.Func<string,bool> paused,double now,bool pairBoundBodyPhase=false,
+            IReadOnlyList<ActorState> frameActors=null,ConnectedPlayers framePlayers=null)
         {
             if(worldId!=world.worldId) {Clear();worldId=world.worldId;}
-            tick++;dt=Mathf.Max(0,dt);connected.Refresh(world);
-            foreach(var actor in world.actors)
+            tick++;dt=Mathf.Max(0,dt);
+            if(framePlayers==null) {connected.Refresh(world);framePlayers=connected;}
+            var actors=frameActors??world.actors;
+            for(int i=0;i<actors.Count;i++)
             {
+                var actor=actors[i];
                 if(actor.owner==localOwner || !ActorPresence.IsPresent(actor)) {samples.Remove(actor.id);continue;}
                 bool climbing=actor.climbing && !ActorSessionRules.IsPassive(actor);
                 bool pairedBody=pairBoundBodyPhase && !ActorSessionRules.IsPassive(actor) && ActorBodySupport.Sample(actor).HasFootProfile;
@@ -86,7 +90,7 @@ namespace Remains.Gameplay
                     sample.climbing=climbing;sample.pairedBody=pairedBody;sample.pose=actor.pose;sample.poseSequence=actor.poseSequence;sample.receivedPhase=actor.poseTime;
                 }
                 sample.seen=tick;
-                bool running=sample.clockReady && !paused(actor.level) && connected.OnLevel(actor.level);
+                bool running=sample.clockReady && !paused(actor.level) && framePlayers.OnLevel(actor.level);
                 if(running)
                 {
                     // Bodies interpolate toward confirmed positions only: predicting their

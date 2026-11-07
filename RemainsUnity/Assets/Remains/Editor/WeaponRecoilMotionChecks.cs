@@ -55,6 +55,18 @@ namespace Remains.Editor
                 throw new InvalidOperationException("Отдача: принят недопустимый случай — "+context);
             }
             var standard=new SmoothWeaponRecoilRule();
+            var fullStep=new Fixture();var indexedStep=new Fixture();var index=new ActorFrameIndex();
+            index.Reconcile(indexedStep.world);
+            Check(fullStep.Commit("indexed") && indexedStep.Commit("indexed"),"не принят выстрел для индексированного шага");
+            fullStep.Step(.08f);
+            indexedStep.motion.Step(indexedStep.world,"a",.08f,noPause,7,noBlock,index);
+            Check(fullStep.Actor.weaponRecoil.offsetX==indexedStep.Actor.weaponRecoil.offsetX &&
+                fullStep.Actor.weaponRecoil.angleDegrees==indexedStep.Actor.weaponRecoil.angleDegrees,
+                "индексированный шаг изменил положение или угол отдачи");
+            indexedStep.Actor.down=true;
+            indexedStep.motion.Step(indexedStep.world,"a",.01f,noPause,7,noBlock,index);
+            Check(indexedStep.motion.ActiveActors==0 && indexedStep.Actor.weaponRecoil.offsetX==0 &&
+                indexedStep.Actor.weaponRecoil.angleDegrees==0,"индексированный шаг не снял отдачу после потери сознания");
             foreach(var profile in new[]{WeaponRecoilProfile.PistolCalibration(),WeaponRecoilProfile.EnergyCalibration()})
             {
                 profile.Validate("calibration");

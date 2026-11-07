@@ -65,7 +65,41 @@ namespace Remains.Editor
             Require(frozen.CreateLiveWorld().actors.Count==2,"Спящий актёр исчез из recovery.");
             player.connected=false;activity.Refresh(world);Require(!activity.Active(player),"Отключённый персонаж хаба активен.");
             player.connected=true;activity.Refresh(world);Require(activity.Active(player),"Возвращение игрока не обновило активность.");
+            CheckIndex();
             Debug.Log("Активность писателей поз: PASS — сон/граница/пробуждение, атака, пассивное и удерживаемое тело, уход/возврат и recovery.");
+        }
+        private static void CheckIndex()
+        {
+            const string level="factory:0";
+            var world=new WorldState();
+            var player=new ActorState {id="player",player=true,connected=true,level=level};
+            var npc=new ActorState {id="target",level=level,x=40};
+            world.actors.Add(player);world.actors.Add(npc);
+            for(int i=0;i<500;i++) world.actors.Add(new ActorState {id="sleep-"+i,level=level,x=300,y=300});
+            var index=new ActorFrameIndex();
+            var activity=new ActorActivity();
+            index.Reconcile(world);
+            void Select(Rect area)
+            {
+                activity.Refresh(world,index.Players);activity.SetVisibleArea(level,area);index.Select(activity,level,area);
+            }
+            var camera=new Rect(-15,-10,30,20);
+            Select(camera);
+            Require(index.Frame.Count==2 && index.Frame[1]==npc && index.Visited<20,"Индекс просматривает дальних спящих или исключает границу.");
+            npc.x=240;Select(camera);
+            Require(index.Frame.Count==1,"Локально сдвинувшийся NPC остался в старой корзине.");
+            npc.x=70;index.Observe(npc);Select(new Rect(60,-10,30,20));
+            Require(index.Frame.Count==2,"Авторитетное движение не пробудило NPC в широком кадре.");
+            var replacement=npc.Copy();
+            replacement.x=300;replacement.attackBusy=true;world.actors[1]=replacement;
+            index.Reconcile(world,new[]{"actors:target"});Select(camera);
+            Require(index.Frame.Count==2 && index.Frame[1]==replacement,"Точечное обновление потеряло начатую дальнюю атаку.");
+            replacement.attackBusy=false;Select(camera);
+            Require(index.Frame.Count==1,"Завершённая атака оставила дальнего NPC активным.");
+            player.x=300;player.y=300;Select(camera);
+            Require(index.Frame.Count==501,"Перемещение игрока не пробудило соседнюю группу.");
+            world.actors.Remove(replacement);index.Reconcile(world,new[]{"actors:target"});
+            Require(index.Find("target")==null,"Удалённый NPC остался в индексе.");
         }
         private static void Require(bool value,string message) {if(!value) throw new InvalidOperationException(message);}
     }

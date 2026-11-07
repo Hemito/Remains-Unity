@@ -145,7 +145,7 @@ namespace Remains.Networking
         {
             var world=session.ServerWorld;
             if(!NetworkServer.active || world==null || world.hazards.Count==0 || dt<=0) return;
-            bites.Clear();connected.Refresh(world);
+            bites.Clear();connected.RefreshActors(session.ServerPlayers);
             foreach(var hazard in world.hazards)
             {
                 if(hazard.closed || !connected.OnLevel(hazard.level) || session.Pause.IsServerPaused(hazard.level)) continue;

@@ -16,7 +16,26 @@ namespace Remains.Networking
     public sealed class CoopSession : NetworkManager
     {
         public WorldState World { get; private set; }
-        public WorldState ServerWorld { get; private set; }
+        private WorldState serverWorld;
+        private readonly List<ActorState> serverPlayers=new();
+        public WorldState ServerWorld
+        {
+            get=>serverWorld;
+            private set
+            {
+                serverWorld=value;serverPlayers.Clear();
+                if(value!=null) foreach(var actor in value.actors)
+                    if(actor.player) serverPlayers.Add(actor);
+            }
+        }
+        internal IReadOnlyList<ActorState> ServerPlayers=>serverPlayers;
+        private void TrackServerPlayer(ActorState actor)
+        {
+            if(!actor.player) return;
+            for(int i=0;i<serverPlayers.Count;i++)
+                if(serverPlayers[i].id==actor.id) {serverPlayers[i]=actor;return;}
+            serverPlayers.Add(actor);
+        }
         public string LocalOwner { get; private set; }
         public string LocalActorId { get; private set; }
         // Read many times per frame (every body view, every system step): check the remembered slot first, scan only when the
@@ -632,6 +651,7 @@ namespace Remains.Networking
             string owner="connection:"+connection.connectionId;
             owners[connection.connectionId]=owner;
             ActorSessionRules.Connect(actor,owner);
+            TrackServerPlayer(actor);
             playerIds[owner]=actor.id;
             ownership.Reassign(ServerWorld,owners.Values.ToArray());
             ServerWorld.revision++;
@@ -1104,6 +1124,7 @@ namespace Remains.Networking
             }
             if(deathLoot==null)ServerWorld.actors[ServerWorld.actors.IndexOf(actor)]=incoming;
             else deathLoot.ApplyAccepted(ServerWorld);
+            TrackServerPlayer(incoming);
             // Ordinary NPC deltas need not save and transmit the whole world.
             // Reassignment still runs at the same point, and all shared changes
             // or incapacitation transitions are checkpointed immediately.

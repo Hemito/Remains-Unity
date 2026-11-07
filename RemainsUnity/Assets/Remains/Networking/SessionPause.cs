@@ -34,7 +34,7 @@ namespace Remains.Networking
         public event Action Changed;
         public SessionPause(CoopSession session)=>this.session=session;
         public bool IsPaused(string level)=>level!=null && pausedLevels.Contains(level);
-        public bool IsServerPaused(string level)=>coordinator!=null && coordinator.IsPaused(session.ServerWorld,level);
+        public bool IsServerPaused(string level)=>coordinator!=null && coordinator.IsPausedForPlayers(session.ServerPlayers,level);
         public void RegisterServer()
         {
             coordinator=new LevelPauseCoordinator(session.Rules.Pause);
@@ -81,7 +81,7 @@ namespace Remains.Networking
             coordinator.Reconcile(session.ServerWorld);
             var levels=session.ServerWorld==null?Array.Empty<string>():session.ServerWorld.actors
                 .Where(actor=>actor.player && actor.connected).Select(actor=>actor.level).Distinct(StringComparer.Ordinal)
-                .Where(level=>coordinator.IsPaused(session.ServerWorld,level)).OrderBy(level=>level,StringComparer.Ordinal).ToArray();
+                .Where(level=>coordinator.IsPausedForPlayers(session.ServerPlayers,level)).OrderBy(level=>level,StringComparer.Ordinal).ToArray();
             if(published.pauseOnMenu!=coordinator.PauseOnMenu || published.pauseOnInventory!=coordinator.PauseOnInventory ||
                 !levels.SequenceEqual(published.levels))
                 published=new PauseStateMessage {revision=published.revision+1,pauseOnMenu=coordinator.PauseOnMenu,

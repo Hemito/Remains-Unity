@@ -17,9 +17,12 @@ namespace Remains.Domain
         public IReadOnlyList<ActorState> AllPlayers=>all;
         public void Refresh(WorldState world)
         {
+            RefreshActors(world?.actors);
+        }
+        public void RefreshActors(IReadOnlyList<ActorState> actors)
+        {
             players.Clear();all.Clear();levels.Clear();
-            if(world==null) return;
-            var actors=world.actors;
+            if(actors==null) return;
             for(int i=0;i<actors.Count;i++)
             {
                 var actor=actors[i];

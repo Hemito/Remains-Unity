@@ -13,13 +13,15 @@ namespace Remains.Domain
         private string worldId;
         private string visibleLevel;
         private Rect visibleArea;
-        public void Refresh(WorldState world)
+        public void Refresh(WorldState world,IReadOnlyList<ActorState> players=null)
         {
             if(worldId!=world.worldId) {pendingPoses.Clear();worldId=world.worldId;}
-            connected.Refresh(world);
+            connected.RefreshActors(players??world.actors);
             visibleLevel=null;
         }
         public ConnectedPlayers Connected=>connected;
+        public IReadOnlyCollection<string> PendingPoses=>pendingPoses;
+        public void ForgetPose(string id)=>pendingPoses.Remove(id);
         // Visual coverage may exceed the AI room on an unusually wide viewport. It affects animation/pose
         // writers only; NpcController continues to use NpcActivity's gameplay rectangle.
         public void SetVisibleArea(string level,Rect area) {visibleLevel=level;visibleArea=area;}

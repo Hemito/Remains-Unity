@@ -53,14 +53,20 @@ namespace Remains.Domain
             if(paused) manualLevels.Add(actor.level);else manualLevels.Remove(actor.level);
             return null;
         }
-        public bool IsPaused(WorldState world,string level)
+        public bool IsPaused(WorldState world,string level)=>IsPausedForPlayers(world?.actors,level);
+        public bool IsPausedForPlayers(IReadOnlyList<ActorState> players,string level)
         {
-            if(!LevelActivity.HasConnectedPlayer(world,level)) return false;
-            bool menu=false,inventory=false;
-            foreach(var pair in intents)
-                if(pair.Value.level==level && pair.Value.Matches(world.Find(pair.Key)))
-                {menu|=pair.Value.menu;inventory|=pair.Value.inventory;}
-            return rule.IsPaused(new LevelPauseContext(manualLevels.Contains(level),menu,inventory,PauseOnMenu,PauseOnInventory));
+            if(players==null || level==null) return false;
+            bool occupied=false,menu=false,inventory=false;
+            for(int i=0;i<players.Count;i++)
+            {
+                var actor=players[i];
+                if(!actor.player || !actor.connected || actor.level!=level) continue;
+                occupied=true;
+                if(intents.TryGetValue(actor.id,out var intent) && intent.Matches(actor))
+                {menu|=intent.menu;inventory|=intent.inventory;}
+            }
+            return occupied && rule.IsPaused(new LevelPauseContext(manualLevels.Contains(level),menu,inventory,PauseOnMenu,PauseOnInventory));
         }
         public void Reconcile(WorldState world)
         {

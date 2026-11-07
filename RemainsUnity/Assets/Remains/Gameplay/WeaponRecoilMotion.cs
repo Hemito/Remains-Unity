@@ -51,27 +51,40 @@ namespace Remains.Gameplay
             rule=curveRule??new SmoothWeaponRecoilRule();
             this.warning=warning??(message=>Debug.LogWarning(message));
         }
-        public void Step(WorldState world,string localOwner,float dt,Func<string,bool> paused,long pauseRevision,Func<ActorState,bool> blocked)
+        public void Step(WorldState world,string localOwner,float dt,Func<string,bool> paused,long pauseRevision,Func<ActorState,bool> blocked,
+            ActorFrameIndex index=null)
         {
             ValidateTime(dt,pauseRevision);
             if(paused==null || blocked==null) throw new ArgumentNullException(paused==null?nameof(paused):nameof(blocked),"Отдача: нужны явные предикаты паузы и блокировки.");
             if(!BindWorld(world,localOwner)) return;
             this.paused=paused;this.blocked=blocked;
             tick=unchecked(tick+1);
-            foreach(var actor in world.actors)
+            if(index!=null)
             {
-                if(actor.owner!=localOwner) continue; // Remote never samples gameplay impulses.
-                ValidateExistingPose(actor);
-                bool usable=CanUse(actor) && !paused(actor.level) && !blocked(actor);
-                if(!usable || !bindings.TryGetValue(actor.id,out var binding) || !binding.Matches(actor))
+                foreach(var pair in bindings)
                 {
-                    bindings.Remove(actor.id);Neutralize(actor,pauseRevision);continue;
+                    var actor=index.Find(pair.Key);
+                    if(actor==null || actor.owner!=localOwner) continue;
+                    ValidateExistingPose(actor);
+                    if(CanUse(actor) && !paused(actor.level) && !blocked(actor) && pair.Value.Matches(actor))
+                        Advance(pair.Value,actor,dt,pauseRevision);
+                    else Neutralize(actor,pauseRevision);
                 }
-                binding.actor=actor;binding.tick=tick;
-                foreach(var impulse in binding.impulses) impulse.age+=dt;
-                Compose(binding,actor,pauseRevision);
-                for(int i=binding.impulses.Count-1;i>=0;i--)
-                    if(binding.impulses[i].age>=binding.profile.DurationSeconds) binding.impulses.RemoveAt(i);
+            }
+            else
+            {
+                // Full validation on state and pause changes; a regular frame samples only live impulses.
+                foreach(var actor in world.actors)
+                {
+                    if(actor.owner!=localOwner) continue;
+                    ValidateExistingPose(actor);
+                    bool usable=CanUse(actor) && !paused(actor.level) && !blocked(actor);
+                    if(!usable || !bindings.TryGetValue(actor.id,out var binding) || !binding.Matches(actor))
+                    {
+                        bindings.Remove(actor.id);Neutralize(actor,pauseRevision);continue;
+                    }
+                    Advance(binding,actor,dt,pauseRevision);
+                }
             }
             removed.Clear();
             foreach(var pair in bindings) if(pair.Value.tick!=tick) removed.Add(pair.Key);
@@ -81,6 +94,14 @@ namespace Remains.Gameplay
                 if(binding.Matches(binding.actor)) Neutralize(binding.actor,pauseRevision);
                 bindings.Remove(id);
             }
+        }
+        private void Advance(Binding binding,ActorState actor,float dt,long pauseRevision)
+        {
+            binding.actor=actor;binding.tick=tick;
+            foreach(var impulse in binding.impulses) impulse.age+=dt;
+            Compose(binding,actor,pauseRevision);
+            for(int i=binding.impulses.Count-1;i>=0;i--)
+                if(binding.impulses[i].age>=binding.profile.DurationSeconds) binding.impulses.RemoveAt(i);
         }
         public bool CommitShot(WorldState world,string localOwner,ActorState actor,AttackEvent shot,long pauseRevision)
         {

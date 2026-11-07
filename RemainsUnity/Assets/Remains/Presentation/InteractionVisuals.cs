@@ -14,6 +14,7 @@ namespace Remains.Presentation
         private InteractionAdapter interactions;
         private GrenadeController grenades;
         private SimulationGeometry geometry;
+        private IReadOnlyList<ActorState> frameActors;
         // Flight prefabs per grenade, loaded when a flight of that grenade first appears.
         private readonly System.Collections.Generic.Dictionary<string,SpriteRenderer> grenadePrefabs=new(StringComparer.Ordinal);
         private ActorVisualLayers layers;
@@ -45,22 +46,27 @@ namespace Remains.Presentation
         private readonly HashSet<string> movingBodies=new(StringComparer.Ordinal);
         private readonly List<string> settledBodies=new();
         public WeaponView FindWeapon(string actorId)=>weapons.TryGetValue(actorId,out var view)?view:null;
+        public void ConfigureActorFrame(IReadOnlyList<ActorState> actors)=>frameActors=actors;
+        public void HideActorWeapon(string actorId)=>FindWeapon(actorId)?.SetVisible(false);
         public void AppendWeaponLightOccluders(List<LightOccluder> output)
             =>AppendWeaponLightOccluders(null,output);
         public void AppendWeaponLightOccluders(string actorId,List<LightOccluder> output)
         {
-            foreach(var pair in weapons)
+            if(actorId!=null)
             {
-                if(actorId!=null && pair.Key!=actorId) continue;
-                var view=pair.Value;
-                var renderer=view.Artwork;
-                if(!view.gameObject.activeInHierarchy || !renderer.enabled || renderer.forceRenderingOff || renderer.color.a<=0) continue;
-                // Shot art includes emissive muzzle pixels. Only the cached physical weapon
-                // silhouette absorbs; use the same actual weapon transform, not another pose sample.
-                if(!sprites.TryGetValue(view.Id,out var sprite))
-                {if(missingGraphics.Add("shadow:"+view.Id)) Debug.LogWarning($"Нет силуэта оружия для тени: actor={pair.Key}, weapon={view.Id}.",this);continue;}
-                output.Add(new LightOccluder(sprite,renderer.transform.localToWorldMatrix,renderer.color.a));
+                if(weapons.TryGetValue(actorId,out var view)) AppendWeaponOccluder(actorId,view,output);
+                return;
             }
+            foreach(var pair in weapons) AppendWeaponOccluder(pair.Key,pair.Value,output);
+        }
+        private void AppendWeaponOccluder(string actorId,WeaponView view,List<LightOccluder> output)
+        {
+            var renderer=view.Artwork;
+            if(!view.gameObject.activeInHierarchy || !renderer.enabled || renderer.forceRenderingOff || renderer.color.a<=0) return;
+            // Only the cached physical weapon silhouette absorbs. Shot art may include emissive pixels.
+            if(!sprites.TryGetValue(view.Id,out var sprite))
+            {if(missingGraphics.Add("shadow:"+view.Id)) Debug.LogWarning($"Нет силуэта оружия для тени: actor={actorId}, weapon={view.Id}.",this);return;}
+            output.Add(new LightOccluder(sprite,renderer.transform.localToWorldMatrix,renderer.color.a));
         }
         public PropView FindProp(string id)=>props.TryGetValue(id,out var view)?view:null;
         public PropView FindContainer(string id)=>containers.TryGetValue(id,out var view)?view:null;
@@ -181,7 +187,9 @@ namespace Remains.Presentation
                         if(previous.Id==actor.weapon) continue;
                         previous.gameObject.SetActive(false);Destroy(previous.gameObject);
                     }
-                    weapons[actor.id]=CreateWeapon(actor);
+                    var created=CreateWeapon(actor);
+                    if(frameActors!=null) created.SetVisible(false);
+                    weapons[actor.id]=created;
                 }
             foreach(var flight in grenades.Flights)
                 if(flight.state.level==level && !flights.ContainsKey(flight.state.id))
@@ -257,9 +265,13 @@ namespace Remains.Presentation
             string shownLevel=session.LocalActor?.level,localOwner=session.LocalOwner;
             using(Remains.Diagnostics.FrameHitchLog.Section("Тела: представления"))
                 DrawMovingBodies(shownLevel,localOwner);
-            foreach(var actor in session.World.actors)
+            var actors=frameActors??session.World.actors;
+            for(int i=0;i<actors.Count;i++)
             {
+                var actor=actors[i];
                 if(!weapons.TryGetValue(actor.id,out var view)) continue;
+                if(!ActorPresence.IsPresent(actor) || ActorSessionRules.IsPassive(actor) || actor.level!=shownLevel)
+                {view.SetVisible(false);continue;}
                 if(string.IsNullOrEmpty(actor.weapon) || HeldItemSelection.HasSelection(actor) || Remains.Content.WeaponCatalog.IsGrenade(actor.weapon) && !actor.heldItemPoseValid) {view.SetVisible(false);continue;}
                 if(!sprites.TryGetValue(actor.weapon,out var sprite))
                 { if(missingGraphics.Add(actor.id+":"+actor.weapon)) Debug.LogWarning($"Отсутствует графика оружия {actor.weapon} у {actor.id}.",this);view.SetVisible(false);continue; }
@@ -269,7 +281,7 @@ namespace Remains.Presentation
                         Debug.LogWarning($"Представление оружия не обновлено событием: actor={actor.id}, view={view.Id}, weapon={actor.weapon}.",this);
                     view.SetVisible(false);continue;
                 }
-                view.SetVisible(ActorPresence.IsPresent(actor) && !ActorSessionRules.IsPassive(actor) && actor.level==shownLevel);
+                view.SetVisible(true);
                 sprite=shotAnimation.Select(actor,sprite);
                 sprite=reloadAnimation.Select(actor,sprite);
                 view.SetFrame(sprite);

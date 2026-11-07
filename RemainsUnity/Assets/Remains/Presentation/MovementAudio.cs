@@ -20,7 +20,13 @@ namespace Remains.Presentation
             public string[] actorTypes;
             public SoundBank[] banks;
         }
-        private sealed class Track {public readonly MotionContacts contacts=new();public readonly MovementRhythm rhythm=new();public int sample;}
+        private sealed class Track
+        {
+            public readonly MotionContacts contacts=new();
+            public readonly MovementRhythm rhythm=new();
+            public ActorState actor;
+            public int sample;
+        }
         private CoopSession session;
         private SimulationGeometry geometry;
         private GameplayAudio audio;
@@ -31,6 +37,7 @@ namespace Remains.Presentation
         private readonly HashSet<string> quietPoses=new();
         private readonly HashSet<string> types=new(),missing=new(),active=new();
         private readonly List<string> removed=new();
+        private readonly List<Track> audibleActors=new();
         public int LocalContacts {get;private set;}
         public int RemoteContacts {get;private set;}
         public int Landings {get;private set;}
@@ -66,12 +73,16 @@ namespace Remains.Presentation
         }
         private void Reconcile()
         {
-            active.Clear();
+            active.Clear();audibleActors.Clear();
             var listener=session.LocalActor;
             if(listener!=null)
                 foreach(var actor in session.World.actors)
                     if(actor.level==listener.level && types.Contains(actor.actorType))
-                    {active.Add(actor.id);if(!tracks.ContainsKey(actor.id)) tracks.Add(actor.id,new Track());}
+                    {
+                        active.Add(actor.id);
+                        if(!tracks.TryGetValue(actor.id,out var track)) tracks.Add(actor.id,track=new Track());
+                        track.actor=actor;audibleActors.Add(track);
+                    }
             removed.Clear();
             foreach(string id in tracks.Keys) if(!active.Contains(id)) removed.Add(id);
             foreach(string id in removed) tracks.Remove(id);
@@ -82,9 +93,10 @@ namespace Remains.Presentation
             var listener=session.LocalActor;if(listener==null) return;
             var room=geometry.Get(listener.level);
             bool paused=session.Pause.IsPaused(listener.level);
-            foreach(var actor in session.World.actors)
+            foreach(var track in audibleActors)
             {
-                if(actor.level!=listener.level || !tracks.TryGetValue(actor.id,out var track)) continue;
+                var actor=track.actor;
+                if(actor.level!=listener.level) continue;
                 var support=ActorBodySupport.Sample(actor);
                 // Motion history keeps the conservative movement anchor; drawing
                 // bob/foot fit cannot manufacture a physical landing or teleport.

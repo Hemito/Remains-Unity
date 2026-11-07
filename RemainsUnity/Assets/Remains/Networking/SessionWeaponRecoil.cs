@@ -27,14 +27,14 @@ namespace Remains.Networking
         public void EndReload() {reloadingActor=null;Reconcile();}
         private bool Blocked(ActorState actor)=>actor.id==reloadingActor || actor.npcWeaponAction?.kind==NpcWeaponActions.Reload || ActorHoldRules.Active(actor);
         public void Reconcile()=>Step(0);
-        public void Step(float dt)
+        public void Step(float dt,ActorFrameIndex index=null)
         {
             if(session.GameplayFailurePending) return;
             try
             {
-                motion.Step(session.World,session.LocalOwner,dt,session.Pause.IsPaused,session.Pause.Revision,Blocked);
+                motion.Step(session.World,session.LocalOwner,dt,session.Pause.IsPaused,session.Pause.Revision,Blocked,index);
                 if(session.World==null) return;
-                foreach(var actor in session.World.actors)
+                foreach(var actor in index?.Frame??session.World.actors)
                     if(actor.owner!=session.LocalOwner && (actor.weaponRecoil==null || !actor.weaponRecoil.IsValid ||
                         actor.weaponRecoil.pauseRevision!=session.Pause.Revision ||
                         session.Pause.IsPaused(actor.level) && (actor.weaponRecoil.offsetX!=0 || actor.weaponRecoil.angleDegrees!=0)))
