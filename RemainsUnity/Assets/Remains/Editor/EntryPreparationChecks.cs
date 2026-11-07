@@ -17,7 +17,7 @@ namespace Remains.Editor
     {
         public static void Run()
         {
-            CheckDetachedView();CheckReadiness();CheckLatestBody();CheckGeometryRefresh();CheckTransfer();CheckClientAdmissionLifecycle();
+            CheckDetachedView();CheckReadiness();CheckLatestBody();CheckGeometryRefresh();CheckLightingRefresh();CheckTransfer();CheckClientAdmissionLifecycle();
             Debug.Log("Подготовка входа: PASS — detached view без публикации/подключения, одноразовый token/TTL, актуальный урон тела после подготовки, независимая готовность участников, строгие room/door контексты, ограниченные chunks и unknown данные. Native порядок света/Welcome проверяется отдельно.");
         }
         public static void CheckDetachedView()
@@ -146,6 +146,21 @@ namespace Remains.Editor
             Reject(()=>EntryPreparationContext.Fingerprint(changed,context.Level),"неfinite door");
             changed=world.Copy();changed.doors.Add(StateJson.Copy(changed.doors[0]));
             Reject(()=>EntryPreparationContext.Fingerprint(changed,context.Level),"повтор ID двери");
+        }
+        private static void CheckLightingRefresh()
+        {
+            var world=Fixture();
+            var lamp=new LampState {id="lamp:entry",level="factory:0",width=1,height=1};
+            world.lamps.Add(lamp);
+            var old=Capture(world);
+            Require(LampOperations.Break(world,lamp,"shot:entry"),"Не удалось изменить свет во время входа");
+            Require(!old.Matches(world,old.ActorId,old.Level),"Вход принял устаревший свет при совпадающей геометрии");
+            var fresh=Capture(world);
+            Require(old.GeometryFingerprint==fresh.GeometryFingerprint && old.LampRevision!=fresh.LampRevision,
+                "Изменение света должно обновить подготовку без смены отпечатка геометрии");
+            ActorSessionRules.Connect(world.Find(old.ActorId),"connection:light");
+            Reject(()=>old.RequireWelcome(world,old.ActorId),"Welcome принял устаревший свет");
+            fresh.RequireWelcome(world,fresh.ActorId);
         }
         public static void CheckTransfer()
         {

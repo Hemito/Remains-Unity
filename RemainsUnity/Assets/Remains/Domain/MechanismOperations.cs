@@ -84,6 +84,7 @@ namespace Remains.Domain
                 if(door.open && DoorOccupancy.IsOccupied(world,door)) continue;
                 CanIncrement(door.revision,"door="+door.id);
                 door.open=!door.open;door.revision++;
+                WorldChanges.Mark(world,door);
             }
         }
         public MechanismOperationResult ApplyRepair(ActorState actor,MechanismButtonState button,ButtonRepairCandidate candidate,

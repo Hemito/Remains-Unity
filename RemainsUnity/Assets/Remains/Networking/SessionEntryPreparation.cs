@@ -154,7 +154,7 @@ namespace Remains.Networking
                 if(!ticket.Context.Matches(world,actorId,level))
                 {
                     // Reuse the pending reservation and replace only its view/token.
-                    // Damage received by the offline body is not a geometry mismatch.
+                    // Light and doors must both match the view that will be adopted.
                     Send(connection,value);return;
                 }
                 if(session.Pause.IsServerPaused(level))

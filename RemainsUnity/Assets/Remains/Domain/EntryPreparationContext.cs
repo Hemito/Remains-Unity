@@ -16,6 +16,7 @@ namespace Remains.Domain
         public string CharacterId {get;}
         public string RoomDefinitionsJson {get;}
         public string GeometryFingerprint {get;}
+        public long LampRevision {get;}
         public WorldState ViewWorld {get;}
         public EntryPreparationContext(string token,WorldState detachedView,string actorId,string characterId,string level)
         {
@@ -29,15 +30,16 @@ namespace Remains.Domain
             Token=token;WorldId=detachedView.worldId;ActorId=actorId;CharacterId=characterId;Level=level;
             ViewWorld=detachedView;RoomDefinitionsJson=StateJson.ToJson(detachedView.rooms);
             GeometryFingerprint=Fingerprint(detachedView,level);
+            LampRevision=detachedView.lampRevision;
         }
         public bool Matches(WorldState world,string actorId,string level)=>world!=null && world.worldId==WorldId &&
-            actorId==ActorId && level==Level && Fingerprint(world,level)==GeometryFingerprint;
+            actorId==ActorId && level==Level && world.lampRevision==LampRevision && Fingerprint(world,level)==GeometryFingerprint;
         public void RequireWelcome(WorldState world,string actorId)
         {
             var actor=world?.Find(actorId);
             if(actor==null || !actor.connected || !actor.player || actor.character!=CharacterId ||
                 !Matches(world,actorId,actor.level))
-                throw new InvalidDataException($"Вход не соответствует подготовленной локации: token={Token}, world={world?.worldId}, actor={actorId}, level={actor?.level}, expected={WorldId}/{ActorId}/{Level}.");
+                throw new InvalidDataException($"Вход не соответствует подготовленной локации: token={Token}, world={world?.worldId}, actor={actorId}, level={actor?.level}, expected={WorldId}/{ActorId}/{Level}, лампы={world?.lampRevision}/{LampRevision}.");
         }
         public static string Fingerprint(WorldState world,string level)
         {

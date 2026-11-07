@@ -62,12 +62,16 @@ namespace Remains.Editor
                 var result=operations.TryToggleDoors(actor,swap,1.6f,swap.revision,"mechanism:check-"+swap.id);
                 Require(result.Outcome==MechanismOperationOutcome.Changed,"кнопка дверей отклонена: "+result.Reason);
                 Require(doors.Select(d=>d.open).SequenceEqual(before.Select(o=>!o)),"кнопка не переключила группу");
+                Require(doors.All(door=>WorldChanges.IsMarked(world,door)),"тик и подготовка входа не увидят двери кнопки");
                 world.actors.Remove(actor);
             }
             var area=world.mechanismButtons.FirstOrDefault(b=>b.IsArea);
             if(area!=null)
             {
+                var changed=area.doors.Select(id=>world.doors.Find(d=>d.id==id)).Where(door=>!door.open).ToArray();
+                WorldChanges.ClearState(world);
                 Require(operations.OpenArea(area) && area.doors.All(id=>world.doors.Find(d=>d.id==id).open),"область не открыла группу");
+                Require(changed.All(door=>WorldChanges.IsMarked(world,door)),"тик и подготовка входа не увидят двери области");
                 Require(!operations.OpenArea(area),"область сработала дважды");
             }
         }
