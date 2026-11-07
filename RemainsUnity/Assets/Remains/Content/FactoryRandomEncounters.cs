@@ -68,7 +68,7 @@ namespace Remains.Content
                 var plan=new RoomPlan {Room=room,EnemyType=enemyType,Hidden=hidden,Danger=danger,Counts=counts,Points=new int[RandomEncounterRules.Kinds]};
                 rooms?.Add(plan);
                 if(!points.TryGetValue(room,out var byKind)) continue;
-                var blocked=Blocked(grid,room);
+                var blocked=BlockedObjectCells(grid,room);
                 // Points are taken in a fixed order (template object order), so the plan does not depend on enumeration.
                 var free=byKind.Select(list=>list.Where(p=>!blocked.Contains(FlashCell(room,p,definitions))).OrderBy(p=>p.Index).ToList()).ToArray();
                 for(int kind=1;kind<RandomEncounterRules.Kinds;kind++)
@@ -115,9 +115,9 @@ namespace Remains.Content
             return (RoomSpriteLayout.ObjectCellX(room.Template,point.Source,definition,room.Cell.Mirror),room.Template.Height-1-point.Source.Y);
         }
 
-        // Location.setDoor/setNoObj: no random enemy on the strips in front of the room's passages (noHolesPlace of
-        // random lands). Seams are in world orientation, as the points' x.
-        private static HashSet<(int,int)> Blocked(FactoryGrid grid,FactoryRoomPlacement room)
+        // Location.setDoor/setNoObj: strips where placement is blocked in front of passages.
+        // Seams are in world orientation, as the points' x.
+        internal static HashSet<(int,int)> BlockedObjectCells(FactoryGrid grid,FactoryRoomPlacement room)
         {
             var blocked=new HashSet<(int,int)>();
             int cx=room.Cell.X,cy=room.Cell.Y;

@@ -100,6 +100,7 @@ namespace Remains.Presentation
             StartLightWork();
         }
         public IReadOnlyList<LampState> LampPlacements=>lampPlacements;
+        private readonly HashSet<string> excludedLamps=new(StringComparer.Ordinal);
         public string LampWorldLevel=>root is HubTemplateLevel?"hub":root?.Level;
         // Revision of the last lamp snapshot in the light (-1: none yet).
         public long AppliedLampRevision {get;private set;}=-1;
@@ -186,7 +187,7 @@ namespace Remains.Presentation
             try
             {
                 SyncDoors(world.doors.Where(door=>door.level==Room.id).ToArray(),revision);
-                var broken=world.lamps.Where(lamp=>lamp.level==LampWorldLevel && lamp.broken).Select(lamp=>lamp.id).ToArray();
+                var broken=world.lamps.Where(lamp=>lamp.level==LampWorldLevel && lamp.broken && !excludedLamps.Contains(lamp.id)).Select(lamp=>lamp.id).ToArray();
                 SyncLamps(broken,world.lampRevision,broken);
             }
             catch(Exception error) {ReportFailure(error);throw;}
@@ -327,6 +328,18 @@ namespace Remains.Presentation
             ambientRadiance=(Vector4)(ambientLight.color*ambientLight.intensity);
 
             pictures.Clear();lamps.Clear();lampByPicture.Clear();darkLamps.Clear();brokenLamps.Clear();pendingLampArtwork.Clear();lampPlacements.Clear();windowSourceIds.Clear();
+            excludedLamps.Clear();
+            foreach(var entry in LampContent.Describe(level,table))
+            {
+                var picture=entry.Picture;var renderer=picture.GetComponent<SpriteRenderer>();
+                string id=entry.Lamp.id;
+                if(entry.Excluded)
+                {
+                    excludedLamps.Add(id);renderer.enabled=false;continue;
+                }
+                lamps.Add(id,(picture,picture.Frame,renderer.sprite,definitions.Require(picture.Definition,"лампа")));
+                lampByPicture.Add(picture,id);lampPlacements.Add(entry.Lamp);
+            }
             foreach(var sprite in level.RoomInstances.GetComponentsInChildren<RoomSpriteAuthoring>(true))
                 pictures.Add((sprite,definitions.Require(sprite.Definition,"вид уровня, "+sprite.name)));
             // Pictures by room: a window change looks only at its rooms' pictures (the others are inactive anyway).
@@ -351,16 +364,8 @@ namespace Remains.Presentation
                         if(string.IsNullOrEmpty(decorId)) throw new InvalidOperationException($"Вид уровня {level.Level}: окно без ID, комната {room.X},{room.Y}, картинка {picture.Index}.");
                         windowSourceIds.Add(picture,$"window:{level.Level}:{room.X},{room.Y}:{decorId}");
                     }
-                    if(picture.Kind!=RoomSpriteKind.Decor || !table.Lamps.ContainsKey(picture.Definition)) continue;
-                    var decor=room.Template.Decor[picture.Index];
-                    if(decor.Id==null) throw new InvalidOperationException($"Вид уровня {level.Level}: лампа без ID, шаблон {room.Template.Template}, декор {picture.Index}.");
-                    string id=$"{level.Level}:{room.X},{room.Y}:{decor.Id}";
-                    var renderer=picture.GetComponent<SpriteRenderer>();
-                    lamps.Add(id,(picture,picture.Frame,renderer.sprite,definitions.Require(picture.Definition,"лампа")));
-                    lampByPicture.Add(picture,id);
                 }
             }
-            lampPlacements.AddRange(LampContent.Read(level));
             root=level;
             PresentationChanged?.Invoke(this);
             Debug.Log($"Вид уровня {level.Level}: сетка {level.Grid.Width}×{level.Grid.Height}, комнат {level.Rooms.Count}, картинок {pictures.Count}.",this);

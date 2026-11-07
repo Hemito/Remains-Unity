@@ -57,5 +57,7 @@ namespace Remains.Content
         public RoomLandCatalog Lands=>root.Catalog.Lands;
         public RoomTileArtAsset Art=>root.Catalog.Art;
         public TextAsset Lighting=>root.Catalog.Lighting;
+        internal HashSet<(int,int)> BlockedObjectCells(int roomIndex)
+            =>FactoryRandomEncounters.BlockedObjectCells(root.Prepared.Grid,root.Prepared.Grid.Rooms[roomIndex]);
     }
 }

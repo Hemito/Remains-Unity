@@ -43,7 +43,7 @@ namespace Remains.Editor
                 view.SyncLamps(view.LampIds.ToArray(),++world.lampRevision);
                 var brokenArt=GameAssets.Load<BrokenLampArt>(BrokenLampArt.ResourcePath);
                 foreach(var picture in view.GetComponentsInChildren<RoomSpriteAuthoring>(true))
-                    if(brokenArt.TryGet(picture.Definition,out _))
+                    if(picture.GetComponent<SpriteRenderer>().enabled && brokenArt.TryGet(picture.Definition,out _))
                     {
                         var definition=catalog.Definitions.Require(picture.Definition,"проверка обычного выключения лампы");
                         int expectedFrame=definition.DecorFrameOff>0?definition.DecorFrameOff:picture.Frame;
@@ -97,7 +97,7 @@ namespace Remains.Editor
             Require(catalog!=null,"Нет каталога разбитых ламп.");
             int checkedPictures=0;
             foreach(var picture in view.GetComponentsInChildren<RoomSpriteAuthoring>(true))
-                if(catalog.TryGet(picture.Definition,out var expected))
+                if(picture.GetComponent<SpriteRenderer>().enabled && catalog.TryGet(picture.Definition,out var expected))
                 {
                     Require(picture.GetComponent<SpriteRenderer>().sprite==expected,$"Лампа {picture.Definition}: разбитый спрайт не сохранился при синхронизации/повторном входе.");
                     checkedPictures++;

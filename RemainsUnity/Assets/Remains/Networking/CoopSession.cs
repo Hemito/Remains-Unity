@@ -385,7 +385,7 @@ namespace Remains.Networking
             using(Remains.Diagnostics.FrameHitchLog.Section("Запуск мира: источники заводов"))
                 FactoryContentSources.Prepare(ServerWorld,contentLevels);
             using(Remains.Diagnostics.FrameHitchLog.Section("Запуск мира: лампы"))
-                foreach(var level in contentLevels) LampOperations.Install(ServerWorld,level,LampContent.Read(ServerWorld,level));
+                foreach(var level in contentLevels) LampContent.Install(ServerWorld,level);
             RoomContentBatch[] roomContent;
             using(Remains.Diagnostics.FrameHitchLog.Section("Запуск мира: чтение комнат"))
                 roomContent=contentLevels.Select(level=>RoomContentBatch.Read(RoomAuthoring.Load(level,ServerWorld),level)).ToArray();

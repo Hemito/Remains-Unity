@@ -23,19 +23,21 @@ namespace Remains.Domain
     }
     public static class LampOperations
     {
-        public static bool Install(WorldState world,string level,IReadOnlyList<LampState> placements)
+        public static bool Install(WorldState world,string level,IReadOnlyList<LampState> placements,ISet<string> excluded=null)
         {
             if(world==null||placements==null) throw new ArgumentNullException();
             var ids=new HashSet<string>(StringComparer.Ordinal);
             foreach(var lamp in placements)
             {
                 lamp.Validate();
-                if(lamp.level!=level||!ids.Add(lamp.id)) throw new InvalidOperationException($"Повторная или чужая лампа: {lamp.id}, level={level}.");
+                if(lamp.level!=level||!ids.Add(lamp.id)||excluded?.Contains(lamp.id)==true)
+                    throw new InvalidOperationException($"Повторная, чужая или исключённая лампа: {lamp.id}, level={level}.");
                 var existing=world.lamps.Find(value=>value.id==lamp.id);
                 if(existing!=null && (existing.level!=level||existing.Bounds!=lamp.Bounds))
                     throw new InvalidOperationException($"Изменена сохранённая геометрия лампы {lamp.id}.");
             }
-            bool changed=false;
+            bool changed=excluded!=null && excluded.Count>0 &&
+                world.lamps.RemoveAll(lamp=>lamp.level==level && excluded.Contains(lamp.id))>0;
             foreach(var lamp in placements) if(!world.lamps.Exists(value=>value.id==lamp.id))
             {world.lamps.Add(Remains.Serialization.StateJson.Copy(lamp));changed=true;}
             if(changed) world.lampRevision++;
