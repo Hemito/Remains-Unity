@@ -57,6 +57,7 @@ namespace Remains.Presentation
         private float[,] shadowTerrain;
         private float shadowAmbient;
         private Vector4 ambientRadiance;
+        private double[] levelTint;
         public RoomLightingTable ShadowSettings=>table;
         public long ShadowSourceRevision {get;private set;}
         public LevelLight Light=>levelLight;
@@ -297,10 +298,12 @@ namespace Remains.Presentation
             sorting.sortingOrder=WorldVisualOrderPolicy.SceneryRoomOrder;
             var backdrops=new List<(RoomFile,Vector2)>();
             foreach(var room in level.Rooms) backdrops.Add((room.Template,room.Offset));
-            terrain=RoomTerrainView.Build(level.Grid,definitions,lands,level.Art,Vector2.zero,table.ShadowEdge,transform,backdrops,ownSortingGroup:false);
+            using(Remains.Diagnostics.FrameHitchLog.Section("Переход: тайлы уровня"))
+                terrain=RoomTerrainView.Build(level.Grid,definitions,lands,level.Art,Vector2.zero,table.ShadowEdge,transform,backdrops,ownSortingGroup:false);
 
             // Ambient: one level for the whole level (per-room darkness and tint are not applied yet).
             var scene=RoomLightScene.Build(level.Grid,definitions,lands,table,table.RadiancePower,table.RadianceLampSize);
+            levelTint=scene.Tint;
             foreach(string issue in scene.Issues) Debug.LogWarning("Вид уровня: "+issue,this);
             // From an authored prefab: Light2D fills its target sorting layers only in the Editor, so one added by
             // code in a player build has none (FactoryAmbientLightAuthoring).
@@ -484,8 +487,7 @@ namespace Remains.Presentation
             var grid=root.Grid;var definitions=root.Definitions;int resolution=table.RadianceResolution;float texel=1f/resolution;
             using(Remains.Diagnostics.FrameHitchLog.Section("Свет уровня: стены"))
                 walls=RoomLightScene.Absorption(grid,RoomGeometryBuilder.Build(grid,definitions),resolution,table.BeamTransmittance,LightRules.MaxObjectTexelAbsorption,table.BeamHeight);
-            var scene=RoomLightScene.Build(grid,definitions,root.Lands,table,table.RadiancePower,table.RadianceLampSize);
-            bool hasWindowLight=LightRules.TryWindowEmission(table,root.Lands,grid,scene.Tint,out var windowEmission,out string fon);
+            bool hasWindowLight=LightRules.TryWindowEmission(table,root.Lands,grid,levelTint,out var windowEmission,out string fon);
             if(!hasWindowLight) Debug.LogWarning($"Свет уровня {root.Level}: нет света окон для дальнего фона «{fon}» в таблице света — окна не светят.",this);
             Vector2 origin=transform.TransformPoint(Vector3.zero);
             int levelWidth=walls.GetLength(0),levelHeight=walls.GetLength(1);
@@ -511,7 +513,7 @@ namespace Remains.Presentation
                     {
                         var shape=LightSpriteShapes.Measure(sprite,texel);double area=shape.Area*areaScale;
                         var lampSource=Source(lampId,LevelLightSourceKind.Lamp,sprite,matrix,shape.Strata,
-                            LightRules.LampRadiance(table,table.Lamps[definition.Id],scene.Tint,share,area,texel),(float)LightRules.EmitterWidth(area,texel),
+                            LightRules.LampRadiance(table,table.Lamps[definition.Id],levelTint,share,area,texel),(float)LightRules.EmitterWidth(area,texel),
                             (float)(LevelLightSources.LampReachScale*table.Lamps[definition.Id].Radius),!darkLamps.Contains(lampId));
                         list.Add(lampSource);Shadow(lampSource,shape,matrix);
                     }

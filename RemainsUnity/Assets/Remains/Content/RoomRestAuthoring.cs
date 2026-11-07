@@ -58,15 +58,21 @@ namespace Remains.Content
                 placed.Add(Place(root,placement.Position,$"{placement.Room.Cell.X},{placement.Room.Cell.Y}:{placement.Source.Id}",
                     Math.Max(1,definition.ObjectSize)*(float)placement.Room.Template.Cell,rest.height,rest.label,false));
             }
+            var decorByTemplate=new Dictionary<(string Template,bool Mirror),RoomPlacedSprite[]>();
             foreach(var room in root.Prepared.Grid.Rooms)
             {
                 if(!room.Template.Decor.Any(decor=>Decor.ContainsKey(decor.Type))) continue;
-                var issues=new List<string>();
-                var pictures=RoomSpriteLayout.Place(room.Template,room.Cell.Mirror,root.Catalog.Definitions,root.Catalog.Art.Manifest,0,new Dictionary<string,string>(),
-                    issues,new SortedDictionary<string,int>(StringComparer.Ordinal),new SortedDictionary<string,int>(StringComparer.Ordinal));
+                var key=(room.Template.Template,room.Cell.Mirror);
+                if(!decorByTemplate.TryGetValue(key,out var pictures))
+                {
+                    pictures=RoomSpriteLayout.Place(room.Template,room.Cell.Mirror,root.Catalog.Definitions,root.Catalog.Art.Manifest,0,new Dictionary<string,string>(),
+                        new List<string>(),new SortedDictionary<string,int>(StringComparer.Ordinal),new SortedDictionary<string,int>(StringComparer.Ordinal))
+                        .Where(picture=>picture.Kind==RoomSpriteKind.Decor && Decor.ContainsKey(picture.Definition.Id)).ToArray();
+                    decorByTemplate.Add(key,pictures);
+                }
                 foreach(var picture in pictures)
                 {
-                    if(picture.Kind!=RoomSpriteKind.Decor || !Decor.TryGetValue(picture.Definition.Id,out var rest)) continue;
+                    var rest=Decor[picture.Definition.Id];
                     float cell=(float)room.Template.Cell,width=picture.Definition.DecorWidth*cell;bool flipped=picture.ScaleX<0;
                     // The clip stands from the top-left of its cell; flipped, the point is its right edge. Its bottom is the floor.
                     var bottom=new Vector2((float)picture.X+(flipped?-.5f:.5f)*width,(float)picture.Y-picture.Definition.DecorHeight*cell);

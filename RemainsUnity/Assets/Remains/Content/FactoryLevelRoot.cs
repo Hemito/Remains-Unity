@@ -32,13 +32,24 @@ namespace Remains.Content
         public IReadOnlyList<FactoryPlacedObject> Objects {get;private set;}
         public IReadOnlyList<FactoryRolePoint> RolePoints {get;private set;}
         private readonly Dictionary<FactoryRoomPlacement,RoomTemplateInstance> instances=new();
+        private readonly Dictionary<FactoryRoomPlacement,Dictionary<int,List<SpriteRenderer>>> objectArtwork=new();
         public void HideObjectArtwork(FactoryPlacedObject placement)
         {
             if(!instances.TryGetValue(placement.Room,out var room))
                 throw new InvalidOperationException("Не установлена комната объекта: "+placement.Id);
-            foreach(var sprite in room.GetComponentsInChildren<RoomSpriteAuthoring>(true))
-                if(sprite.Kind==RoomSpriteKind.Object && sprite.Index==placement.Index)
-                    sprite.GetComponent<SpriteRenderer>().enabled=false;
+            if(!objectArtwork.TryGetValue(placement.Room,out var artwork))
+            {
+                artwork=new Dictionary<int,List<SpriteRenderer>>();
+                foreach(var sprite in room.GetComponentsInChildren<RoomSpriteAuthoring>(true))
+                {
+                    if(sprite.Kind!=RoomSpriteKind.Object)continue;
+                    if(!artwork.TryGetValue(sprite.Index,out var renderers))artwork.Add(sprite.Index,renderers=new List<SpriteRenderer>());
+                    renderers.Add(sprite.GetComponent<SpriteRenderer>());
+                }
+                objectArtwork.Add(placement.Room,artwork);
+            }
+            if(artwork.TryGetValue(placement.Index,out var targets))
+                foreach(var renderer in targets)renderer.enabled=false;
         }
         public void Configure(FactoryCatalogAsset source,RoomAuthoring geometry,Transform roomParent)
         {

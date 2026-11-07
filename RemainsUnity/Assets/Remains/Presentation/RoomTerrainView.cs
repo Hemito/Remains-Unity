@@ -39,10 +39,11 @@ namespace Remains.Presentation
             var grid=root.AddComponent<Grid>();
             float quarter=(float)room.Cell/2;
             grid.cellSize=new Vector3(quarter,quarter,0);
-            var shapes=RoomTerrainShapes.Compute(room);
+            RoomTerrainShapes shapes;
+            using(Remains.Diagnostics.FrameHitchLog.Section("Тайлы: формы углов")) shapes=RoomTerrainShapes.Compute(room);
             if(litEdge>room.Cell) Debug.LogWarning($"{room.Template}: кромка {litEdge} м больше клетки {room.Cell} м — свет лампы заходит в стену не глубже одной клетки.");
             var edges=litEdge>0?EdgeMap(RoomShadowShapes.Edges(RoomGeometryBuilder.Build(room,definitions)),room.Cell,lifetime):null;
-            var builder=new Builder(room,definitions,art,shader,root.transform,lifetime,quarter,origin,edges,(float)litEdge);
+            var builder=new Builder(room,definitions,art,shader,root.transform,lifetime,quarter,origin,edges,(float)litEdge,shapes);
             if(backdrops==null) builder.Backdrop(lands,room,Vector2.zero);
             else foreach(var (options,offset) in backdrops) builder.Backdrop(lands,options,offset);
 
@@ -51,17 +52,17 @@ namespace Remains.Presentation
                 {
                     int height=builder.Height(x,y);
                     var back=builder.Definition(RoomLayers.Back,x,y);
-                    if(back!=null) builder.Cell(back,"задняя стена",BackOrder,x,y,q=>shapes.Back(x,y,q),0,false);
+                    if(back!=null) builder.Cell(back,"задняя стена",BackOrder,x,y,0,true);
                     var solid=builder.Definition(RoomLayers.Solid,x,y);
-                    if(solid!=null) builder.Material(solid,x,y,q=>shapes.Front(x,y,q),height);
+                    if(solid!=null) builder.Material(solid,x,y,height);
                     var platform=builder.Definition(RoomLayers.Platform,x,y);
-                    if(platform!=null) builder.Material(platform,x,y,q=>shapes.Front(x,y,q),height);
-                    foreach(string layer in new[]{RoomLayers.Ladder,RoomLayers.Stairs})
-                    {
-                        var definition=builder.Definition(layer,x,y);
-                        if(definition?.FrontSprite!=null) builder.Sprite(definition,x,y);
-                    }
+                    if(platform!=null) builder.Material(platform,x,y,height);
+                    var ladder=builder.Definition(RoomLayers.Ladder,x,y);
+                    if(ladder?.FrontSprite!=null) builder.Sprite(ladder,x,y);
+                    var stairs=builder.Definition(RoomLayers.Stairs,x,y);
+                    if(stairs?.FrontSprite!=null) builder.Sprite(stairs,x,y);
                 }
+            builder.PublishTiles();
             return root;
         }
 
@@ -95,17 +96,26 @@ namespace Remains.Presentation
             private readonly Vector2 origin;
             private readonly Texture2D edges;
             private readonly float litEdge;
+            private readonly RoomTerrainShapes shapes;
             private readonly Dictionary<string,Tilemap> maps=new(StringComparer.Ordinal);
+            private readonly Dictionary<Tilemap,Dictionary<Vector3Int,TileChangeData>> tiles=new();
+            private readonly Dictionary<(RoomDefinition Definition,string Part),(Tilemap Map,TileMask Mask)> layers=new();
+            private readonly Dictionary<(string Layer,char Key),RoomDefinition> resolvedDefinitions=new();
+            private readonly Dictionary<TileMaskQuarter,Quarter> quarterIds=new();
+            private readonly Dictionary<(int Clip,int Frame),Tile> maskTiles=new();
 
-            public Builder(RoomFile room,RoomDefinitionCatalog definitions,RoomTileArtAsset art,Shader shader,Transform root,RoomMeshLifetime lifetime,float quarter,Vector2 origin,Texture2D edges,float litEdge)
-            {this.room=room;this.definitions=definitions;this.art=art;this.shader=shader;this.root=root;this.lifetime=lifetime;this.quarter=quarter;this.origin=origin;this.edges=edges;this.litEdge=litEdge;}
+            public Builder(RoomFile room,RoomDefinitionCatalog definitions,RoomTileArtAsset art,Shader shader,Transform root,RoomMeshLifetime lifetime,float quarter,Vector2 origin,Texture2D edges,float litEdge,RoomTerrainShapes shapes)
+            {this.room=room;this.definitions=definitions;this.art=art;this.shader=shader;this.root=root;this.lifetime=lifetime;this.quarter=quarter;this.origin=origin;this.edges=edges;this.litEdge=litEdge;this.shapes=shapes;}
 
             public RoomDefinition Definition(string layer,int x,int y)
             {
                 if(!room.Layers.TryGetValue(layer,out var rows)) return null;
                 char key=rows[room.Height-1-y][x];
                 if(key==RoomFile.Empty) return null;
-                return definitions.Require(room.Palettes[layer][key],$"{room.Template} {layer} {x},{y}");
+                if(resolvedDefinitions.TryGetValue((layer,key),out var definition))return definition;
+                definition=definitions.Require(room.Palettes[layer][key],$"{room.Template} {layer} {x},{y}");
+                resolvedDefinitions.Add((layer,key),definition);
+                return definition;
             }
 
             // Room backdrop (original drawBackWall): the room's own backwall or its land default;
@@ -156,59 +166,85 @@ namespace Remains.Presentation
             public int Height(int x,int y)=>room.Layers.TryGetValue(RoomLayers.Height,out var rows) && rows[room.Height-1-y][x]!=RoomFile.Empty?rows[room.Height-1-y][x]-'0':0;
 
             // Solid or platform material: main, border and floor layers (Material.as order).
-            public void Material(RoomDefinition definition,int x,int y,Func<Quarter,int> state,int height)
+            public void Material(RoomDefinition definition,int x,int y,int height)
             {
                 int order=definition.Rear?RearOrder:FrontOrder;
-                Cell(definition,"основа",order,x,y,state,height,false);
+                Cell(definition,"основа",order,x,y,height,false);
                 if(definition.BorderTexture!=null && definition.BorderMask!=null)
-                    Layer(definition.BorderTexture,definition.BorderMask,"бордюр "+definition.Id,definition.Rear?RearOrder:BorderOrder,x,y,state,height,false);
+                    Layer(definition,"бордюр",definition.BorderTexture,definition.BorderMask,definition.Rear?RearOrder:BorderOrder,x,y,height,false,false);
                 if(definition.FloorTexture!=null && definition.FloorMask!=null)
-                    Layer(definition.FloorTexture,definition.FloorMask,"пол "+definition.Id,definition.Rear?RearOrder:FloorOrder,x,y,state,height,true);
+                    Layer(definition,"пол",definition.FloorTexture,definition.FloorMask,definition.Rear?RearOrder:FloorOrder,x,y,height,false,true);
             }
 
-            public void Cell(RoomDefinition definition,string part,int order,int x,int y,Func<Quarter,int> state,int height,bool floor)
+            public void Cell(RoomDefinition definition,string part,int order,int x,int y,int height,bool back)
             {
                 if(definition.MainTexture==null) return;
                 // Material.as: a material without its own mask uses the plain square TileMask (rule, not substitution).
-                Layer(definition.MainTexture,definition.MainMask??"TileMask",part+" "+definition.Id,order,x,y,state,height,floor);
+                Layer(definition,part,definition.MainTexture,definition.MainMask??"TileMask",order,x,y,height,back,false);
             }
 
-            private void Layer(string textureId,string maskName,string name,int order,int x,int y,Func<Quarter,int> state,int height,bool floor)
+            private void Layer(RoomDefinition definition,string part,string textureId,string maskName,int order,int x,int y,int height,bool back,bool floor)
             {
-                var manifest=art.Manifest;
-                if(!manifest.Masks.TryGetValue(maskName,out var mask)) throw new InvalidOperationException($"{room.Template}: маска {maskName} не экспортирована ({name}).");
-                var map=Map(name+"|"+textureId,name,textureId,order,order!=BackOrder);
+                if(!layers.TryGetValue((definition,part),out var layer))
+                {
+                    string name=part+" "+definition.Id;
+                    if(!art.Manifest.Masks.TryGetValue(maskName,out var found)) throw new InvalidOperationException($"{room.Template}: маска {maskName} не экспортирована ({name}).");
+                    layer=(Map(name+"|"+textureId,name,textureId,order,order!=BackOrder),found);
+                    layers.Add((definition,part),layer);
+                }
+                var (map,mask)=layer;
                 float cell=(float)room.Cell;
                 float scale=floor?1:(4-height)/4f;          // partial height squashes the shape onto the lowered top
                 float drop=floor?cell*height/4f:0;           // the floor strip moves down with the lowered top
                 if(mask.Kind=="whole")
                 {
                     // One square shape per cell (no corner states), registered at the cell centre.
-                    var entry=art.Tile(TileManifest.MaskFrameId(mask.Clip,1));
-                    Place(map,entry.tile,new Vector3Int(x*2,y*2,0),new Vector2(x*cell+cell/2,y*cell+cell/2*scale-drop),new Vector2(1,scale));
+                    Place(map,MaskTile(mask.Clip,1),new Vector3Int(x*2,y*2,0),new Vector2(x*cell+cell/2,y*cell+cell/2*scale-drop),new Vector2(1,scale));
                     return;
                 }
                 foreach(var q in mask.Quarters)
                 {
-                    var quarterId=(Quarter)Enum.Parse(typeof(Quarter),q.Quarter,true);
-                    int s=state(quarterId);
+                    if(!quarterIds.TryGetValue(q,out var quarterId))
+                    {
+                        quarterId=(Quarter)Enum.Parse(typeof(Quarter),q.Quarter,true);
+                        quarterIds.Add(q,quarterId);
+                    }
+                    int s=back?shapes.Back(x,y,quarterId):shapes.Front(x,y,quarterId);
                     if(s<0) continue;
                     bool top=quarterId==Quarter.TopLeft || quarterId==Quarter.TopRight;
                     bool right=quarterId==Quarter.TopRight || quarterId==Quarter.BottomRight;
                     // Registration: the cell corner of this quarter (original: centre ± half a cell, mirrored).
                     var registration=new Vector2((x+(right?1:0))*cell,y*cell+(top?cell*scale:0)-drop);
                     var cellPosition=new Vector3Int(x*2+(right?1:0),y*2+(top?1:0),0);
-                    var entry=art.Tile(TileManifest.MaskFrameId(q.Clip,s+1));
-                    Place(map,entry.tile,cellPosition,registration,new Vector2(q.FlipX?-1:1,(q.FlipY?-1:1)*scale));
+                    Place(map,MaskTile(q.Clip,s+1),cellPosition,registration,new Vector2(q.FlipX?-1:1,(q.FlipY?-1:1)*scale));
                 }
+            }
+            private Tile MaskTile(int clip,int frame)
+            {
+                if(maskTiles.TryGetValue((clip,frame),out var tile))return tile;
+                tile=art.Tile(TileManifest.MaskFrameId(clip,frame)).tile;
+                maskTiles.Add((clip,frame),tile);
+                return tile;
             }
 
             private void Place(Tilemap map,Tile tile,Vector3Int cell,Vector2 registration,Vector2 scale)
             {
                 var cellOrigin=new Vector2(cell.x*quarter,cell.y*quarter);
-                map.SetTile(cell,tile);
-                map.SetTileFlags(cell,TileFlags.None);
-                map.SetTransformMatrix(cell,Matrix4x4.TRS(registration-cellOrigin,Quaternion.identity,new Vector3(scale.x,scale.y,1)));
+                // If two terrain layers target the same map cell, the later write wins.
+                tiles[map][cell]=new TileChangeData(cell,tile,tile.color,
+                    Matrix4x4.TRS(registration-cellOrigin,Quaternion.identity,new Vector3(scale.x,scale.y,1)));
+            }
+            public void PublishTiles()
+            {
+                using var section=Remains.Diagnostics.FrameHitchLog.Section("Тайлы: публикация пакетов");
+                foreach(var pair in tiles)
+                {
+                    var changes=new TileChangeData[pair.Value.Count];
+                    pair.Value.Values.CopyTo(changes,0);
+                    pair.Key.SetTiles(changes,true);
+                    foreach(var change in changes)
+                        if(((Tile)change.tile).flags!=TileFlags.None)pair.Key.SetTileFlags(change.position,TileFlags.None);
+                }
             }
 
             public void Sprite(RoomDefinition definition,int x,int y)
@@ -271,6 +307,7 @@ namespace Remains.Presentation
                 renderer.mode=TilemapRenderer.Mode.Chunk;
                 renderer.sharedMaterial=TerrainMaterial(textureId,wall);
                 maps.Add(key,map);
+                tiles.Add(map,new Dictionary<Vector3Int,TileChangeData>());
                 return map;
             }
         }
