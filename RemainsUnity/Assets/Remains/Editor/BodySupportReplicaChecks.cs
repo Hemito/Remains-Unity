@@ -95,7 +95,8 @@ namespace Remains.Editor
                     if(stage==1 && held>=.35f) stage=2;
                     if(stage==2 && actor.x<=route.lower-.7f) {stage=3;held=0;}
                     float input=stage==0?1:stage==2?-1:0;
-                    ActorPose.Advance(actor,dt);controller.Step(actor,Vector2.right*input,false,dt,sprint:result.sprint);
+                    // Climbing optional stairs needs Up since 2026-11-07 (players pass under them otherwise); descending needs no key.
+                    ActorPose.Advance(actor,dt);controller.Step(actor,new Vector2(input,stage==0?1:0),false,dt,sprint:result.sprint);
                     if(input==0) held+=dt;
                     Require(ActorTerrainMotion.Supported(route.room,Anatomy.Movement(actor),actor.Position),"Owner controller потерял actual physical support.");
                     if(cadence.TryAdvance(now))
