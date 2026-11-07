@@ -2,10 +2,14 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using Mirror;
 using Remains.Content;
+using Remains.Domain;
+using Remains.Presentation;
 using Remains.Serialization;
 using UnityEngine;
+using UnityEngine.U2D.Animation;
 
 namespace Remains.Runtime
 {
@@ -26,7 +30,17 @@ namespace Remains.Runtime
                 inactiveFrame,unloadCompletedFrame,nativeCatalogsBeforeUnload,nativeCatalogsAfterUnload;
             public double elapsedSeconds;
             public string[] errors;
+            public bool lightCycles,quitObserved,fallbackReleasedOnQuit;
+            public int remainingLightTextures,remainingShadowMasks,shots,peakShadowMasks;
+            public long remainingLightBytes;
+            public LightSample[] lightSamples;
             public string limitation="Проверяется обычная host-сессия и native освобождение каталога после уничтожения runtime. Объём освобождённого графа/памяти, повторный запуск и другие транспорты этой проверкой не доказаны.";
+        }
+        [Serializable] private sealed class LightSample
+        {
+            public string level;
+            public int frame,textures,shadowMasks,fallbackBuffers;
+            public long textureBytes;
         }
 
         private PrototypeRuntime runtime;
@@ -35,6 +49,9 @@ namespace Remains.Runtime
         private string reportPath;
         private double began,deadline;
         private bool finished;
+        private readonly List<LightSample> lightSamples=new();
+        private FieldInfo fallbackField;
+        private ComputeBuffer lastFallback;
 
         public void Initialize(PrototypeRuntime value)
         {
@@ -52,6 +69,15 @@ namespace Remains.Runtime
                     "Observer должен находиться на отдельном корневом GameObject, вне уничтожаемого runtime.");
                 report.role=value.Options.Role;
                 report.saveDirectory=Remains.Persistence.SavePath.Absolute(value.Options.SaveDirectory);
+                report.lightCycles=Array.IndexOf(Environment.GetCommandLineArgs(),"--light-teardown-cycles")>=0;
+                if(report.lightCycles)
+                {
+                    deadline=began+300;
+                    var type=typeof(SpriteSkin).Assembly.GetType("UnityEngine.U2D.Animation.GpuDeformationSystem",true);
+                    fallbackField=type.GetField("s_FallbackBuffer",BindingFlags.Static|BindingFlags.NonPublic);
+                    Require(fallbackField!=null,"Изменился контракт диагностики fallback ComputeBuffer.");
+                    report.limitation="Проверены текстуры бюджета света, маски теней персонажей и fallback ComputeBuffer закреплённого 2D Animation.";
+                }
                 report.stage="normal-host-ready";
                 StartCoroutine(Drive());
             }
@@ -80,6 +106,11 @@ namespace Remains.Runtime
         private IEnumerator Run()
         {
             while(!NormalHostReady()) yield return null;
+            if(report.lightCycles)
+            {
+                var cycles=RunLightCycles();
+                while(cycles.MoveNext()) yield return cycles.Current;
+            }
             CaptureReadyAndDestroy();
             // Destroy and nested helper Destroy calls are deferred to frame boundaries.
             yield return null;
@@ -95,6 +126,14 @@ namespace Remains.Runtime
             Require(report.loadRejectedAfterRelease,"RoomCatalogAsset.Load принял каталог без runtime-владельца.");
             report.shaderDisabled=Shader.GetGlobalFloat("_WorldLightEnabled")==0;
             Require(report.shaderDisabled,"После освобождения комнаты shader продолжает использовать её карту света.");
+            if(report.lightCycles)
+            {
+                report.remainingLightTextures=LightTextureBudget.Count;
+                report.remainingLightBytes=LightTextureBudget.Bytes;
+                report.remainingShadowMasks=CountShadowMasks();
+                Require(report.remainingLightTextures==0 && report.remainingLightBytes==0 && report.remainingShadowMasks==0 &&
+                    !IsShadowMask(RenderTexture.active),"После остановки сохранились живые текстуры света или активная маска тени.");
+            }
             report.characterFileExists=File.Exists(Path.Combine(report.characterDirectory,"character.json"));
             report.worldFileExists=File.Exists(Path.Combine(report.worldDirectory,"world.json"));
             Require(report.characterFileExists && report.worldFileExists,"Штатный stop не оставил файлы мира/персонажа в отдельном каталоге проверки.");
@@ -116,6 +155,67 @@ namespace Remains.Runtime
             Require(LoadRejectsMissingLease(out _),"Поздний callback заново подготовил каталог без владельца.");
             Require(!HasNativeInstance<RoomCatalogAsset>(report.catalogInstanceId),"Поздний callback удержал прежний native каталог.");
             report.stage="complete";
+        }
+
+        private IEnumerator RunLightCycles()
+        {
+            const int factoryIndex=-1;
+            string factory=WorldFactories.Level(factoryIndex);
+            var session=runtime.Session;
+            for(int visit=0;visit<4;visit++)
+            {
+                report.stage="hub-ready-"+visit;
+                while(!ReadyAt("hub")) yield return null;
+                for(int frame=0;frame<30;frame++) yield return null;
+                SampleLight("hub");
+                report.stage="factory-entry-"+visit;
+                session.Travel.RequestFactory(factoryIndex);
+                while(!ReadyAt(factory)) yield return null;
+                var actor=session.LocalActor;
+                Require(WeaponInventory.Selected(actor)?.definition=="pistol","Для проверки вспышки нужен штатный пистолет.");
+                report.stage="factory-shot-"+visit;
+                while(!runtime.Combat.Fire(session.LocalActor,session.LocalActor.Position+new Vector2(12,2))) yield return null;
+                report.shots++;
+                for(int frame=0;frame<90;frame++)
+                {
+                    yield return null;
+                    if(frame<12) report.peakShadowMasks=Math.Max(report.peakShadowMasks,CountShadowMasks());
+                }
+                while(!ReadyAt(factory)) yield return null;
+                SampleLight(factory);
+                if(visit<3) session.Travel.RequestHub();
+            }
+            Require(report.peakShadowMasks>0,"Ни один кадр боя не создал маску тени персонажа.");
+        }
+
+        private bool ReadyAt(string level)=>NormalHostReady() && runtime.Session.LocalActor.level==level &&
+            !runtime.Session.Travel.Pending && runtime.LevelPresentationReady && !runtime.ReleasingUnusedAssets;
+
+        private void SampleLight(string level)
+        {
+            var fallback=(ComputeBuffer)fallbackField.GetValue(null);
+            if(!ReferenceEquals(lastFallback,fallback) && lastFallback!=null)
+                Require(!lastFallback.IsValid(),"Предыдущий fallback ComputeBuffer остался живым после замены.");
+            Require(fallback!=null && fallback.IsValid(),"2D Animation не создал ожидаемый fallback ComputeBuffer.");
+            lastFallback=fallback;
+            var sample=new LightSample {level=level,frame=Time.frameCount,textures=LightTextureBudget.Count,
+                textureBytes=LightTextureBudget.Bytes,shadowMasks=CountShadowMasks(),fallbackBuffers=1};
+            lightSamples.Add(sample);
+            var previous=lightSamples.Count>=3?lightSamples[lightSamples.Count-3]:null;
+            // The first round fills the bounded preparation cache; compare the next three visits to the same room.
+            if(lightSamples.Count>=5 && previous?.level==level)
+                Require(sample.textures<=previous.textures && sample.textureBytes<=previous.textureBytes &&
+                    sample.shadowMasks<=previous.shadowMasks,$"Ресурсы росли при возврате в {level}: {StateJson.ToJson(previous)} -> {StateJson.ToJson(sample)}.");
+        }
+
+        private static bool IsShadowMask(RenderTexture texture)=>texture!=null &&
+            (texture.name=="Исходный объединённый силуэт тела и оружия" || texture.name=="Непрерывная проекция силуэта");
+        private static int CountShadowMasks()
+        {
+            int count=0;
+            foreach(var texture in Resources.FindObjectsOfTypeAll<RenderTexture>())
+                if(IsShadowMask(texture) && texture.IsCreated()) count++;
+            return count;
         }
 
         private bool NormalHostReady()
@@ -177,13 +277,17 @@ namespace Remains.Runtime
         {
             if(type is LogType.Error or LogType.Exception or LogType.Assert)
                 errors.Add(condition+"\n"+stack);
+            else if(report.lightCycles && type==LogType.Warning &&
+                (condition.IndexOf("ComputeBuffer",StringComparison.OrdinalIgnoreCase)>=0 ||
+                 condition.IndexOf("active RenderTexture",StringComparison.OrdinalIgnoreCase)>=0))
+                errors.Add(condition+"\n"+stack);
         }
         private void Finish(bool success,string detail)
         {
             if(finished) return;
             finished=true;Application.logMessageReceived-=OnLog;
             report.success=success;report.detail=detail;report.elapsedSeconds=Time.realtimeSinceStartupAsDouble-began;
-            report.errors=errors.ToArray();runtime=null;
+            report.errors=errors.ToArray();report.lightSamples=lightSamples.ToArray();runtime=null;
             try
             {
                 if(string.IsNullOrWhiteSpace(reportPath)) throw new InvalidOperationException("Не указан --report.");
@@ -193,7 +297,17 @@ namespace Remains.Runtime
             catch(Exception error) {success=false;Debug.LogError("Не удалось записать отчёт освобождения runtime-каталога: "+error);}
             if(success) Debug.Log("RuntimeCatalogReleaseProbe PASS: "+detail);
             else Debug.LogError("RuntimeCatalogReleaseProbe FAIL: "+detail);
+            if(success && report.lightCycles) Application.quitting+=ObserveQuit;
             Application.Quit(success?0:1);
+        }
+        private void ObserveQuit()
+        {
+            Application.quitting-=ObserveQuit;
+            report.quitObserved=true;
+            report.fallbackReleasedOnQuit=lastFallback!=null && !lastFallback.IsValid() && fallbackField.GetValue(null)==null;
+            report.success&=report.fallbackReleasedOnQuit;
+            if(!report.success) report.detail="При выходе fallback ComputeBuffer не был явно освобождён.";
+            File.WriteAllText(Path.GetFullPath(reportPath),StateJson.ToJson(report,true));
         }
         private static void Require(bool value,string message)
         {if(!value) throw new InvalidOperationException("Runtime catalog release: "+message);}
