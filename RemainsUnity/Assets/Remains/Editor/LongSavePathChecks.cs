@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using Remains.Content;
 using Remains.Domain;
 using Remains.Persistence;
 using UnityEngine;
@@ -11,7 +12,9 @@ namespace Remains.Editor
     {
         public static void Run()
         {
-            string root=Path.GetFullPath(Path.Combine(Application.dataPath,"../..", ".reference/tests/long-save",Guid.NewGuid().ToString("N"),new string('a',90),new string('b',90)));
+            WeaponCatalog.Load();
+            using var fixture=new LongSavePathFixture();
+            string root=fixture.Root;
             if(root.Length<280) throw new InvalidOperationException("Путь проверки недостаточно длинный.");
             var store=new SaveStore(root);var world=new WorldState();
             var first=store.SaveWorld(world);world.revision++;var second=store.SaveWorld(world);
