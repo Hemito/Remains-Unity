@@ -33,6 +33,16 @@ namespace Remains.Domain
         public static bool IsFactoryLevel(string level) => TryIndex(level, out _);
         public static ulong Seed(WorldState world) => unchecked((ulong)(long)world.seed);
 
+        public static bool RequiresCreation(WorldState world,string level)
+        {
+            if(!TryIndex(level,out int index) || Find(world,level)!=null) return false;
+            WorldRooms.Definition(world,"hub"); // validate saved room bindings before deciding
+            // Schema-1 factory:0 implicitly names the prototype. An explicit authored
+            // binding also names an existing location, even without a generated layout.
+            // NewGameWorld creates its generated factory:0 explicitly, before travel.
+            return index!=0 && !world.rooms.Exists(room=>room.level==level);
+        }
+
         // Explicit creation only. Loading an old world must never call this as a missing-data fallback.
         public static WorldFactory Add(WorldState world, FactoryLayout selection, string definition, string contentFingerprint, string profile = null)
         {

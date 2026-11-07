@@ -179,7 +179,8 @@ namespace Remains.Networking
         private string CreateFactory(string level)
         {
             var world=session.ServerWorld;
-            if(!WorldFactories.TryIndex(level,out int index) || WorldFactories.Find(world,level)!=null) return null;
+            if(!WorldFactories.RequiresCreation(world,level)) return null;
+            WorldFactories.TryIndex(level,out int index);
             try
             {
                 using(TransitionTiming.Measure("travel.factory-create",level)) FactoryPreparation.Create(world,FactoryCatalogAsset.Load(),index);

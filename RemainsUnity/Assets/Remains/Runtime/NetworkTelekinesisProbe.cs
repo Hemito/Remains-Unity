@@ -23,8 +23,13 @@ namespace Remains.Runtime
         private bool Host=>runtime.Options.Role=="host";
         private bool ContainerScenario=>runtime.Options.Smoke.Contains("-container-");
         private string initialItems;
+        private Action<Remains.Persistence.RecoverySnapshot> checkpointHandler;
         private Vector2 abovePlatform,belowPlatform;
-        private PropState Target(WorldState world)=>world==null?null:ContainerScenario?world.containers.Single(c=>c.id==ContainerState.PrototypeId):world.props.Single();
+        private const string TargetPropId="prop:crate-1";
+        private PropState Target(WorldState world)=>FindTarget(world,ContainerScenario);
+        // The fixture owns this ID; level content may add any number of other bodies.
+        public static PropState FindTarget(WorldState world,bool container)=>world==null?null:container?
+            world.containers.SingleOrDefault(c=>c.id==ContainerState.PrototypeId):world.props.SingleOrDefault(p=>p.id==TargetPropId);
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+40;value.CommandSource=Command;
@@ -62,6 +67,7 @@ namespace Remains.Runtime
                 return;
             }
             var prop=Target(session.ServerWorld);
+            if(prop==null) {Finish(false,"В тестовом мире отсутствует явный объект телекинеза: "+(ContainerScenario?ContainerState.PrototypeId:TargetPropId));return;}
             if(ContainerScenario && initialItems==null) initialItems=Remains.Serialization.StateJson.ToJson(((ContainerState)prop).items);
             if(pauseRunning) return;
             if(PauseScenario && phase==2 && !pauseStarted && prop.held && prop.y>1)
@@ -89,18 +95,53 @@ namespace Remains.Runtime
                 if(self.level!="hub" || successor.level!="factory:0" || prop.owner!=successor.owner || prop.held || prop.y-prop.anchorHeight>.1f) return;
                 bool valid=self.mana<100 && successor.mana==100 && prop.level=="factory:0" &&
                     session.World.actors.Where(a=>a.player && a.id!=self.id && a.id!=successor.id).All(a=>a.level=="hub" && a.mana==100);
+                string failure=$"Мана владельца={self.mana}, преемника={successor.mana}, уровень предмета={prop.level}.";
                 if(ContainerScenario)
                 {
-                    session.CommitWorld();
-                    var saved=session.Saves.LoadWorld().containers.Single(c=>c.id==ContainerState.PrototypeId);
-                    valid &= Remains.Serialization.StateJson.ToJson(((ContainerState)prop).items)==initialItems &&
-                        Remains.Serialization.StateJson.ToJson(saved.items)==initialItems && saved.Position==prop.Position;
+                    SetPhase(9);StartCoroutine(VerifyContainerCheckpoint((ContainerState)prop,valid,failure));return;
                 }
-                SetPhase(6);
-                NetworkServer.SendToAll(new TelekinesisProbeFinish {success=valid,detail=valid?
-                    "Обычные команды: захват, подъём и спуск сквозь платформу, расход маны владельца, отпускание, повторный захват, уход в хаб и передача физики предмета другому игроку."+(ContainerScenario?" Содержимое и ID вещей контейнера сохранены без изменений, положение записано в сейв.":""):"Неверный расход маны, положение или сохранность содержимого."});
+                PublishResult(valid,failure);
             }
         }
+        private IEnumerator VerifyContainerCheckpoint(ContainerState prop,bool valid,string failure)
+        {
+            // CommitWorld publishes ticks; it does not promise a new durable file.
+            // Wait for the released body to settle, then for a later recovery write.
+            int stillFrames=0;var previous=prop.Position;
+            while(!finished && stillFrames<10)
+            {
+                yield return null;
+                stillFrames=prop.vx==0 && prop.vy==0 && prop.Position==previous?stillFrames+1:0;
+                previous=prop.Position;
+            }
+            if(finished) yield break;
+            var session=runtime.Session;var expectedPosition=prop.Position;
+            long revision=session.ServerWorld.revision+1;bool persisted=false;
+            checkpointHandler=snapshot=>{if(snapshot.Revision>=revision) persisted=true;};
+            session.RecoveryPersisted+=checkpointHandler;
+            try
+            {
+                session.CommitWorld();
+                while(!finished && !persisted) yield return null;
+                if(finished) yield break;
+                var saved=session.Saves.LoadWorld(false).containers.Single(c=>c.id==ContainerState.PrototypeId);
+                bool liveItems=Remains.Serialization.StateJson.ToJson(prop.items)==initialItems;
+                bool savedItems=Remains.Serialization.StateJson.ToJson(saved.items)==initialItems;
+                bool savedPosition=saved.Position==expectedPosition && prop.Position==expectedPosition;
+                valid &= liveItems && savedItems && savedPosition;
+                failure+=$" Содержимое: live={liveItems}, saved={savedItems}; позиция saved=({saved.x:R},{saved.y:R}), expected=({expectedPosition.x:R},{expectedPosition.y:R}).";
+                PublishResult(valid,failure);
+            }
+            finally {session.RecoveryPersisted-=checkpointHandler;checkpointHandler=null;}
+        }
+        private void PublishResult(bool valid,string failure)
+        {
+            SetPhase(6);
+            NetworkServer.SendToAll(new TelekinesisProbeFinish {success=valid,detail=valid?
+                "Обычные команды: захват, подъём и спуск сквозь платформу, расход маны владельца, отпускание, повторный захват, уход в хаб и передача физики предмета другому игроку."+(ContainerScenario?" Содержимое и ID вещей контейнера сохранены без изменений, положение записано в сейв.":""):"Неверный расход маны, положение или сохранность содержимого. "+failure});
+        }
+        private void OnDestroy()
+        {if(checkpointHandler!=null) runtime.Session.RecoveryPersisted-=checkpointHandler;}
         private float[] PauseSnapshot()
         {
             var prop=Target(runtime.Session.World);var holder=runtime.Session.World.Find("player:session-host");
