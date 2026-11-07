@@ -34,14 +34,24 @@ namespace Remains.Gameplay
         public static bool Flip(ActorState actor)=>actor.weaponFlipY;
         private static Vector2 BaseMount(ActorState actor)=>WeaponCatalog.IsGrenade(actor.weapon)?HeldItemPose.Mount(actor):RangedAnchor(actor)+Vector2.right*(Flip(actor)?-1:1)*Mathf.Clamp(actor.weaponReach,0,RangedReachLimit(actor));
         public static RangedWeaponPose SampleRanged(ActorState actor)
+            =>RangedPose(actor,BaseMount(actor),actor.weaponAngle,Flip(actor),WeaponRigs.Get(actor.weapon));
+
+        // A mouth-mounted weapon has zero horizontal reach. Preview the aim without
+        // changing the rear shooter's replicated weapon pose or facing.
+        public static RangedWeaponPose PreviewAtlasAim(ActorState actor,Vector2 target)
         {
-            var rig=WeaponRigs.Get(actor.weapon);var root=BaseMount(actor);float angle=actor.weaponAngle;
+            var root=RangedAnchor(actor);var delta=target-root;var rig=WeaponRigs.Get(actor.weapon);
+            bool mirrored=delta.x<0;
+            return RangedPose(actor,root,RangedAngle(delta,rig,mirrored)*Mathf.Rad2Deg,mirrored,rig);
+        }
+        private static RangedWeaponPose RangedPose(ActorState actor,Vector2 root,float angle,bool mirrored,WeaponRig rig)
+        {
             if(rig.HasMuzzle && actor.weaponRecoil!=null)
             {
                 if(!actor.weaponRecoil.IsValid) actor.weaponRecoil.Validate("actor="+actor.id+", item="+actor.equippedWeaponItem);
                 root.x+=actor.weaponRecoil.offsetX;angle+=actor.weaponRecoil.angleDegrees;
             }
-            return new RangedWeaponPose(root,angle,Flip(actor),rig);
+            return new RangedWeaponPose(root,angle,mirrored,rig);
         }
         public static Vector2 Mount(ActorState actor)=>!string.IsNullOrEmpty(actor.weapon) && WeaponRigs.Get(actor.weapon).HasMuzzle?SampleRanged(actor).Root:BaseMount(actor);
         public static Vector2 Muzzle(ActorState actor)=>SampleRanged(actor).Muzzle;
@@ -81,12 +91,7 @@ namespace Remains.Gameplay
                 // The support moves horizontally; barrel elevation must not orbit the whole gun around the actor.
                 // Retract continuously near the body so the forward muzzle does not overshoot a nearby cursor.
                 actor.weaponReach=Mathf.Clamp(Mathf.Abs(delta.x)-rig.muzzleX-.1f,0,reachLimit);
-                delta=target-BaseMount(actor);
-                angle=Mathf.Atan2(delta.y,delta.x);
-                float side=delta.x<0?-1:1;
-                float lateral=side*rig.muzzleY;
-                // Solve the barrel ray through the cursor, including its authored vertical offset.
-                angle-=Mathf.Asin(Mathf.Clamp(lateral/delta.magnitude,-1,1));
+                angle=RangedAngle(target-BaseMount(actor),rig,actor.weaponFlipY);
             }
             else
             {
@@ -104,6 +109,9 @@ namespace Remains.Gameplay
             actor.weaponAngle=angle*Mathf.Rad2Deg;
             if(!rig.HasMuzzle) RestTip(actor);
         }
+        // Solve the barrel ray through the aim point, including the authored muzzle offset.
+        private static float RangedAngle(Vector2 delta,WeaponRig rig,bool mirrored)=>
+            Mathf.Atan2(delta.y,delta.x)-Mathf.Asin(Mathf.Clamp((mirrored?-rig.muzzleY:rig.muzzleY)/Mathf.Max(delta.magnitude,.000001f),-1,1));
         // A levitated weapon held at a given point (an NPC's: Weapon.actions for a non-player owner, 40 px ahead).
         public static void HoldAt(ActorState actor,Vector2 point)
         {

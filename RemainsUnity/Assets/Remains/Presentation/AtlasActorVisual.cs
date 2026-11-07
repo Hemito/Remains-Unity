@@ -34,7 +34,8 @@ namespace Remains.Presentation
             public Sprite[] frames;public AtlasActorClip definition;public Vector2[] verticalBounds;
             public Sprite Sample(ActorState actor,float time)
             {
-                return frames[definition.UsesMotion && !actor.down?definition.Sample(actor):definition.FrameIndex(time,ActorPose.StationaryClimb(actor))];
+                return frames[ActorPose.IsTacticallyProne(actor) || definition.UsesMotion && !actor.down?
+                    definition.Sample(actor):definition.FrameIndex(time,ActorPose.StationaryClimb(actor))];
             }
         }
         private sealed class Artwork
@@ -155,7 +156,7 @@ namespace Remains.Presentation
             if(hidden) return;
             // A creature hanging upside down (slime on a ceiling, UnitSlime.setVisPos) is drawn turned over, 0.8 m higher.
             bool inverted=state.creature?.inverted==true && !state.down;
-            transform.position=state.Position+Vector2.up*(state.down?deadLift:inverted?InvertedLift:0);view.flipX=(state.facing<0)!=artwork.facesLeft;
+            transform.position=state.Position+Vector2.up*(state.down?deadLift:inverted?InvertedLift:Anatomy.ProneLift(state));view.flipX=(state.facing<0)!=artwork.facesLeft;
             if(customDeadPresentation) {view.flipY=state.down && deadFlipY;view.color=state.down?deadTint:Color.white;}
             if(inverted) view.flipY=true;
             else if(wasInverted) view.flipY=customDeadPresentation && state.down && deadFlipY;

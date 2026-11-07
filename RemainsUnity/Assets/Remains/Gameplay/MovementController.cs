@@ -130,6 +130,8 @@ namespace Remains.Gameplay
             heldLadder=ladder?selected:null;ladderActorId=actor.id;ladderGeneration=actor.generation;
             ladderLifecycle=actor.lifecycleSequence;
             if(!ladder && lookAtX.HasValue) actor.facing=lookAtX.Value>=actor.x?1:-1;
+            if(ActorPose.IsTacticallyProne(actor) &&
+                (supported || !ActorTerrainMotion.IsClear(room,Anatomy.Movement(actor.anatomy),actor.Position))) return;
             StanceAnimation.Select(actor,actor.crouched?(Mathf.Abs(actor.vx)>.1f?"crawl":"crouch"):ladder ? ladderEntry.Select(actor,room) : !supported ? AirbornePose.Select(actor,launched,grounded || wasClimbing || drop) : Mathf.Abs(actor.vx) > 0.1f ? sprint ? "run" : "walk" : "idle",wasCrouched,standingPose,room,slopePose);
         }
         private RoomLadder SelectLadder(ActorState actor,bool sameLadderActor)

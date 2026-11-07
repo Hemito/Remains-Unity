@@ -109,7 +109,10 @@ namespace Remains.Gameplay
                     {
                         // The shot as its volley, as a player's (pellet weapons fire all their pellets).
                         System.Collections.Generic.List<AttackEvent> volley=null;
-                        var attack=NpcAttackRules.Complete(actor,target,geometry.Get(actor.level),session.Rules.NpcWeaponTiming,shot=>(volley=session.PrepareVolley(shot))!=null);
+                        var attack=NpcAttackRules.Complete(actor,target,controller.Room,session.Rules.NpcWeaponTiming,
+                            shot=>(volley=session.PrepareVolley(shot))!=null &&
+                                (!raider || !SapientPonies.Is(actor) ||
+                                    NpcLineOfFire.SafeVolley(session.World.actors,volley,controller.Room,session.World.friendlyFire)));
                         if(attack!=null)
                         {
                             if(NpcNaturalAttack.IsNatural(attack)) session.FirePrepared(attack);

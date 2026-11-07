@@ -40,6 +40,7 @@ namespace Remains.Gameplay
             public ActorState actor;public int damageSeen=-1;   // the raider itself and the last damage it has felt
             public readonly RevivalProgress revival=new();public float revivalPending,healPending;
             public int generation;public float clock;public int seen;
+            public int firingStanceFrames;
             public RaiderIntent intent;
             public string swingAttack;public MeleeSweep swing;
             public float touchReady;
@@ -87,7 +88,8 @@ namespace Remains.Gameplay
                 // Its full health: the factory's level profile, else the most it has had with this owner.
                 entry.pony.maxHealth=actor.factoryEnemy?.maxHealth>0?actor.factoryEnemy.maxHealth:Mathf.Max(entry.pony.maxHealth,actor.health);
                 entry.pony.blocked=sees && actors!=null && frames>0 && NpcLineOfFire.Blocked(actors,actor,target,
-                    attacker==RaiderAttacker.Ranged?WeaponPose.RangedAnchor(actor):actor.BodyPosition+Vector2.up*.55f,target.BodyPosition+Vector2.up*.55f);
+                    attacker==RaiderAttacker.Ranged?WeaponPose.RangedAnchor(actor):actor.BodyPosition+Vector2.up*.55f,
+                    target.BodyPosition+Vector2.up*.55f,attacker==RaiderAttacker.Ranged);
             }
             for(int i=0;i<frames;i++)
             {
@@ -104,7 +106,15 @@ namespace Remains.Gameplay
                 entry.intent=intent;
             }
             var decided=entry.intent;
-            bool changed=false;
+            bool changed=sapient && UpdateFiringStance(entry,actor,target,sees,attacker,room,actors,frames);
+            if(ActorPose.IsTacticallyProne(actor))
+            {
+                actor.vx=0;
+                entry.movement.Step(actor,Vector2.zero,false,dt);
+                NpcWeaponAim.Apply(actor,sees?target.BodyPosition+Vector2.up*.55f:null,room);
+                entry.intent=default;
+                return new RaiderActions(weapon,0,changed);
+            }
             if(settings.zombie)
             {
                 string mode=ZombieBrain.Mode(entry.mind.state);
@@ -131,6 +141,28 @@ namespace Remains.Gameplay
             return new RaiderActions(weapon,bodyHit,changed,Revive(entry,actor,ally,decided.revive,dt),Heal(entry,actor,decided.heal),
                 decided.grenade && sees && GrenadeItems.Next(actor) is { } grenade?
                     GrenadeAim.Plan(room,actor.BodyPosition+Vector2.up*ThrowLift,actor.BodyPosition,target.BodyPosition,decided.grenadeError,random,grenade.definition):default);
+        }
+
+        private bool UpdateFiringStance(Entry entry,ActorState actor,ActorState target,bool sees,RaiderAttacker attacker,
+            RoomLayout room,IReadOnlyList<ActorState> actors,int frames)
+        {
+            bool prone=ActorPose.IsTacticallyProne(actor);
+            bool canYield=sees && actors!=null && attacker==RaiderAttacker.Ranged && !actor.climbing &&
+                !actor.crouched && entry.pony.intent==PonyIntentKind.Shoot && !Striking(actor);
+            if(canYield)
+            {
+                entry.firingStanceFrames-=frames;
+                if(frames==0 || entry.firingStanceFrames>0) return false;
+                entry.firingStanceFrames=PonyBrain.DecisionFrames;
+                if((prone || Mathf.Abs(actor.vy)<.01f && RaiderLegs.Standing(room,actor) && Anatomy.CanLieProne(actor,room)) &&
+                    NpcLineOfFire.ShouldLieProne(actors,actor,target,room))
+                {
+                    if(prone) return false;
+                    ActorPose.Select(actor,ActorPose.TacticalProne);actor.revision++;return true;
+                }
+            }
+            if(!prone || !ActorTerrainMotion.IsClear(room,Anatomy.Movement(actor.anatomy),actor.Position)) return false;
+            ActorPose.Select(actor,"idle");actor.revision++;return true;
         }
 
         // A shot or a blast near a sapient raider this peer owns frightens it: a shot's line passing within NearShot

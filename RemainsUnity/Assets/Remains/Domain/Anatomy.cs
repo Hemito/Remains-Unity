@@ -12,6 +12,28 @@ namespace Remains.Domain
     [Serializable] public sealed class AnatomyCatalog { public AnatomyDefinition[] anatomies; }
     public static class Anatomy
     {
+        private sealed class ProneProfile
+        {
+            public readonly float lift;
+            public readonly MovementHull hull;
+            public readonly Rect[] regions;
+            public ProneProfile(float lift,params Rect[] regions)
+            {
+                this.lift=lift;this.regions=regions;
+                hull=new MovementHull();
+                foreach(var region in regions)
+                {
+                    hull.width=Mathf.Max(hull.width,2*Mathf.Max(-region.xMin,region.xMax));
+                    hull.height=Mathf.Max(hull.height,region.yMax);
+                }
+            }
+        }
+        // Conservative leg, torso and head bounds of the last source down frame, measured
+        // relative to the sprite pivot and lifted to the support plane (50 px/m).
+        private static readonly ProneProfile lightRaiderProne=new(.2f,
+            new Rect(-1.2f,0,.6f,.72f),new Rect(-.6f,0,1,.78f),new Rect(.4f,0,.8f,.96f));
+        private static readonly ProneProfile heavyRaiderProne=new(.12f,
+            new Rect(-1.18f,0,.48f,.46f),new Rect(-.7f,0,1.2f,.68f),new Rect(.5f,0,.68f,.9f));
         private static readonly Dictionary<string,AnatomyDefinition> definitions=new();
         private static readonly Dictionary<string,Vector2?[]> poseCenters=new();
         private static readonly Dictionary<string,PoseSupportContactData> supportContacts=new();
@@ -112,7 +134,31 @@ namespace Remains.Domain
         }
         public static MovementHull Movement(string id)=>definitions.TryGetValue(id,out var definition)?definition.movement:
             throw new InvalidOperationException($"Нет определения движения анатомии {id}.");
-        public static MovementHull Movement(ActorState actor)=>actor.crouched?Crouching(actor.anatomy):Movement(actor.anatomy);
+        public static MovementHull Movement(ActorState actor)=>ActorPose.IsTacticallyProne(actor)?Prone(actor).hull:
+            actor.crouched?Crouching(actor.anatomy):Movement(actor.anatomy);
+        private static ProneProfile Prone(ActorState actor)=>definitions[actor.anatomy].atlasArtwork switch
+        {
+            "Original/Raider/artwork" or "Original/Creatures/raider5/artwork"=>lightRaiderProne,
+            "Original/Creatures/raider7/artwork"=>heavyRaiderProne,
+            _=>null
+        };
+        public static float ProneLift(ActorState actor)=>ActorPose.IsTacticallyProne(actor)?Prone(actor).lift:0;
+        public static bool CanLieProne(ActorState actor,RoomLayout room)=>Prone(actor) is { } prone &&
+            ActorTerrainMotion.IsClear(room,prone.hull,actor.Position);
+
+        // The same prone contact is used for the tactical prediction and for live projectiles.
+        public static float? ProneContact(ActorState actor,Vector2 start,Vector2 end,float radius=0)
+        {
+            var prone=Prone(actor);
+            if(prone==null) return null;
+            var body=actor.BodyPosition;
+            start-=body;end-=body;
+            start.x*=actor.facing;end.x*=actor.facing;
+            float nearest=float.PositiveInfinity;
+            foreach(var region in prone.regions)
+                if(SurfaceContact.Entry(region,start,end,radius) is float entry) nearest=Mathf.Min(nearest,entry);
+            return float.IsPositiveInfinity(nearest)?null:nearest;
+        }
         // A body without a crouching hull (the creatures and raiders) cannot crouch.
         public static bool CanCrouch(string id)=>definitions.TryGetValue(id,out var definition) && definition.crouchingMovement!=null;
         public static MovementHull Crouching(string id)=>definitions.TryGetValue(id,out var definition) && definition.crouchingMovement!=null?definition.crouchingMovement:
@@ -127,14 +173,19 @@ namespace Remains.Domain
                 if(region.id==id) return TryRegion(actor,definition,region,out center,out radius);
             return false;
         }
-        private static bool TryRegion(ActorState actor,AnatomyDefinition definition,HitRegionDefinition region,out Vector2 center,out float radius)
+        private static bool TryRegion(ActorState actor,AnatomyDefinition definition,HitRegionDefinition region,out Vector2 center,out float radius,bool standing=false)
         {
             center=default;radius=region.radius;
             var offset=new Vector2(region.x,region.y);
-            string pose=ActorPose.Clip(actor);
-            if(!string.IsNullOrEmpty(definition.atlasArtwork) || region.shapes!=null && region.shapes.Length>0)
+            string pose=standing?"idle":ActorPose.Clip(actor);
+            if(!standing && ActorPose.IsTacticallyProne(actor))
             {
-                int frame=!string.IsNullOrEmpty(definition.atlasArtwork)?AtlasAnimationData.Get(definition.atlasArtwork).Clip(pose).Sample(actor):
+                var bounds=Prone(actor).regions[region.id=="legs"?0:region.id=="head"?2:1];
+                offset=bounds.center;radius=bounds.height*.5f;
+            }
+            else if(!string.IsNullOrEmpty(definition.atlasArtwork) || region.shapes!=null && region.shapes.Length>0)
+            {
+                int frame=standing?0:!string.IsNullOrEmpty(definition.atlasArtwork)?AtlasAnimationData.Get(definition.atlasArtwork).Clip(pose).Sample(actor):
                     PonyMotionFrames.Sample(actor,actor.poseTime);
                 if(!poseCenters.TryGetValue(actor.anatomy+":"+region.id+":"+pose,out var centers) || !centers[frame].HasValue)
                 {Debug.LogWarning($"Нет графической привязки области {region.id}: actor={actor.id}, pose={actor.pose}, frame={frame}.");return false;}
@@ -167,6 +218,13 @@ namespace Remains.Domain
 
         public static string Contact(ActorState actor,AttackEvent attack,out float fraction)
         {
+            bool blast=Remains.Content.WeaponCatalog.IsExplosive(attack.weapon);
+            return Contact(actor,attack.Origin,attack.End,attack.radius,out fraction,
+                blast?Remains.Content.WeaponCatalog.Get(attack.weapon).range:null);
+        }
+
+        public static string Contact(ActorState actor,Vector2 start,Vector2 end,float radius,out float fraction,float? blastRange=null,bool standing=false)
+        {
             fraction=float.PositiveInfinity;
             string nearest=null;
             if(!definitions.TryGetValue(actor.anatomy,out var definition))
@@ -174,12 +232,16 @@ namespace Remains.Domain
                 Debug.LogWarning($"Отсутствует анатомия {actor.anatomy} у {actor.id}; попадание пропущено.");
                 return null;
             }
+            if(!blastRange.HasValue && !standing && ActorPose.IsTacticallyProne(actor))
+            {
+                if(ProneContact(actor,start,end,radius) is not float entry) return null;
+                fraction=entry;return "torso";
+            }
             foreach(var region in definition.regions)
             {
-                if(!TryRegion(actor,definition,region,out var center,out float radius)) continue;
-                float? entry=Remains.Content.WeaponCatalog.IsExplosive(attack.weapon)?
-                    (Vector2.Distance(center,attack.End)<Remains.Content.WeaponCatalog.Get(attack.weapon).range?0f:(float?)null):
-                    HitGeometry.CircleEntry(center,radius+attack.radius,attack.Origin,attack.End);
+                if(!TryRegion(actor,definition,region,out var center,out float regionRadius,standing)) continue;
+                float? entry=blastRange.HasValue?(Vector2.Distance(center,end)<blastRange.Value?0f:(float?)null):
+                    HitGeometry.CircleEntry(center,regionRadius+radius,start,end);
                 if(entry.HasValue && entry.Value<fraction) {fraction=entry.Value;nearest=region.id;}
             }
             return nearest;

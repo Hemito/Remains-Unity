@@ -37,13 +37,75 @@ namespace Remains.Editor
             Require(shooter.pony!=null && Mathf.Approximately(shooter.pony.retreatHealth,.25f) && SapientPonies.Is(Raider()) &&
                 !SapientPonies.Is(new ActorState {id="t",actorType="tarakan"}),"у рейдера — характер разумного пони по умолчанию; таракан не разумный пони");
             Calm(shooter);Notice(shooter);Shooting(shooter);Melee(shooter);Retreat(shooter);Search(shooter);Revival(shooter);SelfHeal(shooter);Grenades(shooter);
-            LineOfFire();ShootingFromLadder();
+            LineOfFire();ShootingFromLadder();FiringStance();
             Debug.Log("Мозг разумных пони: PASS — спокойствие, задержка реакции, стрельба с отскоком, ближний бой в зубах и телекинезом, отступление и бой в углу, поиск, без дёрганья, подъём союзника и самолечение аптечкой, гранаты с прицеливанием по безопасности.");
         }
 
         private sealed class HoldPositionRandom : System.Random
         {
             public override double NextDouble()=>.99;
+        }
+
+        private static void FiringStance()
+        {
+            var room=Room();
+            foreach(string typeName in new[]{"raider","raider5-p9mm","raider7-winchester"})
+            foreach(int facing in new[]{-1,1})
+            foreach(int rate in new[]{30,60,144})
+            {
+                var type=ActorTypes.Get(typeName);
+                var front=Raider();front.id="front";front.level=room.id;front.actorType=front.anatomy=typeName;front.facing=facing;
+                float rearHeight=typeName=="raider"?.6f:.24f;
+                var rear=Raider(-3*facing);rear.id="rear";rear.level=room.id;rear.facing=facing;rear.y=rearHeight;
+                var target=new ActorState {id="target",player=true,connected=true,x=6*facing,level=room.id};
+                rear.target=target.id;
+                NpcWeaponTestItems.Equip(front);NpcWeaponTestItems.Equip(rear);
+                var actors=new[]{front,rear,target};
+                var npc=new NpcRaiderController(MovementSettings.Load(),new HoldPositionRandom());
+                Vector2 aim=target.BodyPosition+Vector2.up*.55f;
+                var nominal=WeaponPose.PreviewAtlasAim(rear,aim);
+                Require(Anatomy.Contact(front,nominal.Muzzle,aim,0,out _)!=null &&
+                    !Anatomy.ProneContact(front,nominal.Muzzle,aim).HasValue,
+                    $"Проверочный выстрел должен проходить только над лежащим: {typeName}, {facing}, muzzle={nominal.Muzzle}");
+                for(int i=0;i<rate*4;i++) npc.Step(front,type,target,true,room,1f/rate,actors:actors);
+                Require(ActorPose.IsTacticallyProne(front) && !front.down && front.health==50 &&
+                    ActorTerrainMotion.Supported(room,Anatomy.Movement(front),front.Position),$"Передний стрелок не освободил линию: {typeName}, {facing}, {rate}");
+                Require(!NpcLineOfFire.Blocked(actors,rear,target,WeaponPose.RangedAnchor(rear),aim,ranged:true),
+                    "Мозг заднего стрелка продолжает считать открытую линию занятой");
+                var replica=StateJson.Copy(front);
+                Require(ActorPose.IsTacticallyProne(replica) && !Anatomy.ProneContact(replica,nominal.Muzzle,aim).HasValue,
+                    "Поза или область попадания лежащего теряется в снимке");
+
+                var clear=new AttackEvent {attacker=rear.id,level=room.id,weapon=rear.weapon,
+                    originX=nominal.Muzzle.x,originY=nominal.Muzzle.y,endX=aim.x,endY=aim.y};
+                var low=new AttackEvent {attacker=rear.id,level=room.id,weapon=rear.weapon,originX=rear.x,originY=.4f,endX=target.x,endY=.4f};
+                Require(NpcLineOfFire.SafeVolley(actors,new[]{clear},room,true) &&
+                    !NpcLineOfFire.SafeVolley(actors,new[]{clear,low},room,true),"Дробина в лежащего союзника должна остановить весь залп");
+
+                int rounds=WeaponAmmunition.Magazine(rear,rear.weapon).rounds;
+                Require(NpcAttackRules.TryBegin(rear,target),"Подготовка проверочного залпа");
+                rear.attackRemaining=0;
+                Require(NpcAttackRules.Complete(rear,target,room,null,
+                    shot=>NpcLineOfFire.SafeVolley(actors,new[]{shot,low},room,true))==null &&
+                    WeaponAmmunition.Magazine(rear,rear.weapon).rounds==rounds,"Отмена залпа потратила боеприпас");
+                rear.attackCooldown=0;
+                Require(NpcAttackRules.TryBegin(rear,target),"Подготовка открытого выстрела");
+                rear.attackRemaining=0;
+                Require(NpcAttackRules.Complete(rear,target,room,null,
+                    shot=>NpcLineOfFire.SafeVolley(actors,new[]{shot},room,true))!=null &&
+                    WeaponAmmunition.Magazine(rear,rear.weapon).rounds==rounds-1,"Открытый выстрел поверх союзника не прошёл");
+
+                rear.y=-.2f;
+                for(int i=0;i<rate/2;i++) npc.Step(front,type,target,true,room,1f/rate,actors:actors);
+                Require(!ActorPose.IsTacticallyProne(front),"Поза не освобождает слишком низкую траекторию");
+                rear.y=2;
+                for(int i=0;i<rate/2;i++) npc.Step(front,type,target,true,room,1f/rate,actors:actors);
+                Require(!ActorPose.IsTacticallyProne(front),"Союзник позади со свободной линией заставил лечь");
+                rear.y=rearHeight;rear.target="other";
+                for(int i=0;i<rate/2;i++) npc.Step(front,type,target,true,room,1f/rate,actors:actors);
+                Require(!ActorPose.IsTacticallyProne(front),"Стрелок с другой целью заставил лечь");
+            }
+            Debug.Log("Тактика стрелков: PASS — три атласа, оба направления, 30/60/144 Гц, разрешённый выстрел, остановка залпа и сохранение патрона.");
         }
 
         private static void ShootingFromLadder()

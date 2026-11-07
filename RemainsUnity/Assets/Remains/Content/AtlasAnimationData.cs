@@ -22,9 +22,9 @@ namespace Remains.Content
         [InspectorName("Кадры по вертикальной скорости (пусто — по времени)")] public MotionFramePoint[] verticalFrames;
         [InspectorName("Точки оружия по кадрам (для типа с привязкой к атласу)")] public AtlasWeaponSocketPoint[] weaponSockets;
         public bool UsesMotion=>verticalFrames!=null && verticalFrames.Length>0;
-        public int Sample(ActorState actor)=>UsesMotion && !actor.down
-            ?MotionFrameSampling.Sample(verticalFrames,actor.vy)
-            :FrameIndex(actor.poseTime,ActorPose.StationaryClimb(actor));
+        public int Sample(ActorState actor)=>ActorPose.IsTacticallyProne(actor)?count-1:
+            UsesMotion && !actor.down?MotionFrameSampling.Sample(verticalFrames,actor.vy):
+            FrameIndex(actor.poseTime,ActorPose.StationaryClimb(actor));
         public int FrameIndex(float time,bool stationary=false)
         {
             return AnimationFrames.Sample(time,framesPerSecond,count,loop,loopStartFrame,stationary,playIntro:true);

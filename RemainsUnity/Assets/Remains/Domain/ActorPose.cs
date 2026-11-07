@@ -31,7 +31,10 @@ namespace Remains.Domain
                 HeldItemSelection.CopyPose(source,destination);
             }
         }
-        public static string Clip(ActorState actor)=>ActorSessionRules.IsPassive(actor)?"down":BedRest.Active(actor)?BedRest.Clip(actor):actor.pose;
+        public const string TacticalProne="tacticalProne";
+        public static bool IsTacticallyProne(ActorState actor)=>!actor.player && !actor.down && actor.pose==TacticalProne;
+        public static string Clip(ActorState actor)=>ActorSessionRules.IsPassive(actor) || IsTacticallyProne(actor)?"down":
+            BedRest.Active(actor)?BedRest.Clip(actor):actor.pose;
         // A clip shown at its last frame: a lying body (down or disconnected) and one resting on a bed.
         public static bool HoldsLastFrame(ActorState actor)=>ActorSessionRules.IsPassive(actor) || BedRest.Active(actor);
         public static bool StationaryClimb(ActorState actor)=>actor.climbing && !ActorSessionRules.IsPassive(actor) && System.Math.Abs(actor.vy)<.001f;
@@ -46,7 +49,7 @@ namespace Remains.Domain
                 float held=System.Math.Min(System.Math.Max(0,dt)*.5f,actor.poseCorrectionRemaining);
                 actor.poseCorrectionRemaining-=held;dt-=held;
             }
-            if(StationaryClimb(actor)) {actor.poseTime=0;return;}
+            if(StationaryClimb(actor) || IsTacticallyProne(actor)) {actor.poseTime=0;return;}
             // A passive (down or disconnected) body lies still once its fall has played: its pose time is world state
             // sent with every snapshot, so it must not keep growing.
             if(ActorSessionRules.IsPassive(actor))
