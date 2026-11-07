@@ -18,7 +18,9 @@ namespace Remains.Gameplay
         // By stable body ID, not object: the session replaces the World graph on every received snapshot, and a
         // reference key made every body "new" again (republished with a new sequence each snapshot).
         private readonly Dictionary<string,Entry> sent=new(StringComparer.Ordinal);
-        public void Reset()=>sent.Clear();
+        private readonly SortedSet<(double at,string id)> due=new(Comparer<(double at,string id)>.Create(
+            (left,right)=>left.at!=right.at?left.at.CompareTo(right.at):StringComparer.Ordinal.Compare(left.id,right.id)));
+        public void Reset() {sent.Clear();due.Clear();}
         public bool ShouldPublish(PropState prop,double now)=>ShouldPublish(prop,now,out _);
         // changed: the pose differs from the last one sent (a new pose version); a resting heartbeat repeats the
         // last pose and keeps its sequence, so receivers that already have it ignore it and the world state
@@ -32,9 +34,26 @@ namespace Remains.Gameplay
             // Different IDs stagger the first resting retransmission; subsequent
             // heartbeats retain that phase. No new random state belongs to saves.
             double interval=changed?Phase(prop.id):1;
+            if(found) due.Remove((previous.next,prop.id));
             sent[prop.id]=new Entry {owner=prop.owner,level=prop.level,generation=prop.generation,
                 x=prop.x,y=prop.y,vx=prop.vx,vy=prop.vy,next=now+interval};
+            due.Add((now+interval,prop.id));
             return true;
+        }
+        public void PublishDue(double now,Action<string> publish)
+        {
+            while(due.Count>0 && due.Min.at<=now)
+            {
+                var next=due.Min;due.Remove(next);publish(next.id);
+            }
+        }
+        public void Defer(string id,double now)
+        {
+            if(!sent.TryGetValue(id,out var previous)) return;
+            due.Remove((previous.next,id));
+            previous.next=now+1;
+            sent[id]=previous;
+            due.Add((previous.next,id));
         }
         private static double Phase(string id)
         {

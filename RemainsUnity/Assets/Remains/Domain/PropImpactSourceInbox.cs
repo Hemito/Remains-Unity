@@ -10,6 +10,7 @@ namespace Remains.Domain
         private readonly Dictionary<string,(int generation,uint sequence)> seen=new(StringComparer.Ordinal);
         private readonly Dictionary<string,Queue<PropImpactSample>> queues=new(StringComparer.Ordinal);
         private readonly List<string> removed=new();
+        public bool HasPending(string level)=>queues.TryGetValue(level,out var queue) && queue.Count>0;
         public void Clear() {seen.Clear();queues.Clear();}
         public bool Accept(PropImpactSample sample,bool active)
         {

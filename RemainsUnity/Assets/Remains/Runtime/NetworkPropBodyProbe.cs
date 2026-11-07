@@ -33,11 +33,11 @@ namespace Remains.Runtime
         private PropBodyPrepared manifest;
         private RoomLayout cargoRoom;
         private AudioClip expectedClip;
-        private int stage,serverStage,landingBaseline;
+        private int stage,serverStage,landingBaseline,requiredHits,serverRequiredHits;
         private float deadline,heldSince=-1,evidenceSince=-1,heldY,releasedY;
         private bool fixture,mapClick,manifestSent,prepared,threw,reported,finished,released,fell,downCaptured;
         private string savedSnapshot,capture;
-        private long savedRevision;
+        private long savedRevision,checkpointRevision;
         private readonly List<string> grenades=new();
         private readonly List<Launch> launches=new();
         private readonly List<Voice> landingVoices=new();
@@ -69,6 +69,7 @@ namespace Remains.Runtime
                 value.Session.Saves.SaveWorld(LegacyFactoryFixture.Create());
             }
             value.CommandSource=Command;value.Grenades.Created+=GrenadeCreated;value.Session.Notice+=Notice;
+            value.Session.RecoveryPersisted+=CheckpointPersisted;
             value.Session.ClientReady+=()=>
             {
                 NetworkClient.RegisterHandler<PropBodyPrepared>(Begin);
@@ -87,17 +88,22 @@ namespace Remains.Runtime
                     if(!observed.TryGetValue(serverStage,out var peers)) observed.Add(serverStage,peers=new());
                     if(!peers.Add(connection.connectionId) || peers.Count!=2) return;
                     if(serverStage==4)
-                    {NetworkServer.SendToAll(new PropBodyFinished {success=true,detail="Реальные Q/G, два решения пострадавшего, свободная физика подключённого тела, один голос приземления у источника и сохранение обоими участниками."});return;}
-                    serverStage++;
-                    var next=new PropBodyStage {stage=serverStage};
+                    {NetworkServer.SendToAll(new PropBodyFinished {success=true,detail=$"Реальные Q/G, подтверждено гранат: {serverRequiredHits}. Проверены отпускание, свободная физика, один голос приземления и сохранение обоими участниками."});return;}
+                    serverStage+=serverStage==1 && serverRequiredHits==1?2:1;
                     if(serverStage==4)
                     {
-                        value.Session.CommitWorld();
-                        var snapshot=value.Session.Saves.SelectedSnapshot();next.snapshot=snapshot.Id;next.revision=snapshot.Revision;
+                        checkpointRevision=value.Session.ServerWorld.revision+1;
+                        value.Session.CommitWorld();return;
                     }
-                    NetworkServer.SendToAll(next);
+                    NetworkServer.SendToAll(new PropBodyStage {stage=serverStage});
                 });
             };
+        }
+        private void CheckpointPersisted(RecoverySnapshot snapshot)
+        {
+            if(finished || checkpointRevision==0 || snapshot.Revision<checkpointRevision) return;
+            checkpointRevision=0;
+            NetworkServer.SendToAll(new PropBodyStage {stage=4,snapshot=snapshot.Id,revision=snapshot.Revision});
         }
         private void AcceptPrepared(NetworkConnectionToClient connection,PropBodyPrepared message)
         {
@@ -108,6 +114,7 @@ namespace Remains.Runtime
                 var rejection=PropBodyProbeSetup.ManifestRejection(runtime.Session.ServerWorld,sender,runtime.Session.LocalActorId,
                     Remote,message,TelekinesisSettings.Load().maximumMass,WeaponCatalog.Get("grenade").damage);
                 if(rejection!=null) throw new InvalidOperationException(rejection);
+                serverRequiredHits=RequiredHits(message);
                 serverStage=1;NetworkServer.SendToAll(message,Channels.Reliable);
             }
             catch(Exception error)
@@ -193,7 +200,7 @@ namespace Remains.Runtime
         {
             try
             {
-                manifest=message;prepared=true;stage=1;reported=false;evidenceSince=-1;
+                manifest=message;requiredHits=RequiredHits(message);prepared=true;stage=1;reported=false;evidenceSince=-1;
                 if(Cargo==null || Victim==null) throw new InvalidOperationException("Подготовленный актёр или авторский контейнер отсутствует в реальной реплике.");
                 cargoRoom=runtime.Geometry.Get("factory:0");landingBaseline=runtime.PropAudio.Landings;
                 foreach(var voice in runtime.Audio.GetComponentsInChildren<AudioSource>()) voiceIds.Add(voice.GetInstanceID());
@@ -205,6 +212,12 @@ namespace Remains.Runtime
                 if(expectedClip==null || expectedClip.samples<=0) throw new InvalidOperationException("Нет реального звука приземления для "+Cargo.definition);
             }
             catch(Exception error) {Fail(error.Message+" "+Context());}
+        }
+        private static int RequiredHits(PropBodyPrepared value)
+        {
+            if(!float.IsFinite(value.damage) || value.damage<=0 || value.damage*2<value.initialHealth)
+                throw new InvalidOperationException("Нокдаун в этом сценарии требует урона одной или двух гранат.");
+            return value.damage>=value.initialHealth?1:2;
         }
         private void GrenadeCreated(Remains.Gameplay.GrenadeFlight flight)
         {
@@ -225,8 +238,8 @@ namespace Remains.Runtime
             if(PropBodyProbeSetup.Inventory(Cargo)!=manifest.contents || Cargo.owner!=manifest.owner || Cargo.definition!=manifest.definition || Cargo.mass!=manifest.mass)
                 throw new InvalidOperationException("Изменились тип/масса, вещи, aliases или реальный владелец ящика.");
             if(actor.resolvedAttacks.Except(manifest.previousAttacks).Except(grenades).Any())
-                throw new InvalidOperationException("Источник получил постороннюю атаку; нокдаун нельзя приписать двум своим гранатам.");
-            if(grenades.Count>2) throw new InvalidOperationException("Обычные команды создали больше двух гранат.");
+                throw new InvalidOperationException("Источник получил постороннюю атаку; нокдаун нельзя приписать своим гранатам.");
+            if(grenades.Count>requiredHits) throw new InvalidOperationException("Обычные команды создали лишнюю гранату.");
         }
         private bool Receipt(int count)
         {
@@ -246,7 +259,7 @@ namespace Remains.Runtime
                 bool valid=false;
                 if(stage==1) valid=Cargo.held && Cargo.generation==manifest.heldGeneration && Vector2.Distance(Cargo.Position,Lift)<.1f && !Victim.down;
                 if(stage==2) valid=Receipt(1) && !Victim.down && Cargo.held && Cargo.generation==manifest.heldGeneration && Vector2.Distance(Cargo.Position,Lift)<.1f;
-                if(stage==3 && Receipt(2) && Victim.down && !Cargo.held)
+                if(stage==3 && Receipt(requiredHits) && Victim.down && !Cargo.held)
                 {
                     if(Cargo.generation!=manifest.heldGeneration+1) throw new InvalidOperationException("Очистка удержания изменила generation больше одного раза.");
                     if(!released) {released=true;releasedY=Cargo.y;capture="down";}
@@ -270,7 +283,7 @@ namespace Remains.Runtime
         private void CompleteStage()
         {
             if(reported) return;reported=true;
-            if(stage==2) heldY=Cargo.y;
+            if(stage==1 || stage==2) heldY=Cargo.y;
             var proof=new Proof {stage=stage,time=Time.unscaledTime,observerLevel=Actor.level,sourceHealth=Victim.health,sourceDown=Victim.down,
                 owner=Cargo.owner,generation=Cargo.generation,sequence=Cargo.sequence,held=Cargo.held,position=Cargo.Position,velocity=new Vector2(Cargo.vx,Cargo.vy),
                 grenadeIds=grenades.ToArray(),fallVerified=fell,landingCounter=runtime.PropAudio.Landings-landingBaseline,
@@ -283,15 +296,15 @@ namespace Remains.Runtime
         private void VerifyPersistence()
         {
             string path=Path.Combine(runtime.Session.Saves.WorldDirectoryPath,"Worlds",runtime.Session.World.worldId,"Snapshots",savedSnapshot+".json");
-            if(!File.Exists(path)) throw new InvalidOperationException("Не получен настоящий сохранённый снимок: "+path);
+            if(!File.Exists(path)) return; // The client can persist the exact checkpoint after receiving the stage.
             var snapshot=new RecoverySnapshot(File.ReadAllText(path));var world=snapshot.CreateLiveWorld();
             var cargo=world.containers.Single(c=>c.id==manifest.cargo);var actor=world.Find(manifest.source);
             if(snapshot.Id!=savedSnapshot || snapshot.Revision!=savedRevision || cargo.owner!=manifest.owner || cargo.held ||
                 cargo.definition!=manifest.definition || cargo.mass!=manifest.mass ||
                 cargo.generation!=manifest.heldGeneration+1 || PropBodyProbeSetup.Inventory(cargo)!=manifest.contents ||
                 Vector2.Distance(cargo.Position,Cargo.Position)>.02f || !actor.down || actor.health!=0 ||
-                grenades.Count!=2 || !grenades.All(id=>actor.resolvedExplosions.Count(x=>x==id)==1 && actor.resolvedAttacks.Count(x=>x==id)==1) ||
-                CountGrenades(actor)!=manifest.initialGrenades-2)
+                grenades.Count!=requiredHits || !grenades.All(id=>actor.resolvedExplosions.Count(x=>x==id)==1 && actor.resolvedAttacks.Count(x=>x==id)==1) ||
+                CountGrenades(actor)!=manifest.initialGrenades-requiredHits)
                 throw new InvalidOperationException("Сохранение потеряло физику, владельца, generation, вещи или реальные решения пострадавшего.");
             CompleteStage();
         }
@@ -315,7 +328,7 @@ namespace Remains.Runtime
         private void Finish(bool success,string detail)
         {
             if(finished) return;finished=true;
-            if(success && (proofs.Count!=4 || !fell || launches.Count!=2 || Source && (landingVoices.Count!=1 || Frames && !downCaptured)))
+            if(success && (proofs.Count!=requiredHits+2 || !fell || launches.Count!=requiredHits || Source && (landingVoices.Count!=1 || Frames && !downCaptured)))
             {success=false;detail="Неполный локальный набор доказательств. "+detail;}
             File.WriteAllText(runtime.Options.Report,StateJson.ToJson(new Report {success=success,detail=detail,context=Context(),
                 source=Source,sourceRole=SourceRole,manifest=manifest,proofs=proofs.ToArray(),launches=launches.ToArray(),voices=landingVoices.ToArray(),
@@ -324,7 +337,11 @@ namespace Remains.Runtime
         }
         private IEnumerator Exit(bool success) {yield return new WaitForSecondsRealtime(1.5f);Application.Quit(success?0:2);}
         private void OnDestroy()
-        {if(runtime!=null) {runtime.Grenades.Created-=GrenadeCreated;runtime.Session.Notice-=Notice;}}
+        {
+            if(runtime==null) return;
+            runtime.Grenades.Created-=GrenadeCreated;runtime.Session.Notice-=Notice;
+            runtime.Session.RecoveryPersisted-=CheckpointPersisted;
+        }
         [Serializable] private sealed class Voice {public int id;public string clip;public float volume;public bool muted,playing;}
         [Serializable] private sealed class Launch {public string id;public int stage;public float time,remaining;public bool sourceObserver;public Vector2 position,velocity;}
         [Serializable] private sealed class Proof

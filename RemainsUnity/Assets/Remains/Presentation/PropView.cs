@@ -17,6 +17,7 @@ namespace Remains.Presentation
         [SerializeField,Range(0,1),InspectorName("Интенсивность")] private float heldIntensity=.7f;
         public SpriteRenderer Artwork=>artwork;
         private readonly RemotePropMotion motion=new();
+        public bool MotionPending=>motion.Pending;
         private HeldPropGlow glow;
         private SortingGroup sorting;
         private WorldVisualOrderBinding depth;

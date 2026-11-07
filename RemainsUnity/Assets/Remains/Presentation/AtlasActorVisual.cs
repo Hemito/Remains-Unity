@@ -41,6 +41,9 @@ namespace Remains.Presentation
         {public string resource;public bool facesLeft;public readonly Dictionary<string,Clip> clips=new(StringComparer.Ordinal);}
         private static readonly Dictionary<string,Artwork> cache=new(StringComparer.Ordinal);
         private ActorState state;
+        private Func<ActorState,bool> inVisibleArea;
+        private bool culled;
+        public void ConfigureVisibleArea(Func<ActorState,bool> test)=>inVisibleArea=test;
         [SerializeField,InspectorName("Основной спрайт")] private SpriteRenderer view;
         public void SetRenderer(SpriteRenderer renderer)=>view=renderer;
         private bool generatedView;
@@ -67,6 +70,7 @@ namespace Remains.Presentation
                 foreach(var clip in artwork.clips.Values) frames.AddRange(clip.frames);
                 var child=new GameObject("Свечение удерживаемого тела");child.transform.SetParent(view.transform,false);
                 heldGlow=child.AddComponent<HeldPropGlow>();heldGlow.Initialize(view,color,.08f,frames.ToArray());
+                heldGlow.Renderer.forceRenderingOff=culled;
             }
             heldGlow.SetColor(color);heldGlow.SetFrame(view.sprite);heldGlow.Draw(view.enabled);
         }
@@ -131,7 +135,18 @@ namespace Remains.Presentation
             }
             return result;
         }
-        private void Update() {if(state==null) return;using(Remains.Diagnostics.FrameHitchLog.Section("AtlasActorVisual.Update")) Draw();}
+        private void Update()
+        {
+            if(state==null) return;
+            using var section=Remains.Diagnostics.FrameHitchLog.Section("AtlasActorVisual.Update");
+            bool hidden=inVisibleArea!=null && !inVisibleArea(state);
+            if(hidden!=culled)
+            {
+                culled=hidden;view.forceRenderingOff=hidden;
+                if(heldGlow!=null) heldGlow.Renderer.forceRenderingOff=hidden;
+            }
+            if(!hidden) Draw();
+        }
         public void Draw()
         {
             // A buried zombie is not drawn until it digs out (UnitZombie.animate: vis.visible = false).

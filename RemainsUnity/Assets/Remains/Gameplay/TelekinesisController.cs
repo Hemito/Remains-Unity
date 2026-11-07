@@ -78,7 +78,9 @@ namespace Remains.Gameplay
                     holding=true;
                     if(props?.World!=session.World) props=new WorldPropView(session.World);
                     Vector2 target=rules.Target(actor,aim);
+                    var previous=prop.Position;
                     PropMotion.Step(prop,geometry.Get(prop.level),dt,target,props,null,hull);
+                    adapter.NotifyPropMotion(prop,previous);
                     actor.mana=Mathf.Max(0,actor.mana-rules.ManaPerSecond(actor,prop)*dt);
                     actor.revision++;
                     statsDirty=true;

@@ -16,8 +16,11 @@ namespace Remains.Presentation
         private readonly Dictionary<string,PropContactObservation> tracks=new();
         private readonly Dictionary<string,AudioClip> clips=new();
         private readonly HashSet<string> active=new(),missing=new();
+        private readonly HashSet<string> pending=new(StringComparer.Ordinal);
+        private readonly List<string> samples=new();
         private readonly List<string> removed=new();
         private CoopSession session;
+        private InteractionAdapter interactions;
         private SimulationGeometry geometry;
         private GameplayAudio playback;
         private Settings settings;
@@ -27,9 +30,10 @@ namespace Remains.Presentation
         public ItemLandingAudioCatalog ItemSounds=>itemSounds;
         public event Action<string,string,AudioClip> LandingPlayed;
         public void Initialize(CoopSession value,SimulationGeometry geometry,GameplayAudio playback)=>Initialize(value,geometry,playback,null);
-        public void Initialize(CoopSession value,SimulationGeometry geometry,GameplayAudio playback,ItemLandingAudioCatalog itemSounds)
+        public void Initialize(CoopSession value,SimulationGeometry geometry,GameplayAudio playback,ItemLandingAudioCatalog itemSounds,
+            InteractionAdapter interactions=null)
         {
-            session=value;this.geometry=geometry;this.playback=playback;
+            session=value;this.geometry=geometry;this.playback=playback;this.interactions=interactions;
             this.itemSounds=itemSounds??ItemLandingAudioCatalog.Load();
             var asset=GameAssets.Load<TextAsset>("Presentation/prop-audio");
             if(asset==null) throw new InvalidOperationException("Нет настроек Presentation/prop-audio.");
@@ -44,16 +48,37 @@ namespace Remains.Presentation
                 clips.Add(entry.definition,clip);
             }
             session.Changed+=Reconcile;
+            if(interactions!=null) interactions.PropMoved+=OnPropMoved;
+        }
+        private void OnPropMoved(PropState prop,Vector2 previous)
+        {
+            if(tracks.ContainsKey(prop.id)) pending.Add(prop.id);
         }
         private string reconciledLevel;
         // Tracks follow the listener's level bodies; their support can change with bodies or doors only.
         private void Reconcile()
         {
             var listener=session.LocalActor;
-            if(!session.LastChange.Any(WorldChangeKind.Containers|WorldChangeKind.Props|WorldChangeKind.Doors) && listener?.level==reconciledLevel && listener!=null) return;
+            bool sameContext=listener!=null && listener.level==reconciledLevel && props?.World.worldId==session.World?.worldId;
+            if(sameContext && !session.LastChange.Any(WorldChangeKind.Containers|WorldChangeKind.Props|WorldChangeKind.Doors)) return;
             reconciledLevel=listener?.level;
-            active.Clear();
             if(session.World!=null && props?.World!=session.World) props=new WorldPropView(session.World);
+            if(interactions!=null && sameContext && !session.LastChange.Any(WorldChangeKind.Doors) && session.LastChangedParts!=null)
+            {
+                foreach(string key in session.LastChangedParts)
+                {
+                    bool container=key.StartsWith("containers:",StringComparison.Ordinal);
+                    if(!container && !key.StartsWith("props:",StringComparison.Ordinal)) continue;
+                    string id=key.Substring(container?11:6);
+                    var prop=WorldProps.Find(session.World,id);
+                    if(prop==null || prop.level!=reconciledLevel || !prop.movable || !prop.hasPhysicalBody)
+                    {tracks.Remove(id);pending.Remove(id);continue;}
+                    if(!tracks.TryGetValue(id,out var track)) tracks.Add(id,track=new PropContactObservation());
+                    track.InvalidateSupport();pending.Add(id);
+                }
+                return;
+            }
+            active.Clear();
             if(listener!=null && session.World!=null)
                 foreach(var prop in props)
                     if(prop.level==listener.level && prop.movable && prop.hasPhysicalBody)
@@ -62,30 +87,49 @@ namespace Remains.Presentation
             foreach(string id in tracks.Keys) if(!active.Contains(id)) removed.Add(id);
             foreach(string id in removed) tracks.Remove(id);
             // Shared changes can replace geometry or neighbours without moving this prop.
-            foreach(var track in tracks.Values) track.InvalidateSupport();
+            foreach(var pair in tracks)
+            {
+                pair.Value.InvalidateSupport();
+                if(interactions!=null) pending.Add(pair.Key);
+            }
         }
         private void LateUpdate()
         {
             using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("PropContactAudio.LateUpdate");
+            if(interactions!=null && pending.Count==0) return;
             var listener=session.LocalActor;if(listener==null) return;
             if(props?.World!=session.World) props=new WorldPropView(session.World);
             var room=geometry.Get(listener.level);
             bool paused=session.Pause.IsPaused(listener.level);
-            foreach(var prop in props)
+            if(interactions==null)
             {
-                if(prop.level!=listener.level || !tracks.TryGetValue(prop.id,out var track)) continue;
-                var contact=track.Sample(prop,room,props,paused,settings.teleportDistance);
-                if(contact!=MotionContact.Landing) continue;
-                if(!TryGetLandingClip(prop,out var clip,out var reason))
-                {
-                    string item=(prop as ContainerState)?.presentationItem;
-                    string key=item==null?prop.definition:"item:"+item;
-                    if(missing.Add(key)) Debug.LogWarning($"Нет звука падения: prop={prop.id}, definition={prop.definition}, presentationItem={item ?? "<отсутствует>"}, action=landing, level={prop.level}. {reason}",this);
-                    continue;
-                }
-                if(playback.PlayContact(clip,prop.level,prop.Position,settings.volume))
-                {Landings++;LandingPlayed?.Invoke(prop.id,(prop as ContainerState)?.presentationItem??prop.definition,clip);}
+                foreach(var prop in props)
+                    if(prop.level==listener.level) Sample(prop,room,paused);
             }
+            else
+            {
+                samples.Clear();samples.AddRange(pending);pending.Clear();
+                foreach(string id in samples)
+                {
+                    if(!tracks.ContainsKey(id)) continue;
+                    var prop=WorldProps.Find(session.World,id);
+                    if(prop?.level==listener.level) Sample(prop,room,paused);
+                }
+            }
+        }
+        private void Sample(PropState prop,RoomLayout room,bool paused)
+        {
+            if(!tracks.TryGetValue(prop.id,out var track) ||
+                track.Sample(prop,room,props,paused,settings.teleportDistance)!=MotionContact.Landing) return;
+            if(!TryGetLandingClip(prop,out var clip,out var reason))
+            {
+                string item=(prop as ContainerState)?.presentationItem;
+                string key=item==null?prop.definition:"item:"+item;
+                if(missing.Add(key)) Debug.LogWarning($"Нет звука падения: prop={prop.id}, definition={prop.definition}, presentationItem={item ?? "<отсутствует>"}, action=landing, level={prop.level}. {reason}",this);
+                return;
+            }
+            if(playback.PlayContact(clip,prop.level,prop.Position,settings.volume))
+            {Landings++;LandingPlayed?.Invoke(prop.id,(prop as ContainerState)?.presentationItem??prop.definition,clip);}
         }
         // The same cached resolver is available to diagnostics; it does not sample physics or load assets.
         public bool TryGetLandingClip(PropState prop,out AudioClip clip,out string reason)
@@ -100,6 +144,10 @@ namespace Remains.Presentation
             reason="Не объявлен банк физического объекта для action=landing.";
             return false;
         }
-        private void OnDestroy() {if(session!=null) session.Changed-=Reconcile;}
+        private void OnDestroy()
+        {
+            if(session!=null) session.Changed-=Reconcile;
+            if(interactions!=null) interactions.PropMoved-=OnPropMoved;
+        }
     }
 }

@@ -23,6 +23,7 @@ namespace Remains.Domain
         // Visual coverage may exceed the AI room on an unusually wide viewport. It affects animation/pose
         // writers only; NpcController continues to use NpcActivity's gameplay rectangle.
         public void SetVisibleArea(string level,Rect area) {visibleLevel=level;visibleArea=area;}
+        public bool InVisibleArea(ActorState actor)=>visibleLevel==null || actor.level==visibleLevel && visibleArea.Contains(actor.Position);
         public bool Active(ActorState actor)=>ActorPresence.IsPresent(actor) && connected.OnLevel(actor.level) &&
             (actor.player || ActorSessionRules.IsPassive(actor) || ActorHoldRules.Active(actor) || NpcActivity.Awake(connected.Players,actor) ||
                 actor.level==visibleLevel && visibleArea.Contains(actor.Position));

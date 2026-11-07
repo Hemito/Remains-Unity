@@ -11,6 +11,7 @@ namespace Remains.Presentation
     public sealed class InteractionVisuals : MonoBehaviour
     {
         private CoopSession session;
+        private InteractionAdapter interactions;
         private GrenadeController grenades;
         private SimulationGeometry geometry;
         // Flight prefabs per grenade, loaded when a flight of that grenade first appears.
@@ -41,6 +42,8 @@ namespace Remains.Presentation
         private readonly HashSet<string> missingGraphics=new();
         private readonly HashSet<string> retainedProps=new(),retainedContainers=new(),retainedWeapons=new(),retainedFlights=new();
         private readonly List<string> removed=new();
+        private readonly HashSet<string> movingBodies=new(StringComparer.Ordinal);
+        private readonly List<string> settledBodies=new();
         public WeaponView FindWeapon(string actorId)=>weapons.TryGetValue(actorId,out var view)?view:null;
         public void AppendWeaponLightOccluders(List<LightOccluder> output)
             =>AppendWeaponLightOccluders(null,output);
@@ -75,7 +78,7 @@ namespace Remains.Presentation
             =>Initialize(session,adapter,grenades,geometry,layers,null);
         public void Initialize(CoopSession session,InteractionAdapter adapter,GrenadeController grenades,SimulationGeometry geometry,ActorVisualLayers layers,WeaponReloadController reload)
         {
-            this.session=session;this.grenades=grenades;this.layers=layers;this.geometry=geometry;
+            this.session=session;interactions=adapter;this.grenades=grenades;this.layers=layers;this.geometry=geometry;
             propArtwork=new PropArtwork();
             grenadePrefabs["grenade"]=GrenadeArtwork.LoadPrefab();
             foreach(var pair in WeaponArtwork.Load()) sprites.Add(pair.Key,pair.Value);
@@ -84,6 +87,7 @@ namespace Remains.Presentation
             casingEffects=gameObject.AddComponent<CasingEffects>();casingEffects.Initialize(session,layers.Orders);
             ShotArtwork.Prepare();
             session.Changed+=Refresh;
+            if(interactions!=null) interactions.PropMoved+=OnPropMoved;
             session.Deposits.Reconciled+=Refresh;
             grenades.Created+=OnGrenadeCreated;
             session.AttackReceived+=OnAttackReceived;
@@ -107,8 +111,13 @@ namespace Remains.Presentation
         }
         private void OnDestroy()
         {
+            if(interactions!=null) interactions.PropMoved-=OnPropMoved;
             if(session!=null) {session.Changed-=Refresh;session.Deposits.Reconciled-=Refresh;session.AttackReceived-=OnAttackReceived;}
             if(grenades!=null) grenades.Created-=OnGrenadeCreated;
+        }
+        private void OnPropMoved(PropState prop,Vector2 previous)
+        {
+            if(props.ContainsKey(prop.id) || containers.ContainsKey(prop.id)) movingBodies.Add(prop.id);
         }
         private SpriteRenderer CreateGrenade(string name,string weapon)
         {
@@ -188,13 +197,20 @@ namespace Remains.Presentation
             {view=propArtwork.CreateContainerView(container);if(view==null)return;view.transform.SetParent(transform,true);view.BindOrder(layers.Orders,WorldVisualKind.Container,container.id);containers.Add(container.id,view);}
             view.ApplyContainerAppearance(container);
             view.ApplyHeldAppearance(container,heldColors);
-            view.DrawMotion(container,session.LocalOwner,session.Pause.IsPaused(container.level),0);view.SetVisible(container.level==level);
+            BindBodyMotion(container,view,level);
         }
         private void UpdateProp(PropState prop,string level)
         {
             if(!props.TryGetValue(prop.id,out var view))
             {view=propArtwork.CreateView(prop.definition,prop.id,prop.width);view.transform.SetParent(transform,true);view.BindOrder(layers.Orders,WorldVisualKind.Prop,prop.id);props.Add(prop.id,view);}
             view.ApplyHeldAppearance(prop,heldColors);
+            BindBodyMotion(prop,view,level);
+        }
+        private void BindBodyMotion(PropState body,PropView view,string level)
+        {
+            view.DrawMotion(body,session.LocalOwner,session.Pause.IsPaused(body.level),0);
+            view.SetVisible(body.level==level);
+            if(view.MotionPending) movingBodies.Add(body.id);
         }
         private void Remove<T>(Dictionary<string,T> views,string id) where T:Component
         {
@@ -215,19 +231,32 @@ namespace Remains.Presentation
             sprites[actor.weapon]=rest;
             layers.Attach(actor.id,view.transform);return view;
         }
+        private void DrawMovingBodies(string shownLevel,string localOwner)
+        {
+            settledBodies.Clear();
+            foreach(string id in movingBodies)
+            {
+                var view=FindProp(id)??FindContainer(id);
+                var body=view!=null?WorldProps.Find(session.World,id):null;
+                if(body!=null)
+                {
+                    view.DrawMotion(body,localOwner,session.Pause.IsPaused(body.level),Time.deltaTime);
+                    view.SetVisible(body.level==shownLevel);
+                    if(view.MotionPending) continue;
+                }
+                settledBodies.Add(id);
+            }
+            foreach(string id in settledBodies) movingBodies.Remove(id);
+        }
         private void Update()
         {
             using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("InteractionVisuals.Update");
             muzzleEmissions.Clear();
             muzzleSourceIds.Clear();
             if(session?.World==null) return;
-            // Read once: both are per-frame constants for ~1400 body views.
             string shownLevel=session.LocalActor?.level,localOwner=session.LocalOwner;
-            foreach(var prop in session.World.props)
-                if(props.TryGetValue(prop.id,out var view)) {view.DrawMotion(prop,localOwner,session.Pause.IsPaused(prop.level),Time.deltaTime);view.SetVisible(prop.level==shownLevel);}
-            foreach(var container in session.World.containers)
-                if(containers.TryGetValue(container.id,out var view))
-                {view.DrawMotion(container,localOwner,session.Pause.IsPaused(container.level),Time.deltaTime);view.SetVisible(container.level==shownLevel);}
+            using(Remains.Diagnostics.FrameHitchLog.Section("Тела: представления"))
+                DrawMovingBodies(shownLevel,localOwner);
             foreach(var actor in session.World.actors)
             {
                 if(!weapons.TryGetValue(actor.id,out var view)) continue;

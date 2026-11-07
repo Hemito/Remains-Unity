@@ -53,8 +53,14 @@ namespace Remains.Domain
             return new Vector2(x,y);
         }
         public static bool Supported(RoomLayout room,MovementHull hull,Vector2 position,bool bodyTops=true)
+            =>Supported(hull,position,Query(room,bodyTops,SupportBounds(hull,position)));
+        public static bool SupportedByStaticSurface(RoomLayout room,MovementHull hull,Vector2 position)
+            =>Supported(hull,position,RoomSurfaces.NearStatic(room,SupportBounds(hull,position)));
+        private static Rect SupportBounds(MovementHull hull,Vector2 position)
+            =>new(position.x-hull.width*.5f,position.y-RoomSupport.ContactTolerance,hull.width,RoomSupport.ContactTolerance*2);
+        private static bool Supported(MovementHull hull,Vector2 position,RoomSurfaces.SurfaceSet surfaces)
         {
-            foreach(var surface in Query(room,bodyTops,new Rect(position.x-hull.width*.5f,position.y-RoomSupport.ContactTolerance,hull.width,RoomSupport.ContactTolerance*2)))
+            foreach(var surface in surfaces)
                 if(position.x+hull.width*.5f>surface.x+Epsilon && position.x-hull.width*.5f<surface.x+surface.width-Epsilon &&
                     Mathf.Abs(position.y-RoomSupport.Top(surface,position.x,hull.width))<=RoomSupport.ContactTolerance) return true;
             return false;

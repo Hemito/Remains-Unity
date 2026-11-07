@@ -12,6 +12,7 @@ namespace Remains.Networking
     {
         private readonly CoopSession session;
         public event Action<GrenadeState> GrenadeUpdated;
+        public event Action<PropState,Vector2> PropMoved;
         public InteractionAdapter(CoopSession session)
         {
             this.session=session;
@@ -35,7 +36,9 @@ namespace Remains.Networking
                 {
                     var prop=WorldProps.Find(session.World,message.prop);
                     if(prop==null || prop.generation!=message.generation || !PropReplication.CanAcceptPose(prop) || prop.owner==session.LocalOwner) return;
-                    if(PropReplication.Accept(prop,message.generation,message.sequence,message.x,message.y,message.vx,message.vy)) prop.impactFriendlyPlayers=message.impactFriendlyPlayers;
+                    var previous=prop.Position;
+                    if(PropReplication.Accept(prop,message.generation,message.sequence,message.x,message.y,message.vx,message.vy))
+                    {prop.impactFriendlyPlayers=message.impactFriendlyPlayers;NotifyPropMotion(prop,previous);}
                 }));
                 NetworkClient.RegisterHandler<GrenadePoseMessage>(Remains.Networking.MessageTiming.Client<GrenadePoseMessage>(message=>
                 {
@@ -44,6 +47,10 @@ namespace Remains.Networking
                     Apply(grenade,message);GrenadeUpdated?.Invoke(grenade);
                 }));
             };
+        }
+        public void NotifyPropMotion(PropState prop,Vector2 previous)
+        {
+            if(!prop.Position.Equals(previous)) PropMoved?.Invoke(prop,previous);
         }
 
         private void Grab(NetworkConnectionToClient connection,PropGrabMessage message)

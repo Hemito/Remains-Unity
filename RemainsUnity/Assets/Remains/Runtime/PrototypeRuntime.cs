@@ -189,7 +189,7 @@ namespace Remains.Runtime
             Interactions=new InteractionAdapter(Session);
             Grenades=new GrenadeController(Session,Interactions,Combat,Geometry);
             Telekinesis=new TelekinesisController(Session,Interactions,Geometry);
-            freeProps=new FreePropSimulation(Session,Geometry,Interactions);
+            freeProps=new FreePropSimulation(Session,Geometry,Interactions,Platforms);
             visualLayers=new ActorVisualLayers(transform,visualOrders);
             var interactionVisuals=CreateOwnedObject("Визуальные взаимодействия").AddComponent<InteractionVisuals>();
             interactionVisuals.Initialize(Session,Interactions,Grenades,Geometry,visualLayers,Combat.Reload);
@@ -242,7 +242,7 @@ namespace Remains.Runtime
             GrenadeAudio=CreateOwnedObject("Звуки отскока гранаты").AddComponent<GrenadeImpactAudio>();GrenadeAudio.Initialize(Session,Grenades,Audio);
             CreateOwnedObject("Счётчик Гейгера").AddComponent<GeigerAudio>().Initialize(Session,()=>radiation.LocalDose,Audio);
             MovementAudio=CreateOwnedObject("Звуки движения").AddComponent<MovementAudio>();MovementAudio.Initialize(Session,Geometry,Audio);
-            PropAudio=CreateOwnedObject("Звуки физических объектов").AddComponent<PropContactAudio>();PropAudio.Initialize(Session,Geometry,Audio);
+            PropAudio=CreateOwnedObject("Звуки физических объектов").AddComponent<PropContactAudio>();PropAudio.Initialize(Session,Geometry,Audio,null,Interactions);
             ContainerAudio=CreateOwnedObject("Звуки контейнеров").AddComponent<ContainerOpenAudio>();ContainerAudio.Initialize(Audio);
             ImpactAudio=CreateOwnedObject("Звуки попаданий").AddComponent<ProjectileAudio>();ImpactAudio.Initialize(Combat.Projectiles,Audio);
             CreateOwnedObject("Разрушение ламп").AddComponent<LampBreakEffects>().Initialize(Session,Audio,visualOrders);
@@ -528,6 +528,7 @@ namespace Remains.Runtime
             {
                 using(Remains.Diagnostics.FrameHitchLog.Section("Переход: визуал актёров")) visual=ActorVisualFactory.Create(actor);
                 visuals.Add(id,visual);visualLayers.Attach(id,visual.transform);
+                if(visual is AtlasActorVisual atlas) atlas.ConfigureVisibleArea(actorActivity.InVisibleArea);
             }
             if(visual is PonyVisual pony) pony.ConfigureMagicSource(ponyMagic);
             visual.Bind(actor);visual.SetVisible(true);
@@ -643,7 +644,7 @@ namespace Remains.Runtime
             using(Remains.Diagnostics.FrameHitchLog.Section("Шипы")) spikes.Step();
             using(Remains.Diagnostics.FrameHitchLog.Section("Огонь")) Fires.Step();
             using(Remains.Diagnostics.FrameHitchLog.Section("Радиация")) radiation.Step(Time.deltaTime);
-            using(Remains.Diagnostics.FrameHitchLog.Section("Физические тела")) freeProps.Step(Time.deltaTime);
+            using(Remains.Diagnostics.FrameHitchLog.Section("Физические тела")) freeProps.Step(Time.deltaTime,actorActivity.Connected.Players);
             using(Remains.Diagnostics.FrameHitchLog.Section("Бой")) Combat.Step(Time.deltaTime);
             if (poseCadence.TryAdvance(Time.unscaledTimeAsDouble))
             using(Remains.Diagnostics.FrameHitchLog.Section("Актёры: публикация поз"))

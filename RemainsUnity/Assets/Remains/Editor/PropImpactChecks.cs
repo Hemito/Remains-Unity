@@ -95,12 +95,14 @@ namespace Remains.Editor
             Require(PropImpactRules.NextSampleSequence(aged.props[0],aged.props[0].generation,110)==111,"Локальный непринятый максимум source sequence откатился к snapshot watermark");
             var inbox=new PropImpactSourceInbox();var arrivals=new List<PropImpactSample>();
             Require(inbox.Accept(source,true),"Принятый source не поставлен на однократную проверку");
+            Require(inbox.HasPending(source.level),"Принятый source не запросил синхронизацию целей");
             inbox.Drain(source.level,arrivals);Require(arrivals.Count==1,"Source не доставлен для geometry decision");
+            Require(!inbox.HasPending(source.level),"Обработанный source продолжает запрашивать синхронизацию целей");
             npc.x=10;Require(!PropImpactRules.Contact(source,npc),"Fixture промаха пересекает source");
             npc.x=0;inbox.Drain(source.level,arrivals);
             Require(arrivals.Count==0 && !inbox.Accept(source,true),"Старый source снова проверяет geometry после входа цели в старую AABB");
             inbox.Accept(NextSample(source),true);inbox.DropInactive(_=>false);inbox.Drain(source.level,arrivals);
-            Require(arrivals.Count==0,"Возврат на неактивный уровень сохранил старую очередь geometry decisions");
+            Require(arrivals.Count==0 && !inbox.HasPending(source.level),"Возврат на неактивный уровень сохранил старую очередь geometry decisions");
             var profile=new PropImpactBody(50,1,20d/30);
             var forged=StateJson.Copy(source);forged.mass=500;
             Require(PropImpactRules.Prepare(world,box,forged,npc,profile,Vector2.zero,10)==null,"Непринятый источник с подменённой массой разрешил урон");

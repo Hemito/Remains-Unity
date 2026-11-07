@@ -32,7 +32,6 @@ namespace Remains.Gameplay
             if(state==null || string.IsNullOrEmpty(session.LocalOwner)) return;
             if(world!=state.worldId || owner!=session.LocalOwner)
             {world=state.worldId;owner=session.LocalOwner;publishers.Clear();}
-            Targets.SynchronizeActive();
             foreach(string level in Targets.Levels) if(context.Running(level) && session.LevelTime.HasLocal(level))
                 session.PropImpacts.Expire(level,session.LevelTime.ReadLocal(level));
             // Only sources stepped by the existing free-body dispatcher can publish a sample.
@@ -53,6 +52,15 @@ namespace Remains.Gameplay
                 sample.id=PropImpactRules.SampleId(world,prop.id,prop.generation,sequence);
                 session.PropImpacts.Publish(sample);publishers[prop.id]=(prop.generation,sequence,now+1d/30);
             }
+            bool pending=false;
+            foreach(string level in Targets.Levels)
+            {
+                if(!context.Running(level) || !session.LevelTime.HasLocal(level) || !session.PropImpacts.HasPendingSources(level)) continue;
+                pending=true;break;
+            }
+            if(!pending) return;
+            // Reindex live actor motion just before evaluating the first queued contact.
+            Targets.SynchronizeActive();
             foreach(string level in Targets.Levels)
             {
                 if(!context.Running(level) || !session.LevelTime.HasLocal(level)) continue;

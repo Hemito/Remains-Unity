@@ -42,7 +42,7 @@ namespace Remains.Domain
         {
             int previous=Cell(previousX),current=Cell(prop.x);
             if(previous==current || !prop.hasPhysicalBody) return;
-            buckets[(prop.level,previous)].Remove(prop);Add(prop,current);
+            if(buckets.TryGetValue((prop.level,previous),out var bucket) && bucket.Remove(prop)) Add(prop,current);
         }
         public IEnumerable<PropState> Near(PropState moving,float x)
         {
