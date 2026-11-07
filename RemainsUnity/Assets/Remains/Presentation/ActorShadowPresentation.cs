@@ -32,13 +32,14 @@ namespace Remains.Presentation
         private readonly MonoBehaviour runner;
         private readonly Transform parent;
         private readonly ActorCastShadowView prefab;
-        private readonly Dictionary<string,Entry> entries=new(StringComparer.Ordinal);
-        private readonly HashSet<string> retained=new(StringComparer.Ordinal);
-        private readonly List<string> removed=new();
+        private readonly Dictionary<(WorldVisualKind Kind,string Id),Entry> entries=new();
+        private readonly HashSet<(WorldVisualKind Kind,string Id)> retained=new();
+        private readonly List<(WorldVisualKind Kind,string Id)> removed=new();
+        private readonly List<(WorldVisualKind Kind,string Id,Vector2 Center,LightOccluder Shape)> bodyCasters=new();
         private readonly HashSet<string> steadySources=new(StringComparer.Ordinal);
         private FactoryLevelView level;
         private Coroutine refresh;
-        private readonly List<(Entry Entry,Vector2 At)> batch=new();
+        private readonly List<((WorldVisualKind Kind,string Id) Key,Entry Entry,Vector2 At)> batch=new();
         private readonly HashSet<string> warnedPending=new(StringComparer.Ordinal);
         private const float PendingDeadlineSeconds=1;
         // One worker task selects for every queued actor, on a few threads: a task per actor crowded the cores and
@@ -81,22 +82,19 @@ namespace Remains.Presentation
             foreach(var pair in actors)
             {
                 if(pair.Value==null || !pair.Value.gameObject.activeInHierarchy) continue;
-                retained.Add(pair.Key);
+                var key=(WorldVisualKind.Actor,pair.Key);
+                retained.Add(key);
                 if(Outside(area,pair.Value))
                 {
                     // A hidden shadow keeps no lamp selection: its direct fields are released, and nothing is reselected for it.
-                    if(entries.TryGetValue(pair.Key,out var hidden) && !hidden.Culled)
+                    if(entries.TryGetValue(key,out var hidden) && !hidden.Culled)
                     {
                         hidden.View.Clear();hidden.Culled=true;hidden.Queued=false;hidden.Revision=-1;   // forces a reselection on return
                         hidden.Lamps.Clear();hidden.DisplayLamps.Clear();hidden.PendingLamps.Clear();hidden.HasPending=false;
                     }
                     continue;
                 }
-                if(!entries.TryGetValue(pair.Key,out var entry))
-                {
-                    entry=new Entry{View=UnityEngine.Object.Instantiate(prefab,parent,false)};
-                    entry.View.name="Проецируемая тень: "+pair.Key;entries.Add(pair.Key,entry);
-                }
+                var entry=GetEntry(key);
                 using(Remains.Diagnostics.FrameHitchLog.Section("Тени: силуэты частей"))
                 {entry.Parts.Clear();pair.Value.AppendLightOccluders(entry.Parts);
                 weapons.AppendWeaponLightOccluders(pair.Key,entry.Parts);}
@@ -105,37 +103,63 @@ namespace Remains.Presentation
                 if(entry.Parts.Count==0) {entry.View.Clear();continue;}
                 entry.Position=pair.Value.TryGetDrawnBounds(out var bounds)?(Vector2)bounds.center:
                     PartsCenter(entry.Parts);
-                if(entry.Revision!=level.ShadowSourceRevision ||
-                    (entry.Position-entry.SelectedAt).sqrMagnitude>=settings.ActorShadowMoveThreshold*settings.ActorShadowMoveThreshold)
-                    entry.Queued=true;
-                AdoptPending(entry);
-                BlendLampSources(entry.DisplayLamps,entry.Lamps,Time.deltaTime,settings.ActorShadowMaxSources);
-                // Element copy: Mono's List.AddRange(ICollection) allocates a temporary array (~240 actors every frame).
-                entry.Sources.Clear();foreach(var source in entry.DisplayLamps) entry.Sources.Add(source);entry.Flashes.Clear();
-                if(flashes!=null) for(int i=0;i<flashes.Count;i++)
-                {
-                    var flash=flashes[i];
-                    if(flash.Sprite==null || flash.Gain<=0 || !float.IsFinite(flash.Gain)) continue;
-                    Vector2 position=flash.LocalToWorld.MultiplyPoint3x4(flash.Sprite.bounds.center);
-                    var form=LightEmissionGeometry.WorldBounds(flash.LocalToWorld,flash.Sprite.bounds);
-                    float radius=Mathf.Max(form.width,form.height)*.25f;
-                    if(flashIds==null || i>=flashIds.Count || string.IsNullOrEmpty(flashIds[i]))
-                        throw new InvalidOperationException("Проекция вспышки: отсутствует стабильный ID выстрела.");
-                    AddTransient(entry,flashIds[i],position,radius,flash.Gain,0,settings);
-                }
-                if(worldLights!=null)foreach(var source in worldLights)
-                    if(source.Gain>0)AddTransient(entry,source.Id,source.Position,Mathf.Min(.5f,source.Width*.25f),source.Radiance.maxColorComponent*source.Gain,source.Reach,settings);
-                entry.ExpiredFlashes.Clear();
-                foreach(var cached in entry.FlashVisibility)
-                    if(Time.frameCount-cached.Value.Frame>4) entry.ExpiredFlashes.Add(cached.Key);
-                foreach(string id in entry.ExpiredFlashes) entry.FlashVisibility.Remove(id);
-                if(entry.View.NeedsPreparation(entry.Parts,entry.Sources.Count)) entry.Queued=true;
-                using(Remains.Diagnostics.FrameHitchLog.Section("Тени: рисование проекции")) entry.View.Draw(entry.Position,entry.Parts,entry.Sources,settings);
+                Draw(entry,flashes,flashIds,worldLights,settings);
+            }
+            CollectBodyCasters(weapons,settings);
+            foreach(var caster in bodyCasters)
+            {
+                var key=(caster.Kind,caster.Id);retained.Add(key);
+                var entry=GetEntry(key);
+                entry.Parts.Clear();entry.Parts.Add(caster.Shape);entry.Position=caster.Center;
+                Draw(entry,flashes,flashIds,worldLights,settings);
             }
             foreach(var pair in entries) if(!retained.Contains(pair.Key)) removed.Add(pair.Key);
-            foreach(var id in removed) {Destroy(entries[id]);entries.Remove(id);}
+            foreach(var key in removed) {Destroy(entries[key]);entries.Remove(key);}
             if(refresh==null) foreach(var pair in entries) if(pair.Value.Queued)
                 {refresh=runner.StartCoroutine(RebuildSources());break;}
+        }
+
+        private Entry GetEntry((WorldVisualKind Kind,string Id) key)
+        {
+            if(entries.TryGetValue(key,out var entry))return entry;
+            entry=new Entry{View=UnityEngine.Object.Instantiate(prefab,parent,false)};
+            entry.View.name="Проецируемая тень: "+key.Id;entries.Add(key,entry);
+            return entry;
+        }
+
+        private void CollectBodyCasters(InteractionVisuals visuals,RoomLightingTable settings)
+            =>visuals.CollectBodyShadowCasters(level.ViewArea,(float)settings.ActorShadowMaxOffset,
+                Mathf.Max(1+(float)settings.ActorShadowDepth,(float)settings.ActorShadowMaxScale),bodyCasters);
+
+        private void Draw(Entry entry,IReadOnlyList<SpriteEmission> flashes,IReadOnlyList<string> flashIds,
+            IReadOnlyList<WorldLightEmission> worldLights,RoomLightingTable settings)
+        {
+            if(entry.Revision!=level.ShadowSourceRevision ||
+                (entry.Position-entry.SelectedAt).sqrMagnitude>=settings.ActorShadowMoveThreshold*settings.ActorShadowMoveThreshold)
+                entry.Queued=true;
+            AdoptPending(entry);
+            BlendLampSources(entry.DisplayLamps,entry.Lamps,Time.deltaTime,settings.ActorShadowMaxSources);
+            // Mono's List.AddRange(ICollection) allocates a temporary array for every caster.
+            entry.Sources.Clear();foreach(var source in entry.DisplayLamps) entry.Sources.Add(source);entry.Flashes.Clear();
+            if(flashes!=null) for(int i=0;i<flashes.Count;i++)
+            {
+                var flash=flashes[i];
+                if(flash.Sprite==null || flash.Gain<=0 || !float.IsFinite(flash.Gain)) continue;
+                Vector2 position=flash.LocalToWorld.MultiplyPoint3x4(flash.Sprite.bounds.center);
+                var form=LightEmissionGeometry.WorldBounds(flash.LocalToWorld,flash.Sprite.bounds);
+                float radius=Mathf.Max(form.width,form.height)*.25f;
+                if(flashIds==null || i>=flashIds.Count || string.IsNullOrEmpty(flashIds[i]))
+                    throw new InvalidOperationException("Проекция вспышки: отсутствует стабильный ID выстрела.");
+                AddTransient(entry,flashIds[i],position,radius,flash.Gain,LevelLightView.FlashReach,settings);
+            }
+            if(worldLights!=null)foreach(var source in worldLights)
+                if(source.Gain>0)AddTransient(entry,source.Id,source.Position,Mathf.Min(.5f,source.Width*.25f),source.Radiance.maxColorComponent*source.Gain,source.Reach,settings);
+            entry.ExpiredFlashes.Clear();
+            foreach(var cached in entry.FlashVisibility)
+                if(Time.frameCount-cached.Value.Frame>4) entry.ExpiredFlashes.Add(cached.Key);
+            foreach(string id in entry.ExpiredFlashes) entry.FlashVisibility.Remove(id);
+            if(entry.Sources.Count>0 && entry.View.NeedsPreparation(entry.Parts,entry.Sources.Count)) entry.Queued=true;
+            using(Remains.Diagnostics.FrameHitchLog.Section("Тени: рисование проекции")) entry.View.Draw(entry.Position,entry.Parts,entry.Sources,settings);
         }
 
         private void AddTransient(Entry entry,string id,Vector2 position,float radius,float gain,float reach,RoomLightingTable settings)
@@ -169,23 +193,32 @@ namespace Remains.Presentation
             foreach(var actor in actors)
             {
                 if(actor.Value==null || !actor.Value.gameObject.activeInHierarchy || Outside(area,actor.Value)) continue;
-                if(!entries.TryGetValue(actor.Key,out var entry))
-                {
-                    entry=new Entry{View=UnityEngine.Object.Instantiate(prefab,parent,false)};
-                    entry.View.name="Проецируемая тень: "+actor.Key;entries.Add(actor.Key,entry);
-                }
+                var entry=GetEntry((WorldVisualKind.Actor,actor.Key));
                 entry.Parts.Clear();actor.Value.AppendLightOccluders(entry.Parts);
                 weapons.AppendWeaponLightOccluders(actor.Key,entry.Parts);
                 if(entry.Parts.Count==0) continue;
                 entry.Position=actor.Value.TryGetDrawnBounds(out var bounds)?(Vector2)bounds.center:PartsCenter(entry.Parts);
-                // Lamp selection stays with the background rebuild (a synchronous selection of every actor here cost
-                // tens of milliseconds per shot); the flash needs only its own visibility.
-                if(entry.Revision!=level.ShadowSourceRevision) entry.Queued=true;
-                entry.FlashVisibility[id]=(sourcePosition,entry.Position,
-                    level.ActorShadowTransmission(entry.Position,sourcePosition),level.ShadowSourceRevision,Time.frameCount);
-                entry.View.Prepare(entry.Parts,2*level.ShadowSettings.ActorShadowMaxSources+entry.FlashVisibility.Count);
+                PrepareEntryFlash(entry,id,sourcePosition);
+            }
+            CollectBodyCasters(weapons,level.ShadowSettings);
+            foreach(var caster in bodyCasters)
+            {
+                if((caster.Center-sourcePosition).sqrMagnitude>LevelLightView.FlashReach*LevelLightView.FlashReach)continue;
+                var entry=GetEntry((caster.Kind,caster.Id));
+                entry.Parts.Clear();entry.Parts.Add(caster.Shape);entry.Position=caster.Center;
+                PrepareEntryFlash(entry,id,sourcePosition);
             }
             PrepareSteadyFields();
+        }
+
+        private void PrepareEntryFlash(Entry entry,string id,Vector2 sourcePosition)
+        {
+            // Lamp selection stays with the background rebuild; the flash needs only its own visibility.
+            if(entry.Revision!=level.ShadowSourceRevision) entry.Queued=true;
+            entry.FlashVisibility[id]=(sourcePosition,entry.Position,
+                level.ActorShadowTransmission(entry.Position,sourcePosition),level.ShadowSourceRevision,Time.frameCount);
+            int slots=2*level.ShadowSettings.ActorShadowMaxSources+entry.FlashVisibility.Count;
+            if(entry.View.NeedsPreparation(entry.Parts,slots))entry.View.Prepare(entry.Parts,slots);
         }
 
         public static void BlendLampSources(List<ActorShadowSource> displayed,IReadOnlyList<ActorShadowSource> targets,float dt,int maxSources=3)
@@ -248,7 +281,7 @@ namespace Remains.Presentation
                         var entry=pair.Value;
                         if(entry.Queued && (entry.Revision!=revision ||
                             (entry.Position-entry.SelectedAt).sqrMagnitude>=owner.ShadowSettings.ActorShadowMoveThreshold*owner.ShadowSettings.ActorShadowMoveThreshold))
-                            batch.Add((entry,entry.Position));
+                            batch.Add((pair.Key,entry,entry.Position));
                     }
                     if(batch.Count>0)
                     {
@@ -272,7 +305,7 @@ namespace Remains.Presentation
                         for(int i=0;i<batch.Count;i++)
                         {
                             var entry=batch[i].Entry;
-                            if(!entries.ContainsValue(entry) || entry.Culled) continue;
+                            if(!entries.TryGetValue(batch[i].Key,out var current) || current!=entry || entry.Culled) continue;
                             entry.PendingLamps.Clear();entry.PendingLamps.AddRange(results[i]);
                             if(!entry.HasPending) entry.PendingSince=Time.unscaledTime;
                             entry.HasPending=true;
@@ -288,7 +321,8 @@ namespace Remains.Presentation
                 foreach(var flash in entry.Flashes)
                     entry.FlashVisibility[flash.Id]=(flash.Position,entry.Position,
                         level.ActorShadowTransmission(entry.Position,flash.Position),level.ShadowSourceRevision,Time.frameCount);
-                using(Remains.Diagnostics.FrameHitchLog.Section("Тени: подготовка вида")) entry.View.Prepare(entry.Parts,2*level.ShadowSettings.ActorShadowMaxSources+entry.Flashes.Count);
+                if(entry.DisplayLamps.Count>0 || entry.Lamps.Count>0 || entry.PendingLamps.Count>0 || entry.Flashes.Count>0)
+                    using(Remains.Diagnostics.FrameHitchLog.Section("Тени: подготовка вида")) entry.View.Prepare(entry.Parts,2*level.ShadowSettings.ActorShadowMaxSources+entry.Flashes.Count);
                 entry.Queued=false;
             }
             PrepareSteadyFields();
@@ -337,12 +371,16 @@ namespace Remains.Presentation
             return (min+max)*.5f;
         }
         private static void Destroy(Entry entry)
-        {entry.View.Clear();entry.View.gameObject.SetActive(false);UnityEngine.Object.Destroy(entry.View.gameObject);}
+        {
+            entry.View.Clear();entry.View.gameObject.SetActive(false);
+            if(Application.isPlaying)UnityEngine.Object.Destroy(entry.View.gameObject);
+            else UnityEngine.Object.DestroyImmediate(entry.View.gameObject);
+        }
         public void Clear()
         {
             if(refresh!=null) {runner.StopCoroutine(refresh);refresh=null;}
             foreach(var pair in entries) Destroy(pair.Value);
-            entries.Clear();level=null;
+            entries.Clear();bodyCasters.Clear();level=null;
         }
         public void Dispose()=>Clear();
     }

@@ -16,6 +16,16 @@ namespace Remains.Presentation
         [SerializeField,Range(.005f,.25f),InspectorName("Радиус в координатах спрайта")] private float heldRadius=.08f;
         [SerializeField,Range(0,1),InspectorName("Интенсивность")] private float heldIntensity=.7f;
         public SpriteRenderer Artwork=>artwork;
+        private Bounds shadowBounds;
+        private bool shadowBoundsValid;
+        internal Bounds ShadowBounds
+        {
+            get
+            {
+                if(!shadowBoundsValid) {shadowBounds=artwork.bounds;shadowBoundsValid=true;}
+                return shadowBounds;
+            }
+        }
         private readonly RemotePropMotion motion=new();
         public bool MotionPending=>motion.Pending;
         private HeldPropGlow glow;
@@ -71,7 +81,7 @@ namespace Remains.Presentation
             state.appearance.Validate(state.id);containerArtwork.Validate(state.definition);
             var sprite=containerArtwork.Select(state.appearance.opened);
             if(artwork.sprite==sprite) return;
-            SpriteArtworkMaterial.Apply(artwork,sprite);glow?.SetFrame(sprite);
+            SpriteArtworkMaterial.Apply(artwork,sprite);shadowBoundsValid=false;glow?.SetFrame(sprite);
             // Registration/scale is authored per frame. Never fit the alternate to the closed body.
         }
         public void PrepareHeldGlow()
@@ -118,12 +128,12 @@ namespace Remains.Presentation
             if(visualAnchor==PropVisualAnchor.PlacementAnchor) position-=Vector2.up*(state.height*.5f-state.anchorHeight);
             else if(visualAnchor==PropVisualAnchor.Feet) position-=Vector2.up*state.anchorHeight;
             // Written only on change: ~1400 resting factory bodies otherwise dirtied their transforms every frame.
-            if(!hasDrawn || position!=drawnPosition) {transform.position=position;drawnPosition=position;}
+            if(!hasDrawn || position!=drawnPosition) {transform.position=position;drawnPosition=position;shadowBoundsValid=false;}
             if(state is Remains.Domain.ContainerState {presentationItem:not null} loose &&
                 (!hasDrawn || loose.presentationAngle!=drawnAngle || loose.presentationMirrored!=drawnMirrored))
             {
                 transform.rotation=Quaternion.Euler(0,0,loose.presentationAngle);artwork.flipY=loose.presentationMirrored;
-                drawnAngle=loose.presentationAngle;drawnMirrored=loose.presentationMirrored;
+                drawnAngle=loose.presentationAngle;drawnMirrored=loose.presentationMirrored;shadowBoundsValid=false;
             }
             hasDrawn=true;
             // Standalone editor previews have no world/table. Runtime instances bind
@@ -148,7 +158,7 @@ namespace Remains.Presentation
             if(!state.held) missingColor=null;
             glow?.Draw(show);
         }
-        public void SetArtwork(SpriteRenderer value)=>artwork=value;
+        public void SetArtwork(SpriteRenderer value) {artwork=value;shadowBoundsValid=false;}
         public void ConfigurePlacementArtwork() {visualAnchor=PropVisualAnchor.PlacementAnchor;fitStateWidth=false;}
         // Artwork at world scale whose pivot is the object's feet (exported original units: mines).
         public void ConfigureFeetArtwork() {visualAnchor=PropVisualAnchor.Feet;fitStateWidth=false;}
@@ -156,16 +166,17 @@ namespace Remains.Presentation
         {
             if(shape==null) throw new ArgumentNullException(nameof(shape));shape.Validate();
             droppedShape=shape;visualAnchor=PropVisualAnchor.BodyCenter;fitStateWidth=false;
-            transform.localScale=new Vector3(shape.Scale,shape.Scale,1);shapeReady=false;
+            transform.localScale=new Vector3(shape.Scale,shape.Scale,1);shapeReady=false;shadowBoundsValid=false;
         }
         public void FitWidth(float width)
         {
             if(artwork==null || artwork.sprite==null) throw new InvalidOperationException($"Объект {name}: нет основного спрайта.");
             if(!float.IsFinite(width) || width<=0 || artwork.bounds.size.x<=0) throw new InvalidOperationException($"Объект {name}: некорректная ширина {width}.");
             if(!fitStateWidth) return;
-            transform.localScale*=width/artwork.bounds.size.x;
+            transform.localScale*=width/artwork.bounds.size.x;shadowBoundsValid=false;
         }
         // Called every frame for every body view; touch the engine only on a change.
-        public void SetVisible(bool visible) {if(gameObject.activeSelf!=visible) gameObject.SetActive(visible);}
+        public void SetVisible(bool visible)
+        {if(gameObject.activeSelf!=visible) {gameObject.SetActive(visible);shadowBoundsValid=false;}}
     }
 }

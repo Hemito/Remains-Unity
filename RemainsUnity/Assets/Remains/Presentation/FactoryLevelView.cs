@@ -196,6 +196,7 @@ namespace Remains.Presentation
         public RectInt RoomWindow=>windowRooms;
 
         // The camera's visible world rectangle (FactoryLightFocus, once per frame): the light is composed around it.
+        internal Rect ViewArea=>viewArea;
         public void SetViewArea(Rect view)
         {
             if(!(view.width>0 && view.height>0) || !float.IsFinite(view.x) || !float.IsFinite(view.y)) throw new ArgumentException("Вид уровня: неверная область камеры "+view);

@@ -70,6 +70,29 @@ namespace Remains.Presentation
         }
         public PropView FindProp(string id)=>props.TryGetValue(id,out var view)?view:null;
         public PropView FindContainer(string id)=>containers.TryGetValue(id,out var view)?view:null;
+        internal void CollectBodyShadowCasters(Rect area,float maxOffset,float maxScale,
+            List<(WorldVisualKind Kind,string Id,Vector2 Center,LightOccluder Shape)> output)
+        {
+            output.Clear();
+            Collect(props,WorldVisualKind.Prop);Collect(containers,WorldVisualKind.Container);
+            void Collect(Dictionary<string,PropView> views,WorldVisualKind kind)
+            {
+                foreach(var pair in views)
+                {
+                    var view=pair.Value;var bounds=view.ShadowBounds;
+                    float margin=maxOffset+Mathf.Max(bounds.extents.x,bounds.extents.y)*(maxScale-1);
+                    if(!area.Overlaps(Rect.MinMaxRect(bounds.min.x-margin,bounds.min.y-margin,bounds.max.x+margin,bounds.max.y+margin)))continue;
+                    var renderer=view.Artwork;
+                    if(!renderer.enabled || renderer.forceRenderingOff || !renderer.gameObject.activeInHierarchy)continue;
+                    var sprite=renderer.sprite;float opacity=renderer.color.a;
+                    if(sprite==null || opacity<=0)continue;
+                    var matrix=renderer.localToWorldMatrix;
+                    if(renderer.flipX || renderer.flipY)
+                        matrix*=Matrix4x4.Scale(new Vector3(renderer.flipX?-1:1,renderer.flipY?-1:1,1));
+                    output.Add((kind,pair.Key,bounds.center,new LightOccluder(sprite,matrix,opacity)));
+                }
+            }
+        }
         // Install once before a world is presented. This source is rebuilt in
         // the same event as view binding, before any first draw of a new epoch.
         public void ConfigureHeldAppearance(HeldPropColorSource source)
