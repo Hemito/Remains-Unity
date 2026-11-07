@@ -1,0 +1,33 @@
+{
+  "format": "remains-original-forms",
+  "version": 1,
+  "note": "Сопоставление структурных форм оригинала (AllData mat ed=3/4) со смысловым слоем, ID и ключом палитры. Твёрдые (ed=1) и задние стены (ed=2) с латинскими ID оригинала сопоставляются по префиксам без таблицы.",
+  "solidPrefix": "remains:solid:",
+  "backPrefix": "remains:backwall:",
+  "movementSoundByMat": {
+    "note": "Набор звуков шагов по атрибуту mat формы оригинала. Значения 1–3 взяты из проверенного Tools/export_factory_geometry.py; mat 4 (кирпич, крыша) и 6 (земля) пока не сопоставлены — конвертер сообщает об этом, поверхность получает настройку комнаты.",
+    "1": "metal", "2": "normal", "3": "normal"
+  },
+  "structural": {
+    "А": { "id": "remains:ladder:right", "key": ">", "layer": "ladder", "ladderFraction": 0.9, "movementOffset": -0.5, "artworkOffset": -0.82 },
+    "Б": { "id": "remains:ladder:left", "key": "<", "layer": "ladder", "ladderFraction": 0.1, "movementOffset": 0.5, "artworkOffset": -0.18 },
+    "-": { "id": "remains:beam:rusty", "key": "-", "layer": "platform" },
+    "Д": { "id": "remains:beam:wood", "key": "=", "layer": "platform" },
+    "Е": { "id": "remains:beam:steel", "key": "#", "layer": "platform" },
+    "К": { "id": "remains:beam:concrete", "key": "_", "layer": "platform" },
+    "Н": { "id": "remains:beam:canterlot", "key": "~", "layer": "platform" },
+    "Р": { "id": "remains:beam:cloud", "key": "^", "layer": "platform" },
+    "В": { "id": "remains:stairs:metal-rise-right", "key": "M", "layer": "stairs" },
+    "Г": { "id": "remains:stairs:metal-rise-left", "key": "m", "layer": "stairs" },
+    "Ж": { "id": "remains:stairs:wood-rise-right", "key": "W", "layer": "stairs" },
+    "З": { "id": "remains:stairs:wood-rise-left", "key": "w", "layer": "stairs" },
+    "И": { "id": "remains:stairs:steel-rise-right", "key": "S", "layer": "stairs" },
+    "Й": { "id": "remains:stairs:steel-rise-left", "key": "s", "layer": "stairs" },
+    "Л": { "id": "remains:stairs:concrete-rise-right", "key": "C", "layer": "stairs" },
+    "М": { "id": "remains:stairs:concrete-rise-left", "key": "c", "layer": "stairs" },
+    "О": { "id": "remains:stairs:canterlot-rise-right", "key": "K", "layer": "stairs" },
+    "П": { "id": "remains:stairs:canterlot-rise-left", "key": "k", "layer": "stairs" },
+    "С": { "id": "remains:stairs:cloud-rise-right", "key": "O", "layer": "stairs" },
+    "Т": { "id": "remains:stairs:cloud-rise-left", "key": "o", "layer": "stairs" }
+  }
+}

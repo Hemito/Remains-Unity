@@ -1,0 +1,348 @@
+{
+  "format": "remains-tile-masks",
+  "version": 1,
+  "note": "Маски формы клеток из DLC/pfeUI.swf (Grafon/Material оригинала): у каждой четверти клетки 5 кадров по состоянию соседей (insKontur: 0 — внутри, 1 — внутренний угол, 2 и 3 — край, 4 — внешний угол); четверти — отражения клипа. Сопоставление снято из XML-дампа SWF (SymbolClass + PlaceObject name c1–c4 и matrix scale), 2026-10-09.",
+  "source": "DLC/pfeUI.swf",
+  "quarterPixels": 20,
+  "cellPixels": 40,
+  "masks": {
+    "maskSimple": {
+      "symbol": 4918,
+      "kind": "corners",
+      "quarters": {
+        "topLeft": {
+          "clip": 4917,
+          "flipX": false,
+          "flipY": false
+        },
+        "topRight": {
+          "clip": 4917,
+          "flipX": true,
+          "flipY": false
+        },
+        "bottomLeft": {
+          "clip": 4917,
+          "flipX": false,
+          "flipY": true
+        },
+        "bottomRight": {
+          "clip": 4917,
+          "flipX": true,
+          "flipY": true
+        }
+      }
+    },
+    "maskBare": {
+      "symbol": 4964,
+      "kind": "corners",
+      "quarters": {
+        "topLeft": {
+          "clip": 4963,
+          "flipX": false,
+          "flipY": false
+        },
+        "topRight": {
+          "clip": 4963,
+          "flipX": true,
+          "flipY": false
+        },
+        "bottomLeft": {
+          "clip": 4963,
+          "flipX": false,
+          "flipY": true
+        },
+        "bottomRight": {
+          "clip": 4963,
+          "flipX": true,
+          "flipY": true
+        }
+      }
+    },
+    "maskBorderBare": {
+      "symbol": 4961,
+      "kind": "corners",
+      "quarters": {
+        "topLeft": {
+          "clip": 4960,
+          "flipX": false,
+          "flipY": false
+        },
+        "topRight": {
+          "clip": 4960,
+          "flipX": true,
+          "flipY": false
+        },
+        "bottomLeft": {
+          "clip": 4960,
+          "flipX": false,
+          "flipY": true
+        },
+        "bottomRight": {
+          "clip": 4960,
+          "flipX": true,
+          "flipY": true
+        }
+      }
+    },
+    "maskFloor": {
+      "symbol": 4923,
+      "kind": "corners",
+      "quarters": {
+        "topLeft": {
+          "clip": 4922,
+          "flipX": false,
+          "flipY": false
+        },
+        "topRight": {
+          "clip": 4922,
+          "flipX": true,
+          "flipY": false
+        }
+      }
+    },
+    "maskDamaged": {
+      "symbol": 4934,
+      "kind": "corners",
+      "quarters": {
+        "topLeft": {
+          "clip": 4933,
+          "flipX": false,
+          "flipY": false
+        },
+        "topRight": {
+          "clip": 4933,
+          "flipX": true,
+          "flipY": false
+        },
+        "bottomLeft": {
+          "clip": 4906,
+          "flipX": false,
+          "flipY": true
+        },
+        "bottomRight": {
+          "clip": 4906,
+          "flipX": true,
+          "flipY": true
+        }
+      }
+    },
+    "maskSkol": {
+      "symbol": 4915,
+      "kind": "corners",
+      "quarters": {
+        "topLeft": {
+          "clip": 4910,
+          "flipX": false,
+          "flipY": false
+        },
+        "topRight": {
+          "clip": 4910,
+          "flipX": true,
+          "flipY": false
+        },
+        "bottomLeft": {
+          "clip": 4914,
+          "flipX": false,
+          "flipY": true
+        },
+        "bottomRight": {
+          "clip": 4914,
+          "flipX": true,
+          "flipY": true
+        }
+      }
+    },
+    "maskStone": {
+      "symbol": 4907,
+      "kind": "corners",
+      "quarters": {
+        "topLeft": {
+          "clip": 4906,
+          "flipX": false,
+          "flipY": false
+        },
+        "topRight": {
+          "clip": 4906,
+          "flipX": true,
+          "flipY": false
+        },
+        "bottomLeft": {
+          "clip": 4906,
+          "flipX": false,
+          "flipY": true
+        },
+        "bottomRight": {
+          "clip": 4906,
+          "flipX": true,
+          "flipY": true
+        }
+      }
+    },
+    "maskStoneBorder": {
+      "symbol": 4902,
+      "kind": "corners",
+      "quarters": {
+        "topLeft": {
+          "clip": 4901,
+          "flipX": false,
+          "flipY": false
+        },
+        "topRight": {
+          "clip": 4901,
+          "flipX": true,
+          "flipY": false
+        },
+        "bottomLeft": {
+          "clip": 4901,
+          "flipX": false,
+          "flipY": true
+        },
+        "bottomRight": {
+          "clip": 4901,
+          "flipX": true,
+          "flipY": true
+        }
+      }
+    },
+    "maskDirt": {
+      "symbol": 4932,
+      "kind": "corners",
+      "quarters": {
+        "topLeft": {
+          "clip": 4931,
+          "flipX": false,
+          "flipY": false
+        },
+        "topRight": {
+          "clip": 4931,
+          "flipX": true,
+          "flipY": false
+        },
+        "bottomLeft": {
+          "clip": 4906,
+          "flipX": false,
+          "flipY": true
+        },
+        "bottomRight": {
+          "clip": 4906,
+          "flipX": true,
+          "flipY": true
+        }
+      }
+    },
+    "maskDirtBorder": {
+      "symbol": 4927,
+      "kind": "corners",
+      "quarters": {
+        "topLeft": {
+          "clip": 4926,
+          "flipX": false,
+          "flipY": false
+        },
+        "topRight": {
+          "clip": 4926,
+          "flipX": true,
+          "flipY": false
+        },
+        "bottomLeft": {
+          "clip": 4901,
+          "flipX": false,
+          "flipY": true
+        },
+        "bottomRight": {
+          "clip": 4901,
+          "flipX": true,
+          "flipY": true
+        }
+      }
+    },
+    "maskMetalBorder": {
+      "symbol": 4921,
+      "kind": "corners",
+      "quarters": {
+        "topLeft": {
+          "clip": 4920,
+          "flipX": false,
+          "flipY": false
+        },
+        "topRight": {
+          "clip": 4920,
+          "flipX": true,
+          "flipY": false
+        },
+        "bottomLeft": {
+          "clip": 4920,
+          "flipX": false,
+          "flipY": true
+        },
+        "bottomRight": {
+          "clip": 4920,
+          "flipX": true,
+          "flipY": true
+        }
+      }
+    },
+    "TileMask": {
+      "symbol": 4975,
+      "kind": "whole",
+      "clip": 4975
+    },
+    "maskCTiles": {
+      "symbol": 4941,
+      "kind": "corners",
+      "quarters": {
+        "topLeft": {
+          "clip": 4938,
+          "flipX": false,
+          "flipY": false
+        },
+        "topRight": {
+          "clip": 4938,
+          "flipX": true,
+          "flipY": false
+        },
+        "bottomLeft": {
+          "clip": 4940,
+          "flipX": false,
+          "flipY": true
+        },
+        "bottomRight": {
+          "clip": 4940,
+          "flipX": true,
+          "flipY": true
+        }
+      }
+    },
+    "maskCrack": {
+      "symbol": 4949,
+      "kind": "corners",
+      "quarters": {
+        "topLeft": {
+          "clip": 4945,
+          "flipX": false,
+          "flipY": false
+        },
+        "topRight": {
+          "clip": 4945,
+          "flipX": true,
+          "flipY": false
+        },
+        "bottomLeft": {
+          "clip": 4948,
+          "flipX": false,
+          "flipY": true
+        },
+        "bottomRight": {
+          "clip": 4948,
+          "flipX": true,
+          "flipY": true
+        }
+      }
+    }
+  },
+  "frontSprites": {
+    "symbol": 4896,
+    "name": "tileFront",
+    "note": "Кадры спрайтов лестниц и ступеней (vid); внутри — растровые PNG 1:1, экспортируются в родном разрешении."
+  }
+}
