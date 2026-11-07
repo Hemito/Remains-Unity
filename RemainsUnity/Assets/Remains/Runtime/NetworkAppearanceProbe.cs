@@ -11,8 +11,11 @@ namespace Remains.Runtime
 {
     public sealed class NetworkAppearanceProbe : MonoBehaviour
     {
+        private const double AdmissionTimeoutSeconds=60,PresentationTimeoutSeconds=30;
         private PrototypeRuntime runtime;
-        private float deadline;
+        private double startedAt;
+        private double? admittedAt;
+        private int connectedPeers;
         private bool finished;
         private string forcedHeadId;
         public void Initialize(PrototypeRuntime value)
@@ -27,20 +30,28 @@ namespace Remains.Runtime
                     throw new InvalidOperationException("После --appearance-head-id нужен стабильный ID формы головы.");
                 forcedHeadId=PonyHeadCatalog.Get(arguments[++i]).id;
             }
-            runtime=value;deadline=Time.unscaledTime+30;
+            runtime=value;
             if(value.Options.Character.StartsWith("session-client-",StringComparison.Ordinal))
             {
                 if(string.IsNullOrEmpty(value.Options.SaveDirectory)) throw new InvalidOperationException("Проверке палитры нужен отдельный профиль.");
                 int index=int.Parse(value.Options.Character.Substring("session-client-".Length));
                 value.Session.Saves.SaveCharacter(new ActorState {id="player:"+value.Options.Character,character=value.Options.Character,player=true,hair=5+index,appearance=Expected(index)});
             }
+            startedAt=Time.realtimeSinceStartupAsDouble;
         }
         private void Update()
         {
             if(finished) return;
-            if(Time.unscaledTime>deadline) {Finish(false,"Таймаут передачи внешности.");return;}
+            double now=Time.realtimeSinceStartupAsDouble;
             var session=runtime.Session;var actors=session.World?.actors.Where(a=>a.player && a.connected).ToArray();
-            if(session.LocalActor==null || actors==null || actors.Length!=runtime.Options.ProbePeers) return;
+            connectedPeers=actors?.Length??0;
+            if(session.LocalActor==null || connectedPeers!=runtime.Options.ProbePeers)
+            {
+                if(now-startedAt>=AdmissionTimeoutSeconds)
+                    Finish(false,$"Истекло ожидание участников: {connectedPeers}/{runtime.Options.ProbePeers}, подготовка входа={session.EntryPreparation.ClientPending}.");
+                return;
+            }
+            admittedAt??=now;
             if(actors.Single(a=>a.character=="session-client-1").hair!=6 || actors.Select(a=>a.hair).Distinct().Count()!=actors.Length)
             {Finish(false,"Импортированный цвет заменён либо новые персонажи получили одинаковые цвета.");return;}
             foreach(var actor in actors)
@@ -56,23 +67,18 @@ namespace Remains.Runtime
             {
                 // Join publishes actors before the room's lighting/visibility gate.
                 // Capture the same ready presentation that a player actually sees.
-                if(!runtime.LevelPresentationReady || runtime.IsLevelPreparing) return;
-                var visuals=FindObjectsByType<PonyVisual>(FindObjectsSortMode.None);
-                if(actors.Any(actor=>!visuals.Any(visual=>visual.ActorId==actor.id))) return;
-                foreach(var actor in actors)
+                var visuals=actors.Select(actor=>runtime.FindActorVisual(actor.id) as PonyVisual).ToArray();
+                if(!runtime.LevelPresentationReady || runtime.IsLevelPreparing ||
+                    visuals.Any(visual=>visual==null || !visual.gameObject.activeInHierarchy))
                 {
-                    var visual=visuals.Single(v=>v.ActorId==actor.id);visual.DrawPose(actor.poseTime);
-                    var key=PonyAppearance.Snapshot(actor);var frame=PonyRenderSelection.Frames(key,visual.DrawnClip)[visual.DrawnFrame];
-                    var meshes=visual.GetComponentsInChildren<MeshFilter>().Where(m=>m.GetComponent<MeshRenderer>().enabled).ToArray();
-                    if(!meshes.Select(m=>m.sharedMesh).SequenceEqual(frame.Select(p=>p.mesh)))
-                    {Finish(false,"Сетевая внешность не применена к графике: "+actor.character);return;}
-                    var block=new MaterialPropertyBlock();
-                    for(int i=0;i<meshes.Length;i++)
-                    {
-                        meshes[i].GetComponent<MeshRenderer>().GetPropertyBlock(block);
-                        if(block.GetColor("_Color")!=PonyAppearance.Tint(frame[i].slot,key))
-                        {Finish(false,"Сетевой цвет не применён: "+actor.character+"/"+frame[i].slot);return;}
-                    }
+                    if(now-admittedAt.Value>=PresentationTimeoutSeconds)
+                        Finish(false,"Участники подключены, но представление локации или персонажей не готово.");
+                    return;
+                }
+                for(int i=0;i<actors.Length;i++)
+                {
+                    string error=VerifyRenderedAppearance(actors[i],visuals[i]);
+                    if(error!=null) {Finish(false,error);return;}
                 }
                 NetworkFrameCapture.Save(runtime.WorldCamera,Path.ChangeExtension(runtime.Options.Report,"png"));
             }
@@ -81,6 +87,32 @@ namespace Remains.Runtime
             bool saved=loaded.hair==session.LocalActor.hair && PonyAppearance.Snapshot(loaded).Equals(PonyAppearance.Snapshot(session.LocalActor));
             Finish(saved,saved?"Все участники получили отдельные формы головы/гривы/глаз, пять цветов и второй цвет; старый хост сохранён, локальный профиль совпадает. При frames проверены реальные меши и цвета каждого персонажа.":"Локальное сохранение потеряло внешность.");
         }
+        private static string VerifyRenderedAppearance(ActorState actor,PonyVisual visual)
+        {
+            visual.DrawPose(actor.poseTime);
+            var key=PonyAppearance.Snapshot(actor);
+            var parts=PonyRenderSelection.Frames(key,visual.DrawnClip,visual.DrawnExpression)[visual.DrawnFrame];
+            var renderers=visual.GetComponentsInChildren<MeshRenderer>().Where(renderer=>
+                renderer.sortingOrder>=WorldVisualOrderPolicy.ActorPartOrder &&
+                renderer.sortingOrder<WorldVisualOrderPolicy.ActorPartOrder+parts.Length)
+                .OrderBy(renderer=>renderer.sortingOrder).ToArray();
+            if(renderers.Length!=parts.Length) return "Сетевая внешность не применена к графике: "+actor.character;
+            var block=new MaterialPropertyBlock();
+            for(int i=0;i<parts.Length;i++)
+            {
+                var part=parts[i];var renderer=renderers[i];
+                float opacity=PonyMagicRenderRoles.Contains(part)?visual.DrawnMagicActivity.Opacity:1;
+                if(renderer.sortingOrder!=WorldVisualOrderPolicy.ActorPartOrder+i ||
+                    renderer.GetComponent<MeshFilter>().sharedMesh!=part.mesh ||
+                    renderer.enabled!=(part.visible && opacity>0))
+                    return "Сетевой меш или видимость не совпали: "+actor.character+"/"+part.slot;
+                renderer.GetPropertyBlock(block);
+                var expected=PonyAppearance.Tint(part.slot,key);expected.a*=opacity;
+                if(!block.HasColor("_Color") || block.GetColor("_Color")!=expected)
+                    return "Сетевой цвет не применён: "+actor.character+"/"+part.slot;
+            }
+            return null;
+        }
         private CharacterAppearance Expected(int index)=>new()
         {version=CharacterAppearance.CurrentVersion,headStyleId=forcedHeadId??PonyHeadCatalog.Styles[index%PonyHeadCatalog.Styles.Count].id,
             hairStyle=6-index,eyeStyle=7-index,fur=0xA3A3A3+index*0x010101,hair=0x225588+index*0x080005,secondaryHair=0xEE2288-index*0x001100,
@@ -88,9 +120,19 @@ namespace Remains.Runtime
         private void Finish(bool success,string detail)
         {
             if(finished) return;finished=true;
-            File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,forcedHeadId=forcedHeadId},true));StartCoroutine(Exit(success));
+            File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {
+                success=success,detail=detail,forcedHeadId=forcedHeadId,connectedPeers=connectedPeers,
+                admissionSeconds=admittedAt.HasValue?admittedAt.Value-startedAt:-1,
+                elapsedSeconds=Time.realtimeSinceStartupAsDouble-startedAt},true));
+            StartCoroutine(Exit(success));
         }
         private IEnumerator Exit(bool success) {yield return new WaitForSecondsRealtime(3);Application.Quit(success?0:1);}
-        [Serializable] private sealed class Report {public bool success;public string detail;public string forcedHeadId;}
+        [Serializable] private sealed class Report
+        {
+            public bool success;
+            public string detail,forcedHeadId;
+            public int connectedPeers;
+            public double admissionSeconds,elapsedSeconds;
+        }
     }
 }
