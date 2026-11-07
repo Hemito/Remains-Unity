@@ -121,12 +121,12 @@ namespace Remains.Runtime
         private bool NormalHostReady()
         {
             Require(runtime!=null,"Runtime исчез до проверки обычной готовой host-сессии.");
-            if(runtime.ActiveRoomLighting?.Failure!=null) throw runtime.ActiveRoomLighting.Failure;
+            var lighting=runtime.CurrentLevelLighting;
+            if(lighting?.Failure is Exception failure) throw failure;
             return runtime.Session!=null && NetworkServer.active && NetworkClient.isConnected &&
                 NetworkManager.singleton==runtime.Session && runtime.Session.ServerWorld!=null &&
                 runtime.Session.World!=null && runtime.Session.LocalActor?.connected==true &&
-                runtime.ActiveRoomLighting!=null && runtime.ActiveRoomLighting.IsReady &&
-                !runtime.ActiveRoomLighting.IsUpdating && !runtime.IsLevelPreparing;
+                lighting!=null && lighting.IsReady && !lighting.IsUpdating && !runtime.IsLevelPreparing;
         }
 
         private void CaptureReadyAndDestroy()

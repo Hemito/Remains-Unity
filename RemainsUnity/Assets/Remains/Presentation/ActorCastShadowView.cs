@@ -304,11 +304,11 @@ namespace Remains.Presentation
         public void Clear() {hasSignature=false;ActiveSourceCount=0;foreach(var slot in slots) slot.renderer.enabled=false;}
         private void OnDestroy()
         {
-            foreach(var slot in slots) {if(slot.mask!=null) {slot.mask.Release();ReleaseObject(slot.mask);}if(slot.mesh!=null) ReleaseObject(slot.mesh);}
+            foreach(var slot in slots) {LightTextureBudget.Release(slot.mask);if(slot.mesh!=null) ReleaseObject(slot.mesh);}
             foreach(var mesh in spriteMeshes.Values) if(mesh!=null) ReleaseObject(mesh);
             spriteMeshes.Clear();slots.Clear();
             if(maskMaterial!=null) ReleaseObject(maskMaterial);
-            if(poseMask!=null) {poseMask.Release();ReleaseObject(poseMask);}
+            LightTextureBudget.Release(poseMask);poseMask=null;
         }
         private static void ReleaseObject(UnityEngine.Object value)
         {if(Application.isPlaying) Destroy(value);else DestroyImmediate(value);}
