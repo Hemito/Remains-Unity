@@ -45,16 +45,8 @@ namespace Remains.Editor
             for(int index=0;index<clip.count;index++)
             {
                 string id=clip.pose+":"+index;
-                var rect=new Rect((clip.column+index)*data.cellWidth,data.height-(clip.row+1)*data.cellHeight,data.cellWidth,data.cellHeight);
-                var pivot=new Vector2(data.pivotX,data.pivotY);
-                // The raider's preceding frame spills 13 pixels into the left edge of the settled corpse.
-                if(data.resource=="Original/Raider/raider5" && clip.pose=="down" && index==19 && rect==new Rect(2280,480,120,120))
-                {
-                    const int trim=4;
-                    rect.xMin+=trim;
-                    pivot.x=(data.pivotX*data.cellWidth-trim)/rect.width;
-                }
-                var sprite=Sprite.Create(texture,rect,pivot,data.pixelsPerUnit);sprite.name=id;
+                var sprite=Sprite.Create(texture,new Rect((clip.column+index)*data.cellWidth,data.height-(clip.row+1)*data.cellHeight,data.cellWidth,data.cellHeight),
+                    new Vector2(data.pivotX,data.pivotY),data.pixelsPerUnit);sprite.name=id;
                 if(existing.TryGetValue(id,out var saved))
                 {EditorUtility.CopySerialized(sprite,saved);UnityEngine.Object.DestroyImmediate(sprite);sprite=saved;EditorUtility.SetDirty(sprite);}
                 else AssetDatabase.AddObjectToAsset(sprite,asset);

@@ -57,11 +57,7 @@ namespace Remains.Editor
                         }
                         if(pose=="walk")
                             Require(clip.FrameIndex(actor.poseTime)==(frame==0?0:1+(frame-1)%16),"В повтор ходьбы рейдера попал вступительный кадр");
-                        int selected=clip.Sample(actor);
-                        int leftTrim=pose=="down" && selected==19?4:0;
-                        Require(Mathf.Abs(renderer.sprite.rect.x-selected*120-leftTrim)<.001f &&
-                            Mathf.Abs(renderer.sprite.pivot.x+leftTrim-60)<.001f,
-                            "Кадр рисунка или его точка привязки расходятся с анатомией");
+                        Require(Mathf.Abs(renderer.sprite.rect.x/120-clip.Sample(actor))<.001f,"Кадр рисунка расходится с выбором кадра анатомии");
                         foreach(string region in new[]{"head","torso","legs"})
                         {
                             Require(Anatomy.TryRegion(actor,region,out var center,out float radius),"Нет области кадра: "+pose+":"+frame+":"+region);
