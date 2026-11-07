@@ -52,6 +52,12 @@ namespace Remains.Editor
             Require(other.LoadWorld(false).worldId==first.WorldId,"Фактическая загрузка мира не использует общую библиотеку");
             var restarted=new SaveLibraries(root,"Бета");
             Require(restarted.ForCharacter("Бета").SelectedSnapshot().Id==divergent.Id,"Перезапуск или другой персонаж сбросил выбранный мир");
+            Require(restarted.RememberedCharacter()==null,"Без сохранённого выбора появился произвольный персонаж");
+            libraries.RememberCharacter("Альфа");libraries.RememberCharacter("Бета");
+            Require(restarted.RememberedCharacter()=="Бета","Не восстановлен последний выбор личного профиля");
+            restarted.Characters.Delete("Бета");
+            Require(restarted.RememberedCharacter()==null && selected.SelectedSnapshot().Id==divergent.Id,
+                "Удалённый персонаж восстановился или изменил выбор мира");
             new WorldLibrary(selected).Delete(first.WorldId);
             Require(new SaveLibraries(root,"Альфа").ForCharacter("Альфа").Continuations().Count==0,"Старые файлы воскресили удалённый импорт после перезапуска");
             Require(selected.ReadCharacterSource()==alphaSource,"Удаление мира изменило персонажа");

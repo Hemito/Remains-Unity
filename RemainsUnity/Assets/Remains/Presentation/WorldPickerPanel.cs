@@ -28,7 +28,7 @@ namespace Remains.Presentation
             operation=gameObject.AddComponent<BackgroundSaveOperation>();
             view.Close.onClick.AddListener(()=>Destroy(gameObject));
             view.Previous.onClick.AddListener(()=>{page--;Render();});
-            view.Next.onClick.AddListener(()=>{page++;Render();});Reload();
+            view.Next.onClick.AddListener(()=>{page++;Render();});Reload(showSelected:true);
         }
         private void Loading(string text)
         {
@@ -38,12 +38,17 @@ namespace Remains.Presentation
             foreach(var button in view.Manage) button.gameObject.SetActive(false);
             view.Previous.interactable=false;view.Next.interactable=false;view.Page.text="";
         }
-        private void Reload()
+        private void Reload(bool showSelected=false)
         {
             catalog=null;Loading("Чтение списка миров…");
             operation.Run(token=>(store.Catalog.Read(token),new WorldLibrary(store).Names()),result=>
             {
                 catalog=result.Item1;names=result.Item2;
+                if(showSelected && catalog.selected!=null)
+                {
+                    int selected=catalog.entries.FindIndex(entry=>entry.summary.snapshot==catalog.selected.snapshot);
+                    if(selected>=0) page=selected/view.Choices.Length;
+                }
                 labels=new WorldCopyLabels(catalog.entries.Select(entry=>entry.summary.branchId).Append(catalog.selected?.branchId),
                     catalog.entries.Select(entry=>entry.summary.snapshot).Append(catalog.selected?.snapshot));
                 foreach(string warning in catalog.warnings) Debug.LogWarning(warning);

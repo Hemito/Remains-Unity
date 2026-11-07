@@ -166,12 +166,16 @@ namespace Remains.Runtime
             if(Options.Smoke!=null) Session.ClientReady+=()=>Application.targetFrameRate=Options.ProbeFrameRate;
             Session.ConfigureRules(WeaponCatalog.Rules);
             Session.UseLobby=Options.Smoke==null || Options.Smoke.StartsWith("lobby") || Options.Smoke.StartsWith("duplicate-lobby") || Options.Smoke.StartsWith("protocol") || Options.Smoke.StartsWith("grenade-resume-"); Session.autoCreatePlayer=false; Session.maxConnections=Options.Capacity;
-            Session.CharacterId=Options.Character;
             Session.DebugTravelAllowed=Options.Smoke!=null && !Options.Smoke.StartsWith("travel-points") && !Options.Smoke.StartsWith("prop-body") && !Options.Smoke.StartsWith("lighting-preparation");
             Session.networkAddress=Options.Address;
             bool characterLibraryProbe=Options.Smoke?.StartsWith("characters")==true;
+            bool menuSelection=Options.Role==null && (Options.Smoke==null && Options.SaveDirectory==null ||
+                Options.Smoke is "characters" or "characters-menu-resume");
             if(Options.SaveDirectory==null || characterLibraryProbe)
                 saveLibraries=new SaveLibraries(characterLibraryProbe?Options.SaveDirectory:ProjectStorage.RootDirectory,Options.Character);
+            if(menuSelection && !Options.ExplicitCharacter && saveLibraries?.RememberedCharacter() is string remembered)
+                Options.SetSelectedCharacter(remembered);
+            Session.CharacterId=Options.Character;
             Session.Saves=saveLibraries?.ForCharacter(Options.Character)??new SaveStore(Options.SaveDirectory);
             if(Options.Smoke!=null && Options.Role=="host" && !string.IsNullOrEmpty(Options.Report))
                 gameObject.AddComponent<RecoveryTimingProbe>().Initialize(Session,Options.Report);
@@ -314,10 +318,11 @@ namespace Remains.Runtime
                 {
                     if(Session.CharacterSelectionLocked && name!=Session.CharacterId)
                     {hud.ShowMessage("Персонаж уже выбран для подключения. Сначала выйдите из сессии.");return false;}
-                    if(!System.Text.RegularExpressions.Regex.IsMatch(name??"",@"^[\p{L}\p{N}_ -]{1,32}$"))
+                    if(!CharacterName.IsProfileName(name))
                     {if(Options.Smoke==null) hud.ShowCharacterLibrary();else hud.ShowMessage("Имя персонажа: от 1 до 32 букв, цифр, пробелов, дефисов или подчёркиваний.");return false;}
                     if((Options.Smoke==null || characterProbe) && !File.Exists(Path.Combine(characterLibrary.ProfilePath(name),"character.json")))
                     {hud.ShowCharacterLibrary();return false;}
+                    if(menuSelection) saveLibraries?.RememberCharacter(name);
                     if(Session.CharacterId==name) return true;
                     Session.CharacterId=name;
                     Options.SetSelectedCharacter(name);

@@ -31,16 +31,25 @@ namespace Remains.Presentation
         {
             view=value;library=saves;artwork=graphics;selected=current;select=choose;closed=close;operation=gameObject.AddComponent<BackgroundSaveOperation>();
             view.Close.onClick.AddListener(Close);view.Create.onClick.AddListener(Create);
-            view.Previous.onClick.AddListener(()=>{page--;Render();});view.Next.onClick.AddListener(()=>{page++;Render();});Reload();
+            view.Previous.onClick.AddListener(()=>{page--;Render();});view.Next.onClick.AddListener(()=>{page++;Render();});Reload(showSelected:true);
         }
-        private void Reload()
+        private void Reload(bool showSelected=false)
         {
             entries=null;view.Status.text="Чтение персонажей…";view.Page.text="";
             foreach(var card in view.Cards) card.gameObject.SetActive(false);
             foreach(var button in view.Delete) button.gameObject.SetActive(false);
             view.Create.interactable=false;view.Previous.interactable=view.Next.interactable=false;
             operation.Run(token=>library.Read(token),result=>
-            {entries=result;foreach(var entry in entries) if(entry.error!=null) Debug.LogWarning(entry.error);Render();},error=>
+            {
+                entries=result;
+                if(showSelected)
+                {
+                    int index=entries.FindIndex(entry=>entry.name==selected && entry.error==null);
+                    if(index>=0) page=index/view.Cards.Length;
+                }
+                foreach(var entry in entries) if(entry.error!=null) Debug.LogWarning(entry.error);
+                Render();
+            },error=>
             {view.Status.text="Не удалось прочитать персонажей: "+error.Message;Debug.LogError(error);});
         }
         public static string DescribeTime(CharacterTimeRecord time)

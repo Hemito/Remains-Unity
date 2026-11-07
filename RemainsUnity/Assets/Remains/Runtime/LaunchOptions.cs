@@ -6,6 +6,7 @@ namespace Remains.Runtime
     {
         public string Role { get; private set; }
         public string Character { get; private set; } = "pony-one";
+        public bool ExplicitCharacter { get; private set; }
         public string Address { get; private set; } = "127.0.0.1";
         public string SaveDirectory { get; private set; }
         public string Smoke { get; private set; }
@@ -30,7 +31,7 @@ namespace Remains.Runtime
                 switch (args[i])
                 {
                     case "--role": options.Role = args[++i]; break;
-                    case "--character": options.Character = args[++i]; break;
+                    case "--character": options.Character = args[++i]; options.ExplicitCharacter=true; break;
                     case "--address": options.Address = args[++i]; break;
                     case "--save-dir": options.SaveDirectory = args[++i]; break;
                     case "--port": options.Port = ushort.Parse(args[++i]); break;

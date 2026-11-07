@@ -20,11 +20,13 @@ namespace Remains.Runtime
         private double legacySeconds,newSecondsBeforeReturn,newSecondsAfterReturn;
         private bool playTimePersisted;
         private int readyVisits,pendingPresentationFrames;
+        private bool Resume=>runtime.Options.Smoke=="characters-menu-resume";
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+60;
             if(string.IsNullOrEmpty(value.Options.SaveDirectory)) throw new InvalidOperationException("Редактору нужен отдельный каталог проверки.");
             library=new CharacterLibrary(Path.Combine(value.Options.SaveDirectory,"Profiles"));
+            if(Resume) return;
             for(int i=0;i<7;i++)
             {
                 string name="Архивный "+i;
@@ -47,6 +49,7 @@ namespace Remains.Runtime
         }
         private IEnumerator Start()
         {
+            if(Resume) {yield return CheckRememberedSelection();yield break;}
             yield return UiPointerProbe.Click(runtime.Hud.CharactersButtonRect);
             yield return Wait(()=>runtime.Hud.Characters?.Ready==true);
             var list=runtime.Hud.Characters;
@@ -149,7 +152,44 @@ namespace Remains.Runtime
             if(row<0 || icon==null || icon.texture!=expectedIcon.texture || icon.rect!=expectedIcon.rect || !list.View.Times[row].text.StartsWith("В игре:"))
                 throw new InvalidOperationException("Карточка не показывает последнее экипированное оружие/время.");
             Canvas.ForceUpdateCanvases();ValidatePortrait(list.View.Portraits[row]);Capture("library");
+            if(runtime.Options.Smoke=="characters")
+            {
+                var store=runtime.Session.Saves;
+                var selected=store.SelectedSnapshot();
+                for(int index=1;index<=12;index++) store.SaveWorld(new WorldState {worldId=index.ToString("x32")});
+                store.SelectContinuation(selected);
+            }
             Finish(true,"Настоящий UI: список и страницы, команды Escape закрывают редактор и библиотеку последовательно, отмена без файла, занятое имя без перезаписи, формы/цвета/превью, создание и выбор; старый профиль сохранил здоровье/вид, новый вошёл с выбранной внешностью. Время двух отдельных сессий и последнее оружие отражены в карточках.");
+        }
+        private IEnumerator CheckRememberedSelection()
+        {
+            yield return Wait(()=>runtime.Hud.WorldDescriptionReady);
+            var menu=runtime.Hud.GetComponentInChildren<MainMenuView>(true);
+            var selected=runtime.Session.Saves.SelectedSnapshot();
+            if(selected==null || menu.Character.text!="Роза" || runtime.Session.CharacterId!="Роза" ||
+                !menu.Host.GetComponentInChildren<UnityEngine.UI.Text>().text.Contains("Продолжить"))
+            {Finish(false,"Главное меню потеряло последний мир или персонажа после перезапуска.");yield break;}
+            Capture("remembered");
+            yield return UiPointerProbe.Click(runtime.Hud.CharactersButtonRect);
+            yield return Wait(()=>runtime.Hud.Characters?.Ready==true);
+            var characters=runtime.Hud.Characters;
+            if(!characters.View.Names.Any(name=>name.gameObject.activeInHierarchy && name.text=="Роза"))
+            {Finish(false,"Список не открыл страницу выбранного персонажа.");yield break;}
+            characters.Close();
+            yield return Wait(()=>runtime.Hud.WorldDescriptionReady);
+            yield return UiPointerProbe.Click(runtime.Hud.WorldPickerButtonRect);
+            yield return Wait(()=>runtime.Hud.WorldPickerReady);
+            var worlds=runtime.Hud.GetComponentInChildren<WorldPickerView>();
+            if(worlds==null || !worlds.Previous.interactable || runtime.Hud.WorldChoiceRect(selected.Id)==null)
+            {Finish(false,"Список не открыл страницу выбранного мира.");yield break;}
+            yield return UiPointerProbe.Click(Rect(worlds.Close));
+            yield return Wait(()=>runtime.Hud.WorldDescriptionReady);
+            yield return UiPointerProbe.Click(runtime.Hud.HostButtonRect);
+            yield return WaitForLevel();
+            if(finished) yield break;
+            bool restored=runtime.Session.LocalActor.character=="Роза" && runtime.Session.World.worldId==selected.WorldId;
+            runtime.Session.StopHost();
+            Finish(restored,restored?"Перезапуск восстановил выбранный мир и персонажа, обе библиотеки открыли их страницы.":"Продолжение запустило другой мир или профиль.");
         }
         private IEnumerator Select(string name)
         {
