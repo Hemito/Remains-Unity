@@ -3,6 +3,7 @@ using System.Collections;
 using System.IO;
 using System.Linq;
 using Mirror;
+using Remains.Content;
 using Remains.Domain;
 using Remains.Gameplay;
 using Remains.Networking;
@@ -28,6 +29,10 @@ namespace Remains.Runtime
         private bool CaptureFrames=>runtime.Options.Smoke.Contains("-frames-");
         private bool capturedDown,capturedRevived;
         private string grenadeId;
+        private bool holdBeforeBlast;
+        private float healerHealthBeforeBlast,blastDamage;
+        private int blastHits;
+        private RevivalExpectation resumeExpectation;
         private bool failureCaptureRequested;
         private int healingVoices,healingVoice;
         private bool healingPlaying,healingMuted;
@@ -39,6 +44,8 @@ namespace Remains.Runtime
         {
             runtime=value;deadline=Time.unscaledTime+60;runtime.CommandSource=Command;
             value.HealingAudio.HealingPlayed+=ObserveHealing;
+            value.Combat.DamageApplied+=ObserveDamage;
+            if(Resume && File.Exists(ExpectationPath)) resumeExpectation=JsonUtility.FromJson<RevivalExpectation>(File.ReadAllText(ExpectationPath));
             runtime.Grenades.Created+=flight=>
             {if(phase==5 && flight.state.attacker==Healer?.id) grenadeId=flight.state.id;};
             if(PauseScenario) pauseWindow=new NetworkPauseWindow(this,value.Session,value.Options.ProbePeers,PauseSnapshot,
@@ -48,8 +55,8 @@ namespace Remains.Runtime
             value.Session.ClientReady+=()=>
             {
                 NetworkClient.RegisterHandler<RevivalProbePhase>(message=>
-                {phase=message.phase;since=Time.unscaledTime;advancing=false;if(phase==5) startDamage=runtime.Session.LocalActor.damageSequence;});
-                NetworkClient.RegisterHandler<RevivalProbeFinish>(_=>Finish(Validate(),Resume?"Перезапуск: здоровье 30/35, расход одной хилки и счётчики урона сохранены.":"Обычные команды: нокдаун, отмена E/расстоянием/уроном, поднятие и расход одной хилки; сохранение проверено."));
+                {phase=message.phase;since=Time.unscaledTime;advancing=false;if(phase==5 && Host) {startDamage=Healer.damageSequence;healerHealthBeforeBlast=Healer.health;}});
+                NetworkClient.RegisterHandler<RevivalProbeFinish>(_=>Finish(Validate(),Resume?"Перезапуск: точное здоровье, расход одной хилки и счётчики урона сохранены.":"Обычные команды: нокдаун, отмена E/расстоянием/уроном, поднятие и расход одной хилки; сохранение проверено."));
             };
         }
         private PlayerCommand Command()
@@ -70,13 +77,50 @@ namespace Remains.Runtime
             if(phase==4) command.movement=Mathf.Abs(self.x-25)>.05f?Vector2.right*Mathf.Sign(25-self.x):Vector2.zero;
             if(phase==5)
             {
-                // A downward hold starts below this one-way shelf; throw up so the real grenade returns to its top.
-                command.grenade=!grenade;grenade=true;command.hasAim=true;command.aim=self.Position+Vector2.up*3;
-                command.revive=age>1.2f && !damageCancelled;
+                if(!grenade)
+                {
+                    if(!TryBlastAim(self,out var aim)) {Finish(false,"Нет броска с несмертельным уроном у точки поднятия.");return default;}
+                    grenade=true;
+                    return new PlayerCommand {grenade=true,hasAim=true,aim=aim};
+                }
+                if(grenadeId!=null && runtime.Grenades.Flights.Any(flight=>flight.state.id==grenadeId &&
+                    flight.state.remaining>0 && flight.state.remaining<=1.15f)) holdBeforeBlast=true;
+                // Keep E pressed through the blast; release only after the progress actually resets.
+                command.revive=holdBeforeBlast && !damageCancelled;
             }
             if(phase==6) command.revive=true;
             if(command.revive) {command.hasAim=true;command.aim=InventorySource.BodyBounds(Victim).center;}
             return command;
+        }
+        private bool TryBlastAim(ActorState actor,out Vector2 aim)
+        {
+            aim=default;
+            var stack=GrenadeItems.Next(actor);
+            if(stack==null) return false;
+            var weapon=WeaponCatalog.Get(stack.definition);
+            var room=runtime.Geometry.Get(actor.level);
+            for(int degrees=0;degrees<360;degrees+=30)
+            {
+                float angle=degrees*Mathf.Deg2Rad;
+                var direction=new Vector2(Mathf.Cos(angle),Mathf.Sin(angle));
+                for(float reach=.5f;reach<=weapon.grenadeFullEffortDistance+2;reach+=.5f)
+                {
+                    var target=actor.BodyPosition+direction*reach;
+                    if(!HeldItemPose.TryQuickLaunch(actor,target,room,out var launch)) continue;
+                    var blast=GrenadeAim.Burst(room,launch.origin,launch.velocity,weapon.id);
+                    float distance=Anatomy.BlastDistance(actor,blast);
+                    // Even the highest damage roll here leaves this healer standing.
+                    if(distance<weapon.range*.81f || distance>weapon.range*.9f) continue;
+                    if(weapon.damage*1.3f*(2-2*distance/weapon.range)>=actor.health) continue;
+                    aim=target;return true;
+                }
+            }
+            return false;
+        }
+        private void ObserveDamage(DamageResult result)
+        {
+            if(!Host || phase!=5 || result.actor!=Healer?.id || result.attack!=grenadeId) return;
+            blastHits++;blastDamage+=result.amount;
         }
         private void Next()
         {if(advancing) return;advancing=true;NetworkServer.SendToAll(new RevivalProbePhase {phase=phase+1});}
@@ -90,17 +134,17 @@ namespace Remains.Runtime
             {pauseStarted=true;pauseRunning=true;StartCoroutine(PauseRevival());return;}
             if(Resume && phase==0)
             {
-                if(Victim.health!=35 || Healer.health!=30 || InventoryJournal.Count(Healer,"heal")!=4 || Healer.damageSequence<1 || Victim.damageSequence<1)
+                if(!MatchesResume())
                 {Finish(false,"Перезапуск потерял здоровье, расход предмета или историю урона.");return;}
                 advancing=true;NetworkServer.SendToAll(new RevivalProbePhase {phase=7});return;
             }
             float age=Time.unscaledTime-since;
-            if(phase>=2 && phase<=5 && (!Victim.down || InventoryJournal.Count(Healer,"heal")!=5))
+            if(phase>=2 && phase<=5 && (!Victim.down || Victim.health!=0 || InventoryJournal.Count(Healer,"heal")!=5))
             {Finish(false,$"Прерванное поднятие изменило цель или потратило предмет: phase={phase}, victimHP={Victim.health}, victimDown={Victim.down}, healerHP={Healer.health}, healerDamageSequence={Healer.damageSequence}, startDamage={startDamage}, healCount={InventoryJournal.Count(Healer,"heal")}, progress={runtime.Revival.Progress}, grenadeId={grenadeId ?? "не наблюдалась"}.");return;}
             if(phase==2 && runtime.Revival.Progress>0) releaseProgress=true;
             if(phase==3 && runtime.Revival.Progress>0) movementProgress=true;
             if(phase==5 && Healer.damageSequence==startDamage && runtime.Revival.Progress>.2f) healingBeforeDamage=true;
-            if(phase==5 && Healer.damageSequence>startDamage && runtime.Revival.Progress==0) damageCancelled=true;
+            if(phase==5 && blastHits==1 && Healer.damageSequence==startDamage+1 && runtime.Revival.Progress==0) damageCancelled=true;
             switch(phase)
             {
                 case 0:
@@ -110,17 +154,27 @@ namespace Remains.Runtime
                 case 2: if(age>2 && releaseProgress && runtime.Revival.Progress==0) Next();break;
                 case 3: if(age>2 && movementProgress && Vector2.Distance(Healer.Position,Victim.Position)>2 && runtime.Revival.Progress==0) Next();break;
                 case 4: if(Mathf.Abs(Healer.x-25)<.1f) Next();break;
-                case 5: if(age>2.4f && damageCancelled && healingBeforeDamage && Healer.damageSequence>startDamage && !Healer.down && runtime.Revival.Progress==0) Next();break;
+                case 5:
+                    if(damageCancelled && healingBeforeDamage && blastDamage>0 && !Healer.down && Healer.health>0 &&
+                        Mathf.Abs(Healer.health-(healerHealthBeforeBlast-blastDamage))<.001f && runtime.Revival.Progress==0) Next();break;
                 case 6: if(!Victim.down && Victim.health==35 && InventoryJournal.Count(Healer,"heal")==4) Next();break;
                 case 7: if(age>4) {advancing=true;NetworkServer.SendToAll(new RevivalProbeFinish());}break;
             }
         }
+        private string ExpectationPath=>Path.Combine(runtime.Session.Saves.CharacterDirectoryPath,"revival-expectation.json");
+        private bool MatchesResume()=>resumeExpectation!=null && resumeExpectation.world==runtime.Session.World?.worldId &&
+            resumeExpectation.healer==Healer?.id && resumeExpectation.victim==Victim?.id &&
+            Mathf.Abs(resumeExpectation.healerHealth-Healer.health)<.001f && resumeExpectation.victimHealth==Victim.health &&
+            resumeExpectation.healerDamage==Healer.damageSequence && resumeExpectation.victimDamage==Victim.damageSequence &&
+            resumeExpectation.healerMedkits==InventoryJournal.Count(Healer,"heal") && !Healer.down && !Victim.down;
         private bool Validate()
         {
             var saved=runtime.Session.Saves.LoadCharacter();var self=runtime.Session.LocalActor;
             return healingVoices==(Resume?0:1) && runtime.HealingAudio.Accepted==(Resume?0:1) && runtime.HealingAudio.Played==(Resume?0:1) &&
+                (!Resume || MatchesResume()) && (Resume || !Host || damageCancelled && healingBeforeDamage && blastHits==1) &&
                 (!CaptureFrames || capturedDown && capturedRevived) && Victim!=null && !Victim.down && Victim.health==35 && InventoryJournal.Count(Healer,"heal")==4 &&
-                saved!=null && saved.id==self.id && saved.health==self.health && InventoryJournal.Count(saved,"heal")==InventoryJournal.Count(self,"heal");
+                saved!=null && self!=null && saved.id==self.id && saved.health==self.health && saved.damageSequence==self.damageSequence &&
+                InventoryJournal.Count(saved,"heal")==InventoryJournal.Count(self,"heal");
         }
         private void LateUpdate()
         {
@@ -168,14 +222,24 @@ namespace Remains.Runtime
         {
             if(finished) return;finished=true;
             if(PauseScenario) {success &= pauseWindow.Verified==1;detail+=$" Проверенные паузы поднятия: {pauseWindow.Verified}.";}
+            if(success && !Resume)
+            {
+                var expected=new RevivalExpectation {world=runtime.Session.World.worldId,healer=Healer.id,victim=Victim.id,
+                    healerHealth=Healer.health,victimHealth=Victim.health,healerDamage=Healer.damageSequence,victimDamage=Victim.damageSequence,
+                    healerMedkits=InventoryJournal.Count(Healer,"heal")};
+                File.WriteAllText(ExpectationPath,JsonUtility.ToJson(expected,true));
+            }
             failureCaptureRequested=!success && CaptureFrames && runtime.Session.LocalActor!=null;
             File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,phase=phase,
                 healingVoices=healingVoices,healingVoice=healingVoice,healingVolume=healingVolume,healingPlaying=healingPlaying,
-                healingMuted=healingMuted,healingTransaction=healingTransaction,healingClip=healingClip},true));
+                healingMuted=healingMuted,healingTransaction=healingTransaction,healingClip=healingClip,
+                blastDamage=blastDamage,blastHits=blastHits,healingBeforeDamage=healingBeforeDamage,damageCancelled=damageCancelled},true));
             StartCoroutine(Exit(success));
         }
         private IEnumerator Exit(bool success) {yield return new WaitForSecondsRealtime(1);Application.Quit(success?0:1);}
-        private void OnDestroy() {if(runtime!=null) runtime.HealingAudio.HealingPlayed-=ObserveHealing;}
-        [Serializable] private sealed class Report {public bool success;public string detail;public int phase,healingVoices,healingVoice;public float healingVolume;public bool healingPlaying,healingMuted;public string healingTransaction,healingClip;}
+        private void OnDestroy() {if(runtime!=null) {runtime.HealingAudio.HealingPlayed-=ObserveHealing;runtime.Combat.DamageApplied-=ObserveDamage;}}
+        [Serializable] private sealed class RevivalExpectation
+        {public string world,healer,victim;public float healerHealth,victimHealth;public int healerDamage,victimDamage,healerMedkits;}
+        [Serializable] private sealed class Report {public bool success;public string detail;public int phase,healingVoices,healingVoice,blastHits;public float healingVolume,blastDamage;public bool healingPlaying,healingMuted,healingBeforeDamage,damageCancelled;public string healingTransaction,healingClip;}
     }
 }
