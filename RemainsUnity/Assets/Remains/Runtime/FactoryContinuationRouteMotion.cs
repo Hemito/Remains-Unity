@@ -239,6 +239,7 @@ namespace Remains.Runtime
                     // frame may have crossed it without a single valid observation.
                     float approach=up?slopes[index].x-.2f:slopes[index].x+slopes[index].width+.2f;
                     var back=FactoryRouteMovement.Move(actor,approach);
+                    if(up) back.movement.y=1;
                     if(back.movement.x==0 && StairRest(actor)) BeginStairNudge(actor,index,up);
                     return recoveryRetreat?back:StairDirection(up);
                 }
@@ -251,14 +252,15 @@ namespace Remains.Runtime
                     BeginStairNudge(actor,index,up);
                     return StairDirection(up);
                 }
+                if(up) command.movement.y=1;
                 return command;
             }
             ResetStairRecovery();
-            return new PlayerCommand {movement=up?Vector2.right:Vector2.left};
+            return StairDirection(up);
         }
         private bool StairRest(ActorState actor)=>!actor.climbing && Mathf.Abs(actor.vx)<=.1f && Mathf.Abs(actor.vy)<.001f &&
             ActorTerrainMotion.Supported(room,Anatomy.Movement(actor),actor.Position);
-        private static PlayerCommand StairDirection(bool up)=>new() {movement=up?Vector2.right:Vector2.left};
+        private static PlayerCommand StairDirection(bool up)=>new() {movement=up?new Vector2(1,1):Vector2.left};
         private void BeginStairNudge(ActorState actor,int index,bool up)
         {
             if(recoverySlope!=index || recoveryUp!=up) recoveryAttempts=0;

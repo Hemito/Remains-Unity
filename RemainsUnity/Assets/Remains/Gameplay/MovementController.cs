@@ -86,7 +86,9 @@ namespace Remains.Gameplay
                 verticalDistance=VerticalMotion.Step(actor,launched,jumpHeld,dt,settings);
             }
             var desired=new Vector2(actor.vx*dt,verticalDistance);
-            actor.Position=ActorTerrainMotion.Move(room,hull,previous,desired,ladder,droppedSurface);
+            bool keepFlatPath=actor.player && input.y<=.1f;
+            actor.Position=ActorTerrainMotion.Move(room,hull,previous,desired,ladder,droppedSurface,
+                excludedSurface:null,bodyTops:true,keepFlatPath:keepFlatPath);
             if(grounded && !actor.crouched && !ladder && !drop && !launched &&
                 ActorStepMotion.TryMove(room,hull,previous,desired,actor.Position,settings.stepHeight,out var stepped))
                 actor.Position=stepped;

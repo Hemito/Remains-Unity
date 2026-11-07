@@ -21,6 +21,10 @@ namespace Remains.Domain
         }
         // bodyTops=false: physical bodies' own motion (PropMotion), which stacks on bodies through PropSupport instead.
         public static Vector2 Move(RoomLayout room,MovementHull hull,Vector2 start,Vector2 delta,bool ignoreOneWay,float? droppedSurface=null,RoomSurface excludedSurface=null,bool bodyTops=true)
+            =>Move(room,hull,start,delta,ignoreOneWay,droppedSurface,excludedSurface,bodyTops,keepFlatPath:false);
+
+        internal static Vector2 Move(RoomLayout room,MovementHull hull,Vector2 start,Vector2 delta,bool ignoreOneWay,float? droppedSurface,
+            RoomSurface excludedSurface,bool bodyTops,bool keepFlatPath)
         {
             float half=hull.width*.5f;
             float x=Mathf.Clamp(start.x+delta.x,room.left+half,room.right-half);
@@ -34,7 +38,7 @@ namespace Remains.Domain
             }
             float baseY=start.y;
             if(delta.y<=0 && !ignoreOneWay && !droppedSurface.HasValue)
-                if(SlopeContactMotion.TryFollow(room,hull,start,x,out float height,excludedSurface))
+                if(SlopeContactMotion.TryFollow(room,hull,start,x,out float height,excludedSurface,keepFlatPath))
                 {
                     if(IsClear(room,hull,new Vector2(x,height),excludedSurface)) baseY=height;
                     else x=start.x; // A ceiling must not push the actor through the ramp.
