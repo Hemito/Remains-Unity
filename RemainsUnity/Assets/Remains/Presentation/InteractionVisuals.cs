@@ -207,12 +207,13 @@ namespace Remains.Presentation
                 {
                     if(weapons.TryGetValue(actor.id,out var previous))
                     {
-                        if(previous.Id==actor.weapon) continue;
+                        if(previous.Id==actor.weapon) {PrepareGrip(previous,actor);continue;}
                         previous.gameObject.SetActive(false);Destroy(previous.gameObject);
                     }
                     var created=CreateWeapon(actor);
                     if(frameActors!=null) created.SetVisible(false);
                     weapons[actor.id]=created;
+                    PrepareGrip(created,actor);
                 }
             foreach(var flight in grenades.Flights)
                 if(flight.state.level==level && !flights.ContainsKey(flight.state.id))
@@ -261,6 +262,12 @@ namespace Remains.Presentation
             var rest=view.ResolveRestSprite();SpriteArtworkMaterial.Prepare(rest);view.SetFrame(rest);
             sprites[actor.weapon]=rest;
             layers.Attach(actor.id,view.transform);return view;
+        }
+        private static bool LevitatedWeapon(ActorState actor)=>
+            Remains.Content.ActorTypes.Get(actor.actorType).presentation=="pony" && !Remains.Content.AtlasWeaponSockets.Enabled(actor);
+        private static void PrepareGrip(WeaponView view,ActorState actor)
+        {
+            if(LevitatedWeapon(actor)) view.PrepareGrip(Remains.Content.PonyAppearance.FromRgb(Remains.Content.PonyAppearance.Snapshot(actor).Magic));
         }
         private void DrawMovingBodies(string shownLevel,string localOwner)
         {
@@ -326,6 +333,7 @@ namespace Remains.Presentation
                     view.transform.rotation=Quaternion.Euler(0,0,pose.Angle);
                 }
                 view.SetMirrored(WeaponPose.Flip(actor));
+                view.DrawGrip(LevitatedWeapon(actor) && view.gameObject.activeInHierarchy);
                 if(view.gameObject.activeInHierarchy && shotAnimation.TryEmission(actor,sprite,view.transform.localToWorldMatrix,out var emission))
                 {muzzleEmissions.Add(emission);muzzleSourceIds.Add("flash:"+shotAnimation.EmissionId(actor));}
             }

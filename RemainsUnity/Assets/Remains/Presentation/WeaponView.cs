@@ -10,12 +10,30 @@ namespace Remains.Presentation
         [SerializeField,InspectorName("Основной спрайт")] private SpriteRenderer artwork;
         [SerializeField,InspectorName("Дуло (для стрелкового оружия)")] private Transform muzzle;
         [SerializeField,InspectorName("Фитиль бутылки")] private Transform wick;
+        // The source registration is the holding point, not the centre of the image.
+        // Kept in weapon-local space so reflected/rotating artwork and its mist share one transform.
+        [SerializeField,InspectorName("Рукоятка: центр дымки")] private Vector2 gripCenter;
+        [SerializeField,InspectorName("Рукоятка: размер дымки, м")] private Vector2 gripSize=new(.38f,.28f);
         [SerializeField,InspectorName("Кадр покоя и исходная регистрация")] private CatalogSpriteReference restReference;
+        private WeaponGripGlow gripGlow;
         private MaterialPropertyBlock properties;
         public string Id=>id;
         public SpriteRenderer Artwork=>artwork;
         public Transform Muzzle=>muzzle;
         public Transform Wick=>wick;
+        public Vector2 GripCenter=>gripCenter;
+        public Vector2 GripSize=>gripSize;
+        public WeaponGripGlow GripGlow=>gripGlow;
+        public void PrepareGrip(Color color)
+        {
+            if(gripGlow==null)
+            {
+                gripGlow=gameObject.AddComponent<WeaponGripGlow>();
+                gripGlow.Initialize(artwork,gripCenter,gripSize);
+            }
+            gripGlow.SetColor(color);
+        }
+        public void DrawGrip(bool visible)=>gripGlow?.Draw(visible);
         // Source geometry belongs to authoring, independently of the screen-dependent drawing resolution.
         public CatalogSpriteReference RestReference=>restReference!=null && restReference.IsConfigured?restReference:
             artwork!=null && artwork.sprite!=null?CatalogSpriteReference.FromSprite(artwork.sprite):null;
