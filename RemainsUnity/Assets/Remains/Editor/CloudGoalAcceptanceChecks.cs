@@ -59,6 +59,7 @@ namespace Remains.Editor
             Check("horizontal motion",HorizontalMotionChecks.Run);
             Check("variable jump",VariableJumpChecks.Run);
             Check("platform drop",PlatformDropChecks.Run);
+            Check("host shared graph and authority",HostWorldChecks.Run);
             string directory=Path.GetFullPath(Path.Combine(Application.dataPath,"../../Verification/cloud-goal"));Directory.CreateDirectory(directory);
             File.WriteAllText(Path.Combine(directory,"results.json"),JsonUtility.ToJson(report,true));
             Debug.Log("CLOUD_GOAL_SUMMARY total="+report.cases.Count+" failed="+failed);
