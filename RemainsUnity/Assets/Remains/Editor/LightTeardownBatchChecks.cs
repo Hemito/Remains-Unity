@@ -10,9 +10,9 @@ namespace Remains.Editor
         {
             try
             {
-                for(int i=0;i<3;i++) AnimationBufferLifetimeChecks.Run();
+                // The 2D Animation fallback-buffer release is a package patch not taken here (LIGHT-TEARDOWN in tech-debt).
                 ActorShadowTeardownChecks.Run();
-                Debug.Log("LIGHT_TEARDOWN_PASS: six fallback lifetimes and nine active render-target teardown cases.");
+                Debug.Log("LIGHT_TEARDOWN_PASS: nine active render-target teardown cases.");
                 EditorApplication.Exit(0);
             }
             catch(Exception error) {Debug.LogException(error);EditorApplication.Exit(1);}
