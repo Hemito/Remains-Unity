@@ -60,7 +60,9 @@ namespace Remains.Editor
             Run(1);
             Require(context.LastStepped==2,$"Смена геометрии не разбудила тела: шагов {context.LastStepped}.");
             CheckTrackedSupport();
-            Debug.Log("Сон тел: PASS — стопка засыпает, проверка по очереди, скорость будит, верхний падает без опоры, смена геометрии будит.");
+            CheckEntryBaseline();
+            Debug.Log("Сон тел: PASS — стопка засыпает, проверка по очереди, скорость будит, верхний падает без опоры, смена геометрии будит, " +
+                "тело уровня при входе не получает новой версии позы.");
         }
 
         private static void CheckTrackedSupport()
@@ -120,6 +122,36 @@ namespace Remains.Editor
             impulse.Invoke(context,new object[]{upper});
             FreePropMotion.Step(world,"local",1f/60,_=>room,_=>false,null,null,context);
             Require(context.LastStepped==1 && upper.x>x,"Импульс не разбудил тело в следующий шаг.");
+        }
+
+        // Factory entry (2026-11-08): every body of the entered level is simulated by its owner for the first time. A
+        // body already resting holds the pose every peer has, so it must not get a new pose version (that re-sent the
+        // whole level's bodies in the next world tick); a falling body still publishes its motion.
+        private static void CheckEntryBaseline()
+        {
+            const string level="entry:sleep";
+            var room=new RoomLayout {id=level,left=0,right=30,bottom=0,top=20,platforms=new[]{new RoomSurface {x=0,y=-1,width=30,height=1}}};
+            RoomSurfaces.Prepare(room);
+            var world=new WorldState();
+            world.actors.Add(new ActorState {id="entry:player",player=true,connected=true,level=level,owner="o",x=1,y=0});
+            var resting=new PropState {id="entry:resting",level=level,owner="o",x=5,y=.5f,width=1,height=1,anchorHeight=.5f,generation=4,sequence=7};
+            var falling=new PropState {id="entry:falling",level=level,owner="o",x=15,y=4,width=1,height=1,anchorHeight=.5f,generation=2,sequence=3};
+            world.props.Add(resting);world.props.Add(falling);
+            var context=new FreePropMotionContext(trackSupport:true);var cadence=new FreePropPoseCadence();
+            int restingVersions=0,fallingVersions=0;double now=0;
+            void Publish(PropState prop)
+            {
+                if(!cadence.ShouldPublish(prop,now,out bool changed) || !changed) return;
+                if(prop==resting) restingVersions++;else fallingVersions++;
+            }
+            for(int i=0;i<30;i++,now+=1d/60) FreePropMotion.Step(world,"o",1f/60,_=>room,_=>false,Publish,null,context,null,null,null,cadence.Observe);
+            Require(restingVersions==0 && resting.y==.5f,$"Лежащее тело при входе получило новую версию позы: {restingVersions}, y={resting.y}.");
+            Require(fallingVersions>0 && falling.y<4,"Падение тела, впервые увиденного владельцем, не опубликовано.");
+            int heartbeats=0;cadence.PublishDue(100,id=>{if(id==resting.id) heartbeats++;});
+            Require(heartbeats==0,"Ни разу не опубликованному телу назначен повтор позы.");
+            cadence.Observe(new PropState {id=resting.id,owner="o",level=level,generation=4,x=9});
+            resting.vx=1;resting.x=5.1f;
+            Require(cadence.ShouldPublish(resting,now,out bool moved) && moved,"Повторное наблюдение сдвинуло базу: движение после входа не опубликовано.");
         }
 
         private static void Require(bool condition,string message) {if(!condition) throw new InvalidOperationException(message);}

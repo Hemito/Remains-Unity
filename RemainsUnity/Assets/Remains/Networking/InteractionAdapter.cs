@@ -256,7 +256,9 @@ namespace Remains.Networking
             if(session.SharedHostWorld)
             {
                 if(!PropPoseScope.CanPublish(session.ServerWorld,session.LocalActor,prop,session.Pause.IsServerPaused(prop.level))) return;
-                WorldChanges.Mark(session.ServerWorld,prop);session.BroadcastState(message,Channels.Unreliable);
+                // A heartbeat repeats the pose the world already holds: nothing for the tick composer to re-serialize.
+                if(newPose) WorldChanges.Mark(session.ServerWorld,prop);
+                session.BroadcastState(message,Channels.Unreliable);
             }
             else session.SendToServer(message,Channels.Unreliable);
         }

@@ -310,7 +310,16 @@ namespace Remains.Runtime
             if(body==null || !observed.ContainsKey(stage.reload.token) || !visuals.ReloadAnimation.TryGet(body,out var state))return;
             Require(state.Token==stage.reload.token && state.Item==stage.reload.weaponItem && state.Selection==stage.reload.selectionRevision && state.Generation==generation && state.Lifecycle==lifecycle,"Captured binding не принадлежит stage.");
             var view=visuals.FindWeapon(source);var asset=assets[state.Weapon];
-            Require(view!=null && view.gameObject.activeInHierarchy && view.Artwork.enabled && view.Artwork.sprite==asset.ReloadAnimation.Frame(state.Frame) && view.Muzzle!=null,"Нет actual reload renderer кадра.");
+            var expectedSprite=asset.ReloadAnimation.Frame(state.Frame);
+            if(!(view!=null && view.gameObject.activeInHierarchy && view.Artwork.enabled && view.Artwork.sprite==expectedSprite && view.Muzzle!=null))
+            {
+                // Which frame the renderer shows against the state's (a lag of one step vs. probe timing; 2026-11-08 flake).
+                int shown=-1;
+                for(int i=0;view!=null && i<state.FrameCount;i++) if(asset.ReloadAnimation.Frame(i)==view.Artwork.sprite) {shown=i;break;}
+                Require(false,$"Нет actual reload renderer кадра: view={(view!=null)}, active={view?.gameObject.activeInHierarchy}, enabled={view?.Artwork.enabled}, "+
+                    $"muzzle={(view?.Muzzle!=null)}, кадр состояния={state.Frame}/{state.FrameCount}, кадр изображения={shown}, sprite={view?.Artwork.sprite?.name}, "+
+                    $"ожидался={expectedSprite?.name}, progress={state.Progress:F4}, свой={(source==runtime.Session.LocalActorId)}, unityFrame={Time.frameCount}, stage={stage.phase}.");
+            }
             Vector2 actual=view.Muzzle.position,expected=WeaponPose.Muzzle(body);float error=Vector2.Distance(actual,expected);
             Require(error<=.0001f && Camera.main!=null,"Actual reload muzzle/камера не подтверждены.");
             string path=runtime.Options.Report+".reload-"+stage.phase+".png";

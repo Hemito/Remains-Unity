@@ -22,6 +22,7 @@ namespace Remains.Gameplay
         private readonly Action<PropState,Vector2> notifyMotion;
         private readonly Action<PropState> retainFinalPose;
         private readonly Action<string> publishDue;
+        private readonly Action<PropState> observePose;
         private readonly HashSet<string> finalPoses=new(StringComparer.Ordinal);
         private double publishTime;
         private string poseWorld;
@@ -36,6 +37,7 @@ namespace Remains.Gameplay
             publishChanged=prop=> {if(poses.ShouldPublish(prop,publishTime,out bool changed)) publishPose(prop,changed);};
             retainFinalPose=prop=>finalPoses.Add(prop.id);
             publishDue=PublishCurrentPose;
+            observePose=poses.Observe;
             isPaused=session.Pause.IsPaused;
             session.Changed+=()=>
             {
@@ -61,7 +63,7 @@ namespace Remains.Gameplay
             publishTime=Time.unscaledTimeAsDouble;
             bool publish=cadence.TryAdvance(publishTime);
             FreePropMotion.Step(session.World,session.LocalOwner,delta,roomForLevel,isPaused,
-                publish?publishChanged:null,passengers,motion,notifyMotion,retainFinalPose,connectedPlayers);
+                publish?publishChanged:null,passengers,motion,notifyMotion,retainFinalPose,connectedPlayers,observePose);
             if(publish)
             {
                 using var section=Remains.Diagnostics.FrameHitchLog.Section("Тела: повторы поз");

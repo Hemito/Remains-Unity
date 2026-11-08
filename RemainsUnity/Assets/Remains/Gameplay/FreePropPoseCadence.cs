@@ -21,6 +21,18 @@ namespace Remains.Gameplay
         private readonly SortedSet<(double at,string id)> due=new(Comparer<(double at,string id)>.Create(
             (left,right)=>left.at!=right.at?left.at.CompareTo(right.at):StringComparer.Ordinal.Compare(left.id,right.id)));
         public void Reset() {sent.Clear();due.Clear();}
+        // A body this owner simulates for the first time holds the pose every peer already has: it came with the
+        // world (snapshot, tick or ownership change). Its state before the first step is the baseline, not a new pose
+        // version; only a later difference publishes one. Without it, every body of an entered level got a new
+        // sequence on its first publication and the next world tick re-sent the whole level's bodies (2026-11-08:
+        // 933 containers and 360 props, ~1 MB, after each factory entry). No heartbeat is scheduled for a body
+        // never published: there is no lost final pose to recover.
+        public void Observe(PropState prop)
+        {
+            if(prop==null || sent.ContainsKey(prop.id)) return;
+            sent[prop.id]=new Entry {owner=prop.owner,level=prop.level,generation=prop.generation,
+                x=prop.x,y=prop.y,vx=prop.vx,vy=prop.vy,next=double.PositiveInfinity};
+        }
         public bool ShouldPublish(PropState prop,double now)=>ShouldPublish(prop,now,out _);
         // changed: the pose differs from the last one sent (a new pose version); a resting heartbeat repeats the
         // last pose and keeps its sequence, so receivers that already have it ignore it and the world state

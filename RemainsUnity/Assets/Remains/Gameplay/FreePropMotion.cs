@@ -13,7 +13,8 @@ namespace Remains.Gameplay
             =>Step(world,localOwner,dt,roomForLevel,isPaused,publish,passengers,new FreePropMotionContext());
         public static int Step(WorldState world,string localOwner,float dt,Func<string,RoomLayout> roomForLevel,
             Func<string,bool> isPaused,Action<PropState> publish,PassengerMotionRegistry passengers,FreePropMotionContext context,
-            Action<PropState,Vector2> moved,Action<PropState> settled=null,IReadOnlyList<ActorState> connectedPlayers=null)
+            Action<PropState,Vector2> moved,Action<PropState> settled=null,IReadOnlyList<ActorState> connectedPlayers=null,
+            Action<PropState> observe=null)
         {
             if(world==null || dt<=0) return 0;
             if(string.IsNullOrEmpty(localOwner)) throw new ArgumentException("Не задан владелец симуляции свободных объектов.",nameof(localOwner));
@@ -30,6 +31,8 @@ namespace Remains.Gameplay
                 if(prop.owner!=localOwner || !prop.movable || !prop.hasPhysicalBody || !context.Running(prop.level)) continue;
                 // A body carried by telekinesis may leave bodies resting on it without support (no geometry needed).
                 if(prop.held) {context.WakeAbove(prop,prop.y);continue;}
+                // Before any step: a body first seen here gets its received pose as the publication baseline.
+                observe?.Invoke(prop);
                 var room=context.Room(prop.level,roomForLevel);
                 if(context.Sleeping(prop,room,dt)) {sleeping++;publish?.Invoke(prop);continue;}
                 var passenger=room.dynamicSurfaces?.Count>0?passengers?.ForProp(prop):null;
