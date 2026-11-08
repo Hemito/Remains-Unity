@@ -37,7 +37,9 @@ namespace Remains.Editor
             Check("factory loot",FactoryLootChecks.Run);
             Check("factory encounters and danger",FactoryRandomEncounterChecks.Run);
             Check("grate projectile",GrateProjectileChecks.Run);
-            Check("movement",MovementChecks.Run);
+            Check("horizontal motion",HorizontalMotionChecks.Run);
+            Check("variable jump",VariableJumpChecks.Run);
+            Check("platform drop",PlatformDropChecks.Run);
             string directory=Path.GetFullPath(Path.Combine(Application.dataPath,"../../Verification/cloud-goal"));Directory.CreateDirectory(directory);
             File.WriteAllText(Path.Combine(directory,"results.json"),JsonUtility.ToJson(report,true));
             Debug.Log("CLOUD_GOAL_SUMMARY total="+report.cases.Count+" failed="+failed);
