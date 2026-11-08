@@ -32,7 +32,7 @@ namespace Remains.Networking
         public void RegisterServer()
         {
             approved.Clear();waiting.Clear();closing.Clear();RejectedCount=0;
-            NetworkServer.RegisterHandler<ProtocolHello>(Remains.Networking.MessageTiming.Server<ProtocolHello>((connection,message)=>
+            session.RegisterServerHandler<ProtocolHello>(Remains.Networking.MessageTiming.Server<ProtocolHello>((connection,message)=>
             {
                 if(closing.ContainsKey(connection.connectionId)) return;
                 string reason=SessionProtocol.Rejection(message.version);
@@ -61,7 +61,7 @@ namespace Remains.Networking
         public void Begin()
         {
             pending=true;ClientApproved=false;LastError=null;deadline=Time.realtimeSinceStartup+10;
-            NetworkClient.Send(new ProtocolHello {version=OfferedVersion});
+            session.SendToServer(new ProtocolHello {version=OfferedVersion});
         }
         public void ResetClient() {pending=false;ClientApproved=false;}
         public void EndClient()
