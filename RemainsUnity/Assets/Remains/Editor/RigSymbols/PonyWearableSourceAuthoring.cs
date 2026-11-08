@@ -29,19 +29,13 @@ namespace Remains.Editor
         // Called before runtime catalog registration. Generated sources remain schema1; no defensive/gameplay stats are introduced.
         public static IReadOnlyList<Source> BuildSources()
         {
-            string project=Path.GetFullPath("..");string xmlPath=Path.Combine(project,".reference/original/pfeUI.xml");
+            string project=Path.GetFullPath(Path.Combine(Application.dataPath,"../.."));string xmlPath=Path.Combine(project,".reference/original/pfeUI.xml");
             if(PonyWearableArtSource.Hash(File.ReadAllBytes(xmlPath))!=XmlHash)throw new InvalidDataException("Одежда: XML не соответствует закреплённой 1.04 Graphic Update.");
             string dataPath=Path.Combine(project,".reference/original/dlc-ui/scripts/fe/AllData.as");
             var definitions=Regex.Matches(File.ReadAllText(dataPath),@"<armor\b[^>]*>").Cast<Match>().Select(m=>XElement.Parse(m.Value+"</armor>"))
                 .ToDictionary(e=>(string)e.Attribute("id"),StringComparer.Ordinal);
-            string ruPath=Path.Combine(project,".reference/rig-symbols/armor-text-ru.xml");
-            if(!File.Exists(ruPath))
-            {
-                const string installed="Q:/Steam/steamapps/common/Remains/DLC/text_ru.xml";
-                if(!File.Exists(installed))throw new InvalidDataException("Одежда: нужен снимок DLC/text_ru.xml по пути "+ruPath);
-                Directory.CreateDirectory(Path.GetDirectoryName(ruPath));File.Copy(installed,ruPath);
-                Debug.Log("Одежда: русские названия взяты из установленного DLC/text_ru.xml 1.04; снимок="+ruPath);
-            }
+            string ruPath=AuthoringInputPaths.RequireFile(project,"REMAINS_ARMOR_TEXT_RU",
+                ".reference/rig-symbols/armor-text-ru.xml","Одежда: снимок DLC/text_ru.xml 1.04");
             var names=XDocument.Load(ruPath).Descendants("armor").ToDictionary(e=>(string)e.Attribute("id"),e=>(string)e.Element("n"),StringComparer.Ordinal);
             var xml=new PonyWearableXmlSource(xmlPath);
             var skeleton=StateJson.FromJson<WearableSourceBank>(File.ReadAllText(Root+"antirad.json"));

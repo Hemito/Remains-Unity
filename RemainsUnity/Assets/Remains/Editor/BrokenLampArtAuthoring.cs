@@ -15,7 +15,7 @@ namespace Remains.Editor
     {
         public const string Root="Assets/Remains/Resources/Presentation/Lamps/Broken/";
         public const string AssetPath=Root+"LampArt.asset";
-        private const string Archive="Q:/Загрузка/Remains_broken_lamps.zip";
+        private const string ArchiveDefault=".reference/room-art/Remains_broken_lamps.zip";
         private static readonly string[] Types={"light1","light2","light3","light4","light5","light6","light7","stlight1","stlight3","stlight4"};
 
         public static void GenerateAndCheck()
@@ -27,19 +27,21 @@ namespace Remains.Editor
         [MenuItem("Remains/Свет/Импортировать разбитые лампы")]
         public static void Generate()
         {
+            string archive=AuthoringInputPaths.RequireFile(Path.GetFullPath(Path.Combine(Application.dataPath,"../..")),
+                "REMAINS_BROKEN_LAMP_ARCHIVE",ArchiveDefault,"Разбитые лампы");
             var original=AssetDatabase.LoadAssetAtPath<RoomTileArtAsset>(RoomTileArtAuthoring.AssetPath)
                 ??throw new InvalidOperationException("Нет исходного набора графики комнат.");
-            using var zip=ZipFile.OpenRead(Archive);
+            using var zip=ZipFile.OpenRead(archive);
             var named=zip.Entries.ToDictionary(entry=>entry.FullName,StringComparer.Ordinal);
             if(!named.TryGetValue("manifest_broken.json",out var manifestEntry)) throw new InvalidOperationException("Нет манифеста разбитых ламп.");
             JsonValue manifest;
-            using(var reader=new StreamReader(manifestEntry.Open())) manifest=JsonText.Parse(reader.ReadToEnd(),Archive);
-            if(manifest.Get("format").AsString(Archive)!="remains-lamp-broken-art" || manifest.Get("version").AsLong(Archive)!=1 || manifest.Get("types").AsLong(Archive)!=Types.Length)
+            using(var reader=new StreamReader(manifestEntry.Open())) manifest=JsonText.Parse(reader.ReadToEnd(),archive);
+            if(manifest.Get("format").AsString(archive)!="remains-lamp-broken-art" || manifest.Get("version").AsLong(archive)!=1 || manifest.Get("types").AsLong(archive)!=Types.Length)
                 throw new InvalidOperationException("Неверный формат/версия/число видов разбитых ламп.");
             var rows=manifest.Get("art").Items;
             if(rows.Count!=Types.Length || !new HashSet<string>(rows.Select(row=>Text(row,"type")),StringComparer.Ordinal).SetEquals(Types))
                 throw new InvalidOperationException("Манифест разбитых ламп содержит неожиданные или повторные виды.");
-            var omitted=manifest.Get("notIncluded").Items.Select(item=>item.AsString(Archive)).ToArray();
+            var omitted=manifest.Get("notIncluded").Items.Select(item=>item.AsString(archive)).ToArray();
             if(omitted.Length!=2 || !new HashSet<string>(omitted).SetEquals(new[]{"bar","exit_light"}))
                 throw new InvalidOperationException("Манифест разбитых ламп содержит неожиданные исключения.");
             // Validate all archive inputs before writing any project assets. Only explicit approved paths are read.
@@ -109,7 +111,7 @@ namespace Remains.Editor
             EditorUtility.SetDirty(asset);AssetDatabase.SaveAssets();
             Debug.Log("BrokenLampArtAuthoring: PASS — 10 PNG, исходные SHA/размеры/привязки и границы спрайтов проверены.");
         }
-        private static string Text(JsonValue row,string key)=>row.Get(key).AsString(Archive+":"+key);
-        private static double Number(JsonValue row,string key)=>row.Get(key).AsDouble(Archive+":"+key);
+        private static string Text(JsonValue row,string key)=>row.Get(key).AsString("manifest_broken.json:"+key);
+        private static double Number(JsonValue row,string key)=>row.Get(key).AsDouble("manifest_broken.json:"+key);
     }
 }
