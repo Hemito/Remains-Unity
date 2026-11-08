@@ -45,7 +45,7 @@ namespace Remains.Runtime
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+100;runtime.CommandSource=Command;
-            trace=gameObject.AddComponent<JourneyTransportTrace>();trace.Initialize(value.Session.transport);
+            trace=gameObject.AddComponent<JourneyTransportTrace>();trace.Initialize(value.Session);
             weapons=new JourneyWeaponStage(value);
             interactions=new JourneyInteractionStage(value);
             if(Resume)
