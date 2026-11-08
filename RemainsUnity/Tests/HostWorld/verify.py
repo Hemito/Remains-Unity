@@ -59,7 +59,7 @@ for mode in a.modes:
     data=json.loads(report.read_text()) if report.exists() else {'success':False,'detail':'Missing report'}
     data.update(role=role,exit_code=process.returncode)
     results.append(data)
-   host_log=(directory/'session-host.log').read_text(errors='replace')
+   host_log=(directory/'session-host.log').read_text(encoding='utf-8',errors='replace')
    observed='off' if 'Режим хоста: один мир' in host_log else 'on' if 'Режим хоста: самоотправка' in host_log else 'unknown'
    passed=all(r.get('success') and r['exit_code']==0 for r in results) and (mode!='default' or not a.expect_default or observed==a.expect_default)
    result={'mode':mode,'observed_mode':observed,'scenario':scenario,'success':passed,'directory':str(directory),'reports':results}
