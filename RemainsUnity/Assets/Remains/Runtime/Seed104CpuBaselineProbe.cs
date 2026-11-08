@@ -65,10 +65,10 @@ namespace Remains.Runtime
         private void CreatePlayerFixture(LaunchOptions options)
         {
             string directory=Argument("--baseline-create-fixture",null);
-            if(Application.isEditor || Application.platform!=RuntimePlatform.WindowsPlayer || !Application.isBatchMode ||
+            if(Application.isEditor || Application.platform is not (RuntimePlatform.WindowsPlayer or RuntimePlatform.LinuxPlayer) || !Application.isBatchMode ||
                 options.Role!="host" || options.Smoke!="seed104-baseline" || string.IsNullOrWhiteSpace(directory) ||
                 directory.StartsWith("--",StringComparison.Ordinal) || string.IsNullOrWhiteSpace(options.SaveDirectory) || string.IsNullOrEmpty(options.Report))
-                throw new InvalidOperationException("Создание Player fixture требует Windows Player batchmode, host, seed104-baseline, --baseline-create-fixture <dir>, пустого save-dir и report.");
+                throw new InvalidOperationException("Создание Player fixture требует Windows/Linux Player batchmode, host, seed104-baseline, --baseline-create-fixture <dir>, пустого save-dir и report.");
             string fixtureDirectory=Path.GetFullPath(directory).TrimEnd(Path.DirectorySeparatorChar,Path.AltDirectorySeparatorChar);
             string saveDirectory=Path.GetFullPath(options.SaveDirectory).TrimEnd(Path.DirectorySeparatorChar,Path.AltDirectorySeparatorChar);
             if(fixtureDirectory.Equals(saveDirectory,StringComparison.OrdinalIgnoreCase) ||
@@ -103,7 +103,7 @@ namespace Remains.Runtime
                 saves.SaveWorld(StateJson.FromJson<WorldState>(worldText));
                 saves.SaveCharacter(StateJson.FromJson<ActorState>(actorText));
                 createdPlayerFixture=true;
-                Debug.Log($"CPU seed104: создан новый Windows Player fixture: {fixtureDirectory}. Совпадение с hash прежнего Editor baseline3 не заявляется.");
+                Debug.Log($"CPU seed104: создан новый Player fixture ({Application.platform}): {fixtureDirectory}. Совпадение с hash прежнего Editor baseline3 не заявляется.");
             }
             finally {FactoryContentSources.Clear();}
         }
@@ -253,7 +253,7 @@ namespace Remains.Runtime
             report.fastLampUpdates=lampProbe && runtime.ActiveFactoryLighting!=null?runtime.ActiveFactoryLighting.Light.FastLampUpdates-initialFastLampUpdates:0;
             if(lampProbe)report.limitations+=" Цель стрельбы изменена на одну видимую лампу у входа (--baseline-lamp-target); этот прогон не сравнивается по FPS с прежним combat, направленным вправо.";
             if(createdPlayerFixture)
-                report.limitations+=" Создан новый Windows Player fixture; его SHA-256 не объявляется совпадающим с прежним Editor baseline3. Последующие сравнения требуют этих же world.json/character.json и fixtureSha256.";
+                report.limitations+=" Создан новый native Player fixture; его SHA-256 не объявляется совпадающим с прежним Editor baseline3. Последующие сравнения требуют этих же world.json/character.json и fixtureSha256.";
             if(scenario=="bodies") report.limitations+=" Bodies — смещение двух дальних записей host fixture каждые 3 секунды с dirty marks; это нагрузка snapshot body delta, не игровая проверка физики/владения.";
             report.limitations+=" "+FrameHitchLog.SectionTimingScope;
             if(!report.allocationMetricAvailable) report.limitations+=" allocatedBytes/allocationsPerFrame недостоверны: счётчик сбросился; эти поля нельзя использовать. memory — GC.GetTotalMemory(false), не native/GPU память.";
