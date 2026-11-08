@@ -110,7 +110,7 @@ namespace Remains.Runtime
             {
                 // Stand in the outer half of the blast so the sole connected player survives the handoff.
                 float target=thrower.x+WeaponCatalog.Get("grenade").range*5/6;
-                return new PlayerCommand {movement=new Vector2(Mathf.Clamp((target-actor.x)*2,-1,1),0)};
+                return ProbeRouteMotion.Approach(actor,target,"grenade-stance");
             }
             if(phase!=1 || !Source || threw) return default;
             // Keep the handoff/damage scenario above its support. A downward release
