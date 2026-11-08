@@ -112,7 +112,11 @@ namespace Remains.Editor
             foreach(var point in source.Samples)
             {
                 float distance=Vector2.Distance(target,new Vector2(point.x,point.y));
-                float edge=1-Mathf.SmoothStep(0,1,Mathf.InverseLerp(source.Reach*.9f,source.Reach,distance));
+                // Match the accepted full-range fade; the old reference held constant until 90% reach.
+                float window=Mathf.Clamp01(1-distance*distance/(source.Reach*source.Reach));
+                float reference=Mathf.Min(1,source.Reach*.25f)/source.Reach;
+                float normalise=1-reference*reference;
+                float edge=window*window/(normalise*normalise);
                 value+=2*Mathf.Atan(point.z*source.Width/(2*Math.Max(distance,.05f)))*edge;
             }
             return new Color(Radiance.r*value,Radiance.g*value,Radiance.b*value,1);
