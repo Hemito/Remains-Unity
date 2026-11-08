@@ -216,6 +216,7 @@ namespace Remains.Runtime
             interactionVisuals=CreateOwnedObject("Визуальные взаимодействия").AddComponent<InteractionVisuals>();
             interactionVisuals.Initialize(Session,Interactions,Grenades,Geometry,visualLayers,Combat.Reload);
             interactionVisuals.ConfigureActorFrame(actorFrames.Frame);
+            interactionVisuals.PresentationActor=PresentActor;
             actorShadows=new ActorShadowPresentation(this,transform);
             FireVisuals fireVisuals=null;
             interactionVisuals.ConfigureMuzzleLighting(emissions=>
@@ -240,7 +241,7 @@ namespace Remains.Runtime
             });
             heldAppearance=CreateOwnedObject("Цвет удерживаемых предметов").AddComponent<HeldPropGlowPresentation>();
             heldAppearance.Initialize(Session,interactionVisuals,ponyMagic);
-            HeldItems=CreateOwnedObject("Удерживаемые вещи").AddComponent<HeldItemVisuals>();HeldItems.Initialize(Session,visualLayers);
+            HeldItems=CreateOwnedObject("Удерживаемые вещи").AddComponent<HeldItemVisuals>();HeldItems.Initialize(Session,visualLayers);HeldItems.PresentationActor=PresentActor;
             var room=RoomLayout.Load(shownLevel);
             movement=CreateMovement(room);
             npcs=new NpcController(Session,Geometry,Combat);
@@ -554,6 +555,7 @@ namespace Remains.Runtime
             foreach(var visual in activeVisuals.Values) visual.ApplyHeldAppearance(colors);
             actorVisualWorld=world.worldId;actorVisualLevel=visible;
         }
+        private ActorState PresentActor(ActorState actor)=>Session.SharedHostWorld?remoteMotion.Presentation(actor):actor;
         private string actorVisualWorld,actorVisualLevel;
         private void RefreshActorVisual(string id,ActorState actor,string visibleLevel)
         {
@@ -652,6 +654,8 @@ namespace Remains.Runtime
             using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("PrototypeRuntime.Update");
             if(roomFailurePending) return;
             using(Remains.Diagnostics.FrameHitchLog.Section("Сохранения: очередь")) Session.PumpSaveWrites();
+            // Server messages handled in NetworkEarlyUpdate may add a level or actor before this simulation step.
+            Session.FlushSharedHostChanged();
             using(Remains.Diagnostics.FrameHitchLog.Section("Сессия: шаги служб"))
             {
             Session.Admission.Step();Session.Travel.Step();Session.Lobby.Step();Session.Pause.Step();Session.Deposits.Step();Session.ActorHolds.Step();

@@ -27,7 +27,8 @@ namespace Remains.Networking
         }
         public void Step()=>pending.Drain(IsServerPaused);
         private readonly HashSet<string> pausedLevels=new(StringComparer.Ordinal);
-        public long Revision {get;private set;}=-1;
+        private long revision=-1;
+        public long Revision {get=>session.SharedHostWorld?ServerRevision:revision;private set=>revision=value;}
         public long ServerRevision=>published.revision;
         public bool PauseOnMenu {get;private set;}
         public bool PauseOnInventory {get;private set;}
@@ -93,7 +94,7 @@ namespace Remains.Networking
         }
         private void Receive(PauseStateMessage message)
         {
-            if(message.revision<=Revision) return;
+            if(message.revision<=revision) return;
             Revision=message.revision;PauseOnMenu=message.pauseOnMenu;PauseOnInventory=message.pauseOnInventory;
             pausedLevels.Clear();foreach(string level in message.levels) pausedLevels.Add(level);
             Changed?.Invoke();

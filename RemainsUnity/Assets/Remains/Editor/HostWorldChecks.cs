@@ -27,6 +27,7 @@ namespace Remains.Editor
         }
         private static void CheckPresentationIsolation()
         {
+            Anatomy.Load();Remains.Content.WeaponCatalog.Load();
             foreach(int fps in new[]{30,60,144})
             {
                 var actor=new ActorState {id="remote",owner="remote",level="hub",player=true,connected=true,vx=4,pose="run",motionSequence=1,motionClockGeneration=0};
@@ -42,6 +43,9 @@ namespace Remains.Editor
                 var shown=motion.Presentation(actor);
                 Require(!ReferenceEquals(shown,actor) && ReferenceEquals(shown.inventory,actor.inventory),"Presentation must be a shallow read-only shell");
                 Require(shown.x>actor.x && shown.poseTime>actor.poseTime,"Detached motion and animation did not advance");
+                var delta=shown.BodyPosition-actor.BodyPosition;
+                Require((HeldItemPose.Mount(shown)-HeldItemPose.Mount(actor)-delta).sqrMagnitude<1e-8f,"Held item detached from rendered body");
+                Require((WeaponPose.SampleRanged(shown).Root-WeaponPose.SampleRanged(actor).Root-delta).sqrMagnitude<1e-8f,"Weapon detached from rendered body");
                 Require(ReferenceEquals(motion.Presentation(local),local),"Local simulation was projected");
                 actor.owner="local";motion.Step(world,"local",1f/fps,_=>false,2,false,true);
                 Require(ReferenceEquals(motion.Presentation(actor),actor),"Stale remote projection survived ownership transfer");

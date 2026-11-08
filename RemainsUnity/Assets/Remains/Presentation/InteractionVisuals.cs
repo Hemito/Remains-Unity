@@ -11,6 +11,7 @@ namespace Remains.Presentation
     public sealed class InteractionVisuals : MonoBehaviour
     {
         private CoopSession session;
+        public Func<ActorState,ActorState> PresentationActor {get;set;}
         private InteractionAdapter interactions;
         private GrenadeController grenades;
         private SimulationGeometry geometry;
@@ -297,8 +298,9 @@ namespace Remains.Presentation
             var actors=frameActors??session.World.actors;
             for(int i=0;i<actors.Count;i++)
             {
-                var actor=actors[i];
-                if(!weapons.TryGetValue(actor.id,out var view)) continue;
+                var canonicalActor=actors[i];
+                if(!weapons.TryGetValue(canonicalActor.id,out var view)) continue;
+                var actor=PresentationActor?.Invoke(canonicalActor)??canonicalActor;
                 if(!ActorPresence.IsPresent(actor) || ActorSessionRules.IsPassive(actor) || actor.level!=shownLevel)
                 {view.SetVisible(false);continue;}
                 if(string.IsNullOrEmpty(actor.weapon) || HeldItemSelection.HasSelection(actor) || Remains.Content.WeaponCatalog.IsGrenade(actor.weapon) && !actor.heldItemPoseValid) {view.SetVisible(false);continue;}

@@ -98,6 +98,22 @@ namespace Remains.Networking
         }
         private void Receive(NetworkConnectionToClient connection,DepositRequest request)
         {
+            var actor=session.ConnectedActor(connection);
+            if(!session.IsSharedHostConnection(connection) || actor==null || !requests.TryGetValue(request.transaction,out var local))
+            {ReceiveAuthority(connection,request);return;}
+            // The UI reservation lives on the shared actor. Exclude this request's own reservation while its
+            // authoritative debit is validated; other queued requests remain reserved and remote checks are unchanged.
+            string item=InventoryStacks.ResolveId(actor.inventoryAliases,local.item);
+            if(actor.inventoryReservations.TryGetValue(item,out int held))
+            {
+                int remaining=held-local.quantity;
+                if(remaining>0) actor.inventoryReservations[item]=remaining;else actor.inventoryReservations.Remove(item);
+            }
+            try {ReceiveAuthority(connection,request);}
+            finally {Reconcile();}
+        }
+        private void ReceiveAuthority(NetworkConnectionToClient connection,DepositRequest request)
+        {
             var actor=session.ConnectedActor(connection);if(actor==null) return;
             string key=actor.id+":"+request.transaction;
             if(replies.TryGetValue(key,out var previous)) {connection.Send(previous);return;}

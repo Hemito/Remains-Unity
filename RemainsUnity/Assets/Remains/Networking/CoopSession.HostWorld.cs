@@ -12,6 +12,7 @@ namespace Remains.Networking
     public sealed partial class CoopSession
     {
         private readonly Dictionary<Type,Action<NetworkConnectionToClient,object,int>> localServerHandlers=new();
+        private readonly Queue<(Type type,object message,int channel)> localHostRequests=new();
         internal void RegisterServerHandler<T>(Action<NetworkConnectionToClient,T> handler,bool requireAuthentication=true) where T:struct,NetworkMessage
             =>RegisterServerHandler<T>((connection,message,channel)=>handler(connection,message),requireAuthentication);
         internal void RegisterServerHandler<T>(Action<NetworkConnectionToClient,T,int> handler,bool requireAuthentication=true) where T:struct,NetworkMessage
@@ -28,9 +29,25 @@ namespace Remains.Networking
         {
             if(!SharedHostWorld || LocalActorId==null)
             {NetworkClient.Send(message,channel);return;}
-            var connection=NetworkServer.localConnection??throw new InvalidOperationException("Host has no local connection.");
-            if(!localServerHandlers.TryGetValue(typeof(T),out var handler)) throw new InvalidOperationException("No local authority handler for "+typeof(T).Name);
-            handler(connection,message,channel);
+            if(!localServerHandlers.ContainsKey(typeof(T))) throw new InvalidOperationException("No local authority handler for "+typeof(T).Name);
+            localHostRequests.Enqueue((typeof(T),message,channel));
+        }
+        // Process after gameplay Update loops. A travel/grenade command may change level topology or remove a flight;
+        // applying it inside its caller's enumeration would invalidate that simulation loop.
+        private void FlushLocalHostRequests()
+        {
+            int count=localHostRequests.Count;
+            for(int i=0;i<count;i++)
+            {
+                var request=localHostRequests.Dequeue();
+                if(!SharedHostWorld || LocalActorId==null || NetworkServer.localConnection==null) continue;
+                localServerHandlers[request.type](NetworkServer.localConnection,request.message,request.channel);
+            }
+        }
+        private void ResetHostWorldBuffers()
+        {
+            localHostRequests.Clear();hostChangePending=hostUnknownParts=false;hostChangeKind=WorldChangeKind.None;
+            hostChangeParts.Clear();hostActorLives.Clear();
         }
         internal bool IsSharedHostConnection(NetworkConnectionToClient connection)=>SharedHostWorld && ReferenceEquals(connection,NetworkServer.localConnection);
         internal void BroadcastState<T>(T message,int channel=Channels.Reliable) where T:struct,NetworkMessage
@@ -45,6 +62,24 @@ namespace Remains.Networking
         {
             if(NetworkServer.active || NetworkClient.active) throw new InvalidOperationException("Host mode cannot change during a session.");
             hostSelfTicks=enabled??Debug.isDebugBuild;
+        }
+        private bool hostChangePending,hostUnknownParts;
+        private WorldChangeKind hostChangeKind;
+        private readonly HashSet<string> hostChangeParts=new(StringComparer.Ordinal);
+        private void QueueSharedHostChanged(WorldChangeKind kind,IReadOnlyCollection<string> parts)
+        {
+            hostChangePending=true;hostChangeKind|=kind;
+            if(parts==null) hostUnknownParts=true;
+            else foreach(string part in parts) hostChangeParts.Add(part);
+        }
+        // Direct local authority can commit while a physics system enumerates its flights. Reconcile presentation
+        // after all Update simulation loops, retaining the exact union of composed keys rather than re-entering them.
+        internal void FlushSharedHostChanged()
+        {
+            if(!hostChangePending) return;
+            var kind=hostChangeKind;IReadOnlyCollection<string> parts=hostUnknownParts?null:hostChangeParts.ToArray();
+            hostChangePending=hostUnknownParts=false;hostChangeKind=WorldChangeKind.None;hostChangeParts.Clear();
+            if(SharedHostWorld && World!=null && LocalActorId!=null) DeliverChanged(kind,parts);
         }
         private readonly Dictionary<string,(int life,bool alive)> hostActorLives=new(StringComparer.Ordinal);
         private void ObserveHostLives()
@@ -69,7 +104,7 @@ namespace Remains.Networking
             if(LocalActor.level!="hub") Saves.PreserveCharacterSource();
             QueueRecoveryReceipt(snapshot);
             Debug.Log("Подключён хост: один мир, character="+LocalActor.character+", actor="+LocalActorId);
-            RaiseChanged();
+            DeliverChanged();
             if(!GameplayFailurePending) EntryPreparation.CompleteAdmission();
         }
         private void PublishSharedHostTick(WorldTick tick)

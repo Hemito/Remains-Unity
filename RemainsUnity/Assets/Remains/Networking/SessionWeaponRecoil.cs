@@ -38,7 +38,10 @@ namespace Remains.Networking
                     if(actor.owner!=session.LocalOwner && (actor.weaponRecoil==null || !actor.weaponRecoil.IsValid ||
                         actor.weaponRecoil.pauseRevision!=session.Pause.Revision ||
                         session.Pause.IsPaused(actor.level) && (actor.weaponRecoil.offsetX!=0 || actor.weaponRecoil.angleDegrees!=0)))
+                    {
                         WeaponRecoilReplication.Normalize(actor,session.Pause.Revision,session.Pause.IsPaused(actor.level),"world="+session.World.worldId+", actor="+actor.id);
+                        if(session.SharedHostWorld) WorldChanges.Mark(session.World,actor);
+                    }
             }
             catch(Exception error) {session.ReportGameplayPreparationFailure(new InvalidOperationException("Ошибка симуляции отдачи; сессия остановлена до новых выстрелов.",error));}
         }

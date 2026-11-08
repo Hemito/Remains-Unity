@@ -9,9 +9,11 @@ using Remains.Content;
 namespace Remains.Presentation
 {
     // Inventory/asset resolution runs on selection and transaction changes, not in Update.
+    [DefaultExecutionOrder(1000)]
     public sealed class HeldItemVisuals : MonoBehaviour
     {
         private CoopSession session;
+        public Func<ActorState,ActorState> PresentationActor {get;set;}
         private ActorVisualLayers layers;
         private InventoryArtwork artwork;
         private SpriteRenderer prefab;
@@ -71,7 +73,8 @@ namespace Remains.Presentation
             if(session?.World==null) return;
             foreach(var pair in views)
             {
-                var actor=session.World.Find(pair.Key);
+                var canonical=session.World.Find(pair.Key);
+                var actor=PresentationActor?.Invoke(canonical)??canonical;
                 pair.Value.enabled=actor!=null && HeldItemSelection.HasSelection(actor) && actor.heldItemPoseValid &&
                     ActorPresence.IsPresent(actor) && !ActorSessionRules.IsPassive(actor) && actor.level==session.LocalActor?.level;
                 if(!pair.Value.enabled) continue;

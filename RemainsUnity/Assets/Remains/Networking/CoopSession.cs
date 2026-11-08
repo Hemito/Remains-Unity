@@ -111,6 +111,11 @@ namespace Remains.Networking
         public IReadOnlyCollection<string> LastChangedParts {get;private set;}
         private void RaiseChanged(WorldChangeKind kind=WorldChangeKind.All,IReadOnlyCollection<string> parts=null)
         {
+            if(SharedHostWorld && World!=null && LocalActorId!=null) {QueueSharedHostChanged(kind,parts);return;}
+            DeliverChanged(kind,parts);
+        }
+        private void DeliverChanged(WorldChangeKind kind=WorldChangeKind.All,IReadOnlyCollection<string> parts=null)
+        {
             var handlers=Changed;if(handlers==null) return;
             LastChange=kind;LastChangedParts=kind==WorldChangeKind.All?null:parts;
             try
@@ -294,7 +299,7 @@ namespace Remains.Networking
             FrameHitchLog.Note("Режим хоста: "+(HostSelfTicks?"самоотправка":"один мир"));
             savingFailed=false;
             BeginJoinSelection();
-            localServerHandlers.Clear();
+            localServerHandlers.Clear();ResetHostWorldBuffers();
             canonicalPersistedRevision=-1;
             npcHits=gameObject.AddComponent<NpcHitDelivery>();
             npcHits.Initialize(this,owner=>
@@ -1622,6 +1627,7 @@ namespace Remains.Networking
         public override void LateUpdate()
         {
             base.LateUpdate();
+            FlushLocalHostRequests();
             if(NetworkServer.active && ServerWorld!=null)
             {
                 double now=Time.unscaledTimeAsDouble;
@@ -1629,9 +1635,12 @@ namespace Remains.Networking
                 if(tickPaused.Count>0) ResumeDrainedTicks();
             }
             if(predictions.Count>0 && NetworkClient.active) SettlePredictions(Time.unscaledTime);
-            if(!commitAtFrameEnd) return;
-            commitAtFrameEnd=false;
-            if(NetworkServer.active && ServerWorld!=null) CommitWorld();
+            if(commitAtFrameEnd)
+            {
+                commitAtFrameEnd=false;
+                if(NetworkServer.active && ServerWorld!=null) CommitWorld();
+            }
+            FlushSharedHostChanged();
         }
         private void ResumeDrainedTicks()
         {
@@ -1678,6 +1687,7 @@ namespace Remains.Networking
         }
         public override void OnStopClient()
         {
+            ResetHostWorldBuffers();
             recoil?.Clear();
             selfHealing.Reset();
             CharacterContent.Reset();ModMismatch?.Invoke(null);
