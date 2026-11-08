@@ -1,0 +1,59 @@
+# Builds the browser room editor (Tools/RoomEditor) from source and publishes it to GitHub Pages.
+# The editor's own checks run before publishing; a failing check stops the deployment.
+name: Room editor on Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Tools/RoomEditor/**'
+      - 'Tools/RoomConvert/**'
+      - 'RemainsUnity/Assets/Remains/RoomFormat/**'
+      - 'RemainsUnity/Assets/Remains/Domain/**'
+      - 'RemainsUnity/Assets/Remains/Gameplay/**'
+      - 'RemainsUnity/Assets/Remains/Rooms/Original/**'
+      - 'RemainsUnity/Assets/Remains/Resources/Content/movement.json'
+      - 'RemainsUnity/Assets/Remains/Resources/Content/anatomy.json'
+      - '.github/workflows/room-editor-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: room-editor-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: Tools/RoomEditor/global.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build and check the editor
+        env:
+          DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+        run: python Tools/RoomEditor/build.py --output site
+      - name: Serve deep links through the app
+        run: cp site/wwwroot/index.html site/wwwroot/404.html && touch site/wwwroot/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/wwwroot
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

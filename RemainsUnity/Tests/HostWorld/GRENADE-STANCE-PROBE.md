@@ -1,0 +1,13 @@
+# Frame-rate-safe grenade stance probe
+
+This separate test branch starts at common integration `42a05d34cf1f1fb16d74d7eac8e66aebf8ba587e`. It changes only the phase0 movement command in `NetworkGrenadeProbe` to the existing `ProbeRouteMotion.Approach(actor,target,"grenade-stance")`. All other probe code, the45s deadline, strict0.05m position/0.15m/s velocity/0.05m height readiness, grenade fuse, damage and counts remain byte-identical. Production movement and the shared route helper are unchanged.
+
+The old proportional input could oscillate around the target at low frame rates, keeping the probe in phase0. The regression calculates its target exactly as the real probe: throwerX17 plus the authored grenade range6 multiplied by5/6, giving targetX22.
+
+`Remains.Editor.GrenadeProbeRouteChecks.Run` passed in actual Unity6000.0.39f1 with one worker. It uses real `MovementController`, `ActorPose`, authored movement settings, anatomy, foot support and weapon catalog. The old `Clamp((target-x)*2,-1,1)` input at3Hz never met readiness during45 simulated seconds, ending at x21.1999989 with vx−4.1999998. The existing `ProbeRouteMotion.Axis` then passed all16 cases:3/5/7/10/15/30/60/144Hz from x17 and x27, with the exact original readiness tolerances. All final velocities were0 and position errors were below0.025m. Full numerical results are in [GRENADE-STANCE-RESULTS.json](GRENADE-STANCE-RESULTS.json).
+
+The whole modified `NetworkGrenadeProbe` and new fixture also compiled against the actual frozen Linux Player managed APIs with C#9 and no substitute stubs. Only duplicate probe-message type warnings occurred because the standalone compile references the original Assembly-CSharp as well as its replacement source.
+
+Run the native regression in an imported Unity project with `-batchmode -nographics -job-worker-count 1 -executeMethod Remains.Editor.GrenadeProbeRouteChecks.Run -quit`. Optional `REMAINS_GRENADE_ROUTE_REPORT` selects the JSON output; default is `Temp/GrenadeProbeRouteChecks/result.json`. The method returns normally on success, so `-quit` provides exit0; failed assertions throw and retain the diagnostic JSON.
+
+The coordinator executed the fixture through a temporary Editor-only copy in the already imported common project, then removed it. No Library was copied and no Player was rebuilt for this fix. Separately, the same earlier common Release Player passed ordinary-grenade on/off pairs at640×360 while its initial1280×720 phase0 failures remain recorded; those Player runs do not contain this new callsite change. Existing Windows/common artifacts are unchanged.

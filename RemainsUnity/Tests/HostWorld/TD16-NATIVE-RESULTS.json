@@ -1,0 +1,493 @@
+{
+  "date": "2026-11-07",
+  "platform": "Linux x86_64 Release, Unity6000.0.39f1 Mono",
+  "graphics": "GLCore, Mesa llvmpipe LLVM19.1.7 software renderer",
+  "protocol": 100,
+  "native_editor": {
+    "source_revision": "cf375f27188579a474fa737b7029f089ae64a633",
+    "success": true,
+    "checks": [
+      "HostWorldChecks.RunCore",
+      "GrenadeTelekinesisChecks.Run"
+    ]
+  },
+  "initial": {
+    "source_revision": "cf375f27188579a474fa737b7029f089ae64a633",
+    "assembly_sha256": "1704c0f6be31f3f1e15e89bd38b2756071c5c14292a1d63c8bd0f9802ad249d9",
+    "render_size": [
+      1280,
+      720
+    ],
+    "runner_sha256": "22ec09b2e8c6f46cd220fffebce9899d4e2846912eb132bfc0c42b3d7a6cb65b",
+    "passed_pairs": 2,
+    "total_pairs": 4,
+    "runs": [
+      {
+        "scenario": "grenade-telekinesis",
+        "host_self_ticks": "off",
+        "observed_mode": "off",
+        "success": true,
+        "reports": [
+          {
+            "role": "host",
+            "success": true,
+            "exit_code": 0,
+            "originalGeneration": 1,
+            "holdGeneration": 2,
+            "releaseGeneration": 3,
+            "blastGeneration": 3,
+            "blastCount": 1,
+            "visuals": 1,
+            "catcherReceipts": 1,
+            "throwerReceipts": 1,
+            "catcherGrenades": 5,
+            "throwerGrenades": 4,
+            "stalePoseSent": false,
+            "staleHoldReplaySent": true,
+            "detachedFlight": true,
+            "sharedWorld": true,
+            "held_travel_m": 4.098459,
+            "held_fuse_advance_s": 0.900001
+          },
+          {
+            "role": "client",
+            "success": true,
+            "exit_code": 0,
+            "originalGeneration": 1,
+            "holdGeneration": 2,
+            "releaseGeneration": 3,
+            "blastGeneration": 3,
+            "blastCount": 1,
+            "visuals": 1,
+            "catcherReceipts": 1,
+            "throwerReceipts": 1,
+            "catcherGrenades": 5,
+            "throwerGrenades": 4,
+            "stalePoseSent": true,
+            "staleHoldReplaySent": false,
+            "detachedFlight": true,
+            "sharedWorld": false,
+            "held_travel_m": 4.098459,
+            "held_fuse_advance_s": 0.716666
+          }
+        ]
+      },
+      {
+        "scenario": "grenade-telekinesis-expire",
+        "host_self_ticks": "off",
+        "observed_mode": "off",
+        "success": false,
+        "reports": [
+          {
+            "role": "host",
+            "success": true,
+            "exit_code": 0,
+            "originalGeneration": 1,
+            "holdGeneration": 2,
+            "releaseGeneration": 0,
+            "blastGeneration": 2,
+            "blastCount": 1,
+            "visuals": 1,
+            "catcherReceipts": 1,
+            "throwerReceipts": 1,
+            "catcherGrenades": 5,
+            "throwerGrenades": 4,
+            "stalePoseSent": false,
+            "staleHoldReplaySent": true,
+            "detachedFlight": true,
+            "sharedWorld": true,
+            "held_travel_m": 3.951591,
+            "held_fuse_advance_s": 2.475005
+          },
+          {
+            "role": "client",
+            "success": false,
+            "exit_code": 1,
+            "originalGeneration": 1,
+            "holdGeneration": 2,
+            "releaseGeneration": 0,
+            "blastGeneration": 2,
+            "blastCount": 1,
+            "visuals": 1,
+            "catcherReceipts": 1,
+            "throwerReceipts": 1,
+            "catcherGrenades": 5,
+            "throwerGrenades": 4,
+            "stalePoseSent": true,
+            "staleHoldReplaySent": false,
+            "detachedFlight": true,
+            "sharedWorld": false,
+            "held_travel_m": 0.328119,
+            "held_fuse_advance_s": 1.891665
+          }
+        ]
+      },
+      {
+        "scenario": "grenade-telekinesis",
+        "host_self_ticks": "on",
+        "observed_mode": "on",
+        "success": false,
+        "reports": [
+          {
+            "role": "host",
+            "success": true,
+            "exit_code": 0,
+            "originalGeneration": 1,
+            "holdGeneration": 2,
+            "releaseGeneration": 3,
+            "blastGeneration": 3,
+            "blastCount": 1,
+            "visuals": 1,
+            "catcherReceipts": 1,
+            "throwerReceipts": 1,
+            "catcherGrenades": 5,
+            "throwerGrenades": 4,
+            "stalePoseSent": false,
+            "staleHoldReplaySent": true,
+            "detachedFlight": true,
+            "sharedWorld": false,
+            "held_travel_m": 3.919605,
+            "held_fuse_advance_s": 0.750006
+          },
+          {
+            "role": "client",
+            "success": false,
+            "exit_code": 1,
+            "originalGeneration": 0,
+            "holdGeneration": 2,
+            "releaseGeneration": 3,
+            "blastGeneration": 3,
+            "blastCount": 1,
+            "visuals": 1,
+            "catcherReceipts": 1,
+            "throwerReceipts": 1,
+            "catcherGrenades": 5,
+            "throwerGrenades": 4,
+            "stalePoseSent": true,
+            "staleHoldReplaySent": false,
+            "detachedFlight": true,
+            "sharedWorld": false,
+            "held_travel_m": 0.0,
+            "held_fuse_advance_s": 0.0
+          }
+        ]
+      },
+      {
+        "scenario": "grenade-telekinesis-expire",
+        "host_self_ticks": "on",
+        "observed_mode": "on",
+        "success": true,
+        "reports": [
+          {
+            "role": "host",
+            "success": true,
+            "exit_code": 0,
+            "originalGeneration": 1,
+            "holdGeneration": 2,
+            "releaseGeneration": 0,
+            "blastGeneration": 2,
+            "blastCount": 1,
+            "visuals": 1,
+            "catcherReceipts": 1,
+            "throwerReceipts": 1,
+            "catcherGrenades": 5,
+            "throwerGrenades": 4,
+            "stalePoseSent": false,
+            "staleHoldReplaySent": true,
+            "detachedFlight": true,
+            "sharedWorld": false,
+            "held_travel_m": 4.05694,
+            "held_fuse_advance_s": 1.958332
+          },
+          {
+            "role": "client",
+            "success": true,
+            "exit_code": 0,
+            "originalGeneration": 1,
+            "holdGeneration": 2,
+            "releaseGeneration": 0,
+            "blastGeneration": 2,
+            "blastCount": 1,
+            "visuals": 1,
+            "catcherReceipts": 1,
+            "throwerReceipts": 1,
+            "catcherGrenades": 5,
+            "throwerGrenades": 4,
+            "stalePoseSent": true,
+            "staleHoldReplaySent": false,
+            "detachedFlight": true,
+            "sharedWorld": false,
+            "held_travel_m": 4.05694,
+            "held_fuse_advance_s": 1.958332
+          }
+        ]
+      }
+    ]
+  },
+  "fixed": {
+    "source_revision": "7616938e76bf92ef01574427aaba2c6940d82da8",
+    "assembly_sha256": "94ed34eeb1487e94ad04b3afd574d71b2e639c701794c28060a65d075d9ffe3a",
+    "render_size": [
+      640,
+      360
+    ],
+    "runner_sha256": "afb1905860241db59e09f4527dee634a7c09f490068293ccfa9bb33de2816ce8",
+    "passed_pairs": 4,
+    "total_pairs": 4,
+    "runs": [
+      {
+        "scenario": "grenade-telekinesis",
+        "host_self_ticks": "off",
+        "observed_mode": "off",
+        "success": true,
+        "reports": [
+          {
+            "role": "host",
+            "success": true,
+            "exit_code": 0,
+            "originalGeneration": 1,
+            "holdGeneration": 2,
+            "releaseGeneration": 3,
+            "blastGeneration": 3,
+            "blastCount": 1,
+            "visuals": 1,
+            "catcherReceipts": 1,
+            "throwerReceipts": 1,
+            "catcherGrenades": 5,
+            "throwerGrenades": 4,
+            "stalePoseSent": false,
+            "staleHoldReplaySent": true,
+            "detachedFlight": true,
+            "sharedWorld": true,
+            "held_travel_m": 4.016108,
+            "held_fuse_advance_s": 0.683337,
+            "live_acknowledgements": {
+              "peerReady": true,
+              "peerFlightSeen": true,
+              "peerHoldSeen": true,
+              "peerMotionSeen": true
+            }
+          },
+          {
+            "role": "client",
+            "success": true,
+            "exit_code": 0,
+            "originalGeneration": 1,
+            "holdGeneration": 2,
+            "releaseGeneration": 3,
+            "blastGeneration": 3,
+            "blastCount": 1,
+            "visuals": 1,
+            "catcherReceipts": 1,
+            "throwerReceipts": 1,
+            "catcherGrenades": 5,
+            "throwerGrenades": 4,
+            "stalePoseSent": true,
+            "staleHoldReplaySent": false,
+            "detachedFlight": true,
+            "sharedWorld": false,
+            "held_travel_m": 4.016108,
+            "held_fuse_advance_s": 0.625003,
+            "live_acknowledgements": {
+              "readySent": true,
+              "flightSeenSent": true,
+              "holdSeenSent": true,
+              "motionSeenSent": true
+            }
+          }
+        ]
+      },
+      {
+        "scenario": "grenade-telekinesis-expire",
+        "host_self_ticks": "off",
+        "observed_mode": "off",
+        "success": true,
+        "reports": [
+          {
+            "role": "host",
+            "success": true,
+            "exit_code": 0,
+            "originalGeneration": 1,
+            "holdGeneration": 2,
+            "releaseGeneration": 0,
+            "blastGeneration": 2,
+            "blastCount": 1,
+            "visuals": 1,
+            "catcherReceipts": 1,
+            "throwerReceipts": 1,
+            "catcherGrenades": 5,
+            "throwerGrenades": 4,
+            "stalePoseSent": false,
+            "staleHoldReplaySent": true,
+            "detachedFlight": true,
+            "sharedWorld": true,
+            "held_travel_m": 4.08951,
+            "held_fuse_advance_s": 2.225003,
+            "live_acknowledgements": {
+              "peerReady": true,
+              "peerFlightSeen": true,
+              "peerHoldSeen": true,
+              "peerMotionSeen": true
+            }
+          },
+          {
+            "role": "client",
+            "success": true,
+            "exit_code": 0,
+            "originalGeneration": 1,
+            "holdGeneration": 2,
+            "releaseGeneration": 0,
+            "blastGeneration": 2,
+            "blastCount": 1,
+            "visuals": 1,
+            "catcherReceipts": 1,
+            "throwerReceipts": 1,
+            "catcherGrenades": 5,
+            "throwerGrenades": 4,
+            "stalePoseSent": true,
+            "staleHoldReplaySent": false,
+            "detachedFlight": true,
+            "sharedWorld": false,
+            "held_travel_m": 4.08951,
+            "held_fuse_advance_s": 2.183336,
+            "live_acknowledgements": {
+              "readySent": true,
+              "flightSeenSent": true,
+              "holdSeenSent": true,
+              "motionSeenSent": true
+            }
+          }
+        ]
+      },
+      {
+        "scenario": "grenade-telekinesis",
+        "host_self_ticks": "on",
+        "observed_mode": "on",
+        "success": true,
+        "reports": [
+          {
+            "role": "host",
+            "success": true,
+            "exit_code": 0,
+            "originalGeneration": 1,
+            "holdGeneration": 2,
+            "releaseGeneration": 3,
+            "blastGeneration": 3,
+            "blastCount": 1,
+            "visuals": 1,
+            "catcherReceipts": 1,
+            "throwerReceipts": 1,
+            "catcherGrenades": 5,
+            "throwerGrenades": 4,
+            "stalePoseSent": false,
+            "staleHoldReplaySent": true,
+            "detachedFlight": true,
+            "sharedWorld": false,
+            "held_travel_m": 3.973598,
+            "held_fuse_advance_s": 0.650002,
+            "live_acknowledgements": {
+              "peerReady": true,
+              "peerFlightSeen": true,
+              "peerHoldSeen": true,
+              "peerMotionSeen": true
+            }
+          },
+          {
+            "role": "client",
+            "success": true,
+            "exit_code": 0,
+            "originalGeneration": 1,
+            "holdGeneration": 2,
+            "releaseGeneration": 3,
+            "blastGeneration": 3,
+            "blastCount": 1,
+            "visuals": 1,
+            "catcherReceipts": 1,
+            "throwerReceipts": 1,
+            "catcherGrenades": 5,
+            "throwerGrenades": 4,
+            "stalePoseSent": true,
+            "staleHoldReplaySent": false,
+            "detachedFlight": true,
+            "sharedWorld": false,
+            "held_travel_m": 3.973598,
+            "held_fuse_advance_s": 0.650002,
+            "live_acknowledgements": {
+              "readySent": true,
+              "flightSeenSent": true,
+              "holdSeenSent": true,
+              "motionSeenSent": true
+            }
+          }
+        ]
+      },
+      {
+        "scenario": "grenade-telekinesis-expire",
+        "host_self_ticks": "on",
+        "observed_mode": "on",
+        "success": true,
+        "reports": [
+          {
+            "role": "host",
+            "success": true,
+            "exit_code": 0,
+            "originalGeneration": 1,
+            "holdGeneration": 2,
+            "releaseGeneration": 0,
+            "blastGeneration": 2,
+            "blastCount": 1,
+            "visuals": 1,
+            "catcherReceipts": 1,
+            "throwerReceipts": 1,
+            "catcherGrenades": 5,
+            "throwerGrenades": 4,
+            "stalePoseSent": false,
+            "staleHoldReplaySent": true,
+            "detachedFlight": true,
+            "sharedWorld": false,
+            "held_travel_m": 3.995242,
+            "held_fuse_advance_s": 2.400004,
+            "live_acknowledgements": {
+              "peerReady": true,
+              "peerFlightSeen": true,
+              "peerHoldSeen": true,
+              "peerMotionSeen": true
+            }
+          },
+          {
+            "role": "client",
+            "success": true,
+            "exit_code": 0,
+            "originalGeneration": 1,
+            "holdGeneration": 2,
+            "releaseGeneration": 0,
+            "blastGeneration": 2,
+            "blastCount": 1,
+            "visuals": 1,
+            "catcherReceipts": 1,
+            "throwerReceipts": 1,
+            "catcherGrenades": 5,
+            "throwerGrenades": 4,
+            "stalePoseSent": true,
+            "staleHoldReplaySent": false,
+            "detachedFlight": true,
+            "sharedWorld": false,
+            "held_travel_m": 3.995242,
+            "held_fuse_advance_s": 2.358337,
+            "live_acknowledgements": {
+              "readySent": true,
+              "flightSeenSent": true,
+              "holdSeenSent": true,
+              "motionSeenSent": true
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "limits": [
+    "The initial matrix contains two failed client-observation pairs and remains separate.",
+    "The fixed matrix is native Linux software-GL evidence; Windows pairs, physical-GPU appearance and listening quality were not measured.",
+    "No pause, time-scale, fuse or protocol adjustment was used to satisfy the probe."
+  ]
+}

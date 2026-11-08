@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+<PropertyGroup><TargetFramework>net8.0</TargetFramework><OutputType>Exe</OutputType><EnableDefaultCompileItems>false</EnableDefaultCompileItems><UnityEditorRoot Condition="'$(UnityEditorRoot)'==''">$(UNITY_EDITOR_ROOT)</UnityEditorRoot></PropertyGroup>
+<ItemGroup>
+<Compile Include="Program.cs"/><Compile Include="Shims.cs"/>
+<Compile Include="../../Assets/Remains/Presentation/AudioDspBuffer.cs" Link="AudioDspBuffer.cs"/>
+<Compile Include="../../Assets/Remains/Presentation/AudioLoopResume.cs" Link="AudioLoopResume.cs"/>
+<Compile Include="../../Assets/Remains/Presentation/AudioPreferences.cs" Link="AudioPreferences.cs"/>
+<Compile Include="../../Assets/Remains/Editor/AudioDspLoopChecks.cs" Link="AudioDspLoopChecks.cs"/>
+<Reference Include="Newtonsoft.Json"><HintPath>$(UnityEditorRoot)/Data/Managed/Newtonsoft.Json.dll</HintPath></Reference>
+</ItemGroup>
+</Project>
