@@ -10,8 +10,28 @@ namespace Remains.Presentation
     }
     public sealed class UnityAudioConfigurationDevice : IAudioConfigurationDevice
     {
-        public AudioConfiguration Read()=>AudioSettings.GetConfiguration();
-        public bool Reset(AudioConfiguration configuration)=>AudioSettings.Reset(configuration);
+        private readonly Func<AudioConfiguration> read;
+        private readonly Func<AudioConfiguration,bool> reset;
+        private readonly Func<Action> captureLoops;
+        private readonly Action<string> warning;
+        public UnityAudioConfigurationDevice(Func<AudioConfiguration> read=null,Func<AudioConfiguration,bool> reset=null,
+            Func<Action> captureLoops=null,Action<string> warning=null)
+        {
+            this.read=read??AudioSettings.GetConfiguration;this.reset=reset??AudioSettings.Reset;
+            this.captureLoops=captureLoops??AudioLoopResume.Capture;this.warning=warning??(message=>Debug.LogWarning(message));
+        }
+        public AudioConfiguration Read()=>read();
+        public bool Reset(AudioConfiguration configuration)
+        {
+            var resume=captureLoops();
+            try {return reset(configuration);}
+            finally
+            {
+                // A false/throwing reset can still stop sources, as can the later recovery reset.
+                try {resume?.Invoke();}
+                catch(Exception error) {warning("Не удалось возобновить циклический звук. "+error.Message);}
+            }
+        }
     }
     // One deliberate reset per apply, at most one rollback. Never driven by volume preview or buffer selection.
     public sealed class AudioDspBuffer
