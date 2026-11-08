@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using UnityEditor.Build.Reporting;
 using UnityEditor;
 using UnityEngine;
 using Debug=UnityEngine.Debug;
@@ -12,6 +14,23 @@ namespace Remains.Editor
     {
         [Serializable] public sealed class Case {public string name,status,detail;public long milliseconds;}
         [Serializable] public sealed class Report {public string revision,utc,version,renderer;public List<Case> cases=new();}
+        public static void BuildWindowsBatch()
+        {
+            try
+            {
+                if(!BuildPipeline.IsBuildTargetSupported(BuildTargetGroup.Standalone,BuildTarget.StandaloneWindows64))
+                    throw new InvalidOperationException("Windows Mono module is not recognized by this Editor.");
+                ActorShadowSourceChecks.Run();
+                var scenes=EditorBuildSettings.scenes.Where(scene=>scene.enabled).Select(scene=>scene.path).ToArray();
+                if(scenes.Length!=1) throw new InvalidOperationException("Expected one saved startup scene.");
+                string output=Path.GetFullPath(Path.Combine(Application.dataPath,"../Builds/Windows/Remains.exe"));
+                var build=BuildPipeline.BuildPlayer(new BuildPlayerOptions {scenes=scenes,locationPathName=output,target=BuildTarget.StandaloneWindows64,options=BuildOptions.Development});
+                if(build.summary.result!=BuildResult.Succeeded) throw new InvalidOperationException("Windows build failed: "+build.summary.result);
+                Debug.Log("CLOUD_GOAL_WINDOWS_BUILD_PASS "+output+" bytes="+build.summary.totalSize);
+                EditorApplication.Exit(0);
+            }
+            catch(Exception error) {Debug.LogException(error);EditorApplication.Exit(1);}
+        }
         public static void RunBatch()
         {
             var report=new Report {revision=Environment.GetEnvironmentVariable("REMAINS_TEST_REVISION"),utc=DateTime.UtcNow.ToString("O"),version=Application.unityVersion,renderer=SystemInfo.graphicsDeviceName};
