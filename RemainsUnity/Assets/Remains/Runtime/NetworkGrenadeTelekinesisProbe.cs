@@ -31,8 +31,8 @@ namespace Remains.Runtime
             {
                 if(runtime.Session.ConnectedActor(connection)?.id!=Thrower)return;
                 if(message.phase==ReadyPhase) {peerReady=true;return;}
-                var grenade=runtime.Session.ServerWorld?.grenades.Find(value=>value.attacker==Thrower &&
-                    (evidence.id==null || value.id==evidence.id));
+                var grenade=runtime.Session.ServerWorld?.grenades.Find(candidate=>candidate.attacker==Thrower &&
+                    (evidence.id==null || candidate.id==evidence.id));
                 if(grenade==null)return;
                 if(message.phase==FlightSeenPhase && grenade.generation==1 && grenade.holder==null &&
                     grenade.owner==runtime.Session.ServerWorld.Find(Thrower)?.owner)peerFlightSeen=true;
