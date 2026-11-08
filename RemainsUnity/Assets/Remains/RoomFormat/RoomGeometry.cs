@@ -79,7 +79,7 @@ namespace Remains.RoomFormat
             Func<int, int, int> heightAt, bool oneWay, bool shotsPass, bool merge)
         {
             if (grid == null) return;
-            var palette = room.Palettes[layer];
+            room.Palettes.TryGetValue(layer, out var palette);
             for (int r = 0; r < room.Height; r++)
             {
                 int x = 0;
@@ -90,7 +90,9 @@ namespace Remains.RoomFormat
                     int height = heightAt(r, x), end = x + 1;
                     if (merge)
                         while (end < room.Width && grid[r][end] == key && heightAt(r, end) == height) end++;
-                    var definition = definitions.Require(palette[key], $"{room.Template} слой {layer} клетка {x},{room.Height - 1 - r}");
+                    string context=$"{room.Template} слой {layer} клетка {x},{room.Height - 1 - r}";
+                    if(palette==null || !palette.TryGetValue(key,out string id)) throw new FormatException(context+": символ не найден в палитре.");
+                    var definition = definitions.Require(id, context);
                     if (string.IsNullOrEmpty(definition.MovementSound))
                         geometry.Issues.Add($"{room.Template}: {definition.Id} без набора звуков шагов — используется настройка комнаты.");
                     int cellY = room.Height - 1 - r;
@@ -110,7 +112,7 @@ namespace Remains.RoomFormat
         private static void Ladders(RoomFile room, RoomDefinitionCatalog definitions, RoomGeometry geometry, char[][] grid)
         {
             if (grid == null) return;
-            var palette = room.Palettes[RoomLayers.Ladder];
+            room.Palettes.TryGetValue(RoomLayers.Ladder, out var palette);
             for (int x = 0; x < room.Width; x++)
             {
                 int r = 0;
@@ -120,7 +122,9 @@ namespace Remains.RoomFormat
                     if (key == RoomFile.Empty) { r++; continue; }
                     int start = r;
                     while (r < room.Height && grid[r][x] == key) r++;
-                    var definition = definitions.Require(palette[key], $"{room.Template} лестница {x},{room.Height - 1 - start}");
+                    string context=$"{room.Template} лестница {x},{room.Height - 1 - start}";
+                    if(palette==null || !palette.TryGetValue(key,out string id)) throw new FormatException(context+": символ не найден в палитре.");
+                    var definition = definitions.Require(id, context);
                     geometry.Ladders.Add(new GeometryLadder
                     {
                         X = (x + definition.LadderFraction) * room.Cell,
