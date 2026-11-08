@@ -134,9 +134,14 @@ namespace Remains.Networking
             loot?.ApplyAccepted(World);
             hostActorLives[actor.id]=(actor.lifecycleSequence,!actor.down && actor.health>0);
             actor.motionSequence=unchecked(actor.motionSequence+1);StampMotion(actor);
-            WorldChanges.Mark(World,actor);World.revision++;
+            WorldChanges.Mark(World,actor);
+            // Match UpdateActor's authoritative handoff point: a completed NPC attack must publish its cooldown
+            // before the ordinary periodic ownership pass could see it expired.
+            bool checkpoint=!actor.player && wasAlive && (actor.down || actor.health<=0);
+            if(!actor.player && !actor.attackBusy) checkpoint|=ownership.ReassignAndReportChanges(World,owners.Values.ToArray());
+            World.revision++;
             if(blast!=null) DeathBlasts.Detonate(blast);
-            else if(wasAlive && (actor.down || actor.health<=0)) BroadcastWorld();
+            else if(checkpoint) BroadcastWorld();
             else BroadcastState(serverActors.Next(actor));
             RaiseChanged(changes,changes==WorldChangeKind.Actors?new[]{"actors:"+actor.id}:null);
         }
