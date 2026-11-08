@@ -62,7 +62,14 @@ namespace Remains.Editor
             Require(InventoryJournal.Count(actor,definition)==1&&available.items.Where(value=>value.definition==definition).Sum(value=>value.count)==before-1,"единственный подбор/уменьшение источника");
             Require(!inventory.PrepareClaim("loot-proof",available.id,available.items.FirstOrDefault()?.id,actor),"повтор операции не выдаёт дубль");
             string snapshot=StateJson.ToJson(world);
-            string path="../.reference/factory-loot-world.json";File.WriteAllText(path,snapshot);world=StateJson.FromJson<WorldState>(File.ReadAllText(path));
+            string directory=Path.Combine(Path.GetTempPath(),"remains-factory-loot-"+Guid.NewGuid().ToString("N"));
+            try
+            {
+                Directory.CreateDirectory(directory);
+                string path=Path.Combine(directory,"world.json");
+                File.WriteAllText(path,snapshot);world=StateJson.FromJson<WorldState>(File.ReadAllText(path));
+            }
+            finally {if(Directory.Exists(directory))Directory.Delete(directory,true);}
             FactoryContentSources.Clear();FactoryContentSources.Prepare(world,"factory:0");
             var second=RoomPhysicalContent.Read(FactoryContentSources.Require(world,"factory:0"),"factory:0");
             Require(!RoomContentInstaller.Apply(world,new RoomContentBatch {physical=second}),"повтор посещения не переустанавливает содержимое");
