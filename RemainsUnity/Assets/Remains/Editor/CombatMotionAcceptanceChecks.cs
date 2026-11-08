@@ -15,6 +15,15 @@ namespace Remains.Editor
     {
         [Serializable] public sealed class Result {public string check,status,detail;public long elapsedMs;}
         [Serializable] public sealed class Report {public string version,utc;public List<Result> results=new();}
+        private static IEnumerable<string> SelectedChecks(string[] all)
+        {
+            string filter=Environment.GetEnvironmentVariable("REMAINS_ACCEPTANCE_CHECKS");
+            if(string.IsNullOrWhiteSpace(filter)) return all;
+            var selected=filter.Split(',');
+            foreach(string name in selected)
+                if(Array.IndexOf(all,name)<0) throw new ArgumentException("Unknown acceptance check: "+name);
+            return selected;
+        }
         public static void RunBatch()
         {
             var report=new Report {version=Application.unityVersion,utc=DateTime.UtcNow.ToString("O")};
@@ -22,7 +31,7 @@ namespace Remains.Editor
             try
             {
                 Anatomy.Load();WeaponCatalog.Load();ActorTypes.Load();PonyAppearance.Prepare();
-                foreach(string name in new[]{"FirearmChecks","NaturalAttackChecks","NpcAttackChecks","PlayerStrikeAnimationChecks","FireChecks","GrenadeChecks","GrenadeAimChecks","RevivalChecks","LadderHoldChecks","LadderEntryPoseChecks","LadderPoseContactChecks","FactoryLadderLandingChecks","JumpPoseChecks","VariableJumpChecks","StandingEdgePoseChecks","StandingSupportPoseChecks","ActorBodySupportChecks","FootSupportContentChecks","WeaponRecoilMotionChecks","RemoteActorMotionChecks","FreePropMotionChecks","LevelPauseChecks","ProjectilePathChecks","ProjectilePersistenceChecks","ProjectileControllerChecks","LocalProjectileChecks","PonyStrikeChecks","BedRestChecks"})
+                foreach(string name in SelectedChecks(new[]{"FirearmChecks","NaturalAttackChecks","NpcAttackChecks","PlayerStrikeAnimationChecks","FireChecks","GrenadeChecks","GrenadeAimChecks","RevivalChecks","LadderHoldChecks","LadderEntryPoseChecks","LadderPoseContactChecks","FactoryLadderLandingChecks","JumpPoseChecks","VariableJumpChecks","StandingEdgePoseChecks","StandingSupportPoseChecks","ActorBodySupportChecks","FootSupportContentChecks","WeaponRecoilMotionChecks","RemoteActorMotionChecks","FreePropMotionChecks","LevelPauseChecks","ProjectilePathChecks","ProjectilePersistenceChecks","ProjectileControllerChecks","LocalProjectileChecks","PonyStrikeChecks","BedRestChecks"}))
                 {
                     var timer=Stopwatch.StartNew();var result=new Result {check=name,status="PASS",detail=""};
                     try
