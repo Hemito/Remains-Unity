@@ -177,6 +177,8 @@ namespace Remains.Editor
             ActiveReloadChecks.Run();ActiveReloadControllerChecks.Run();GrenadeTelekinesisChecks.Run();
             TelekinesisProbeChecks.Run();WorldFactoryCreationChecks.Run();
             ShortcutIconBindingChecks.Run();ActorShadowTeardownChecks.Run();
+            AudioDspLoopChecks.Run();AudioDspSettingsChecks.Run();AuthoringInputPathChecks.Run();ProbeRouteMotionChecks.Run();
+            RoomEmptyLayerGeometryChecks.Run();GrateProjectileChecks.Run();FactoryComponentLootChecks.Run();JourneyTransportTraceChecks.Run();WeaponGripGlowChecks.RunWithoutCapture();
             HeldPropColorChecks.Run();WorldLibraryIdentityChecks.Run();
             DamageFeedbackChecks.Run();
             OwnershipStabilityChecks.Run();

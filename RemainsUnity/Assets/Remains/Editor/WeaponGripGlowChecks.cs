@@ -17,6 +17,8 @@ namespace Remains.Editor
             catch(Exception error) {Debug.LogException(error);EditorApplication.Exit(1);}
         }
         public static void Run()=>Run(true);
+        // ContractChecks: the same cases without writing before/after frames into the repository.
+        public static void RunWithoutCapture()=>Run(false);
         public static void RunTransformsBatch()
         {
             try {Run(false);EditorApplication.Exit(0);}
