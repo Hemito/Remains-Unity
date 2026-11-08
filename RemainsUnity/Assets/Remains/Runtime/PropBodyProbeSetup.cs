@@ -98,15 +98,15 @@ namespace Remains.Runtime
             var actor=runtime.Session.LocalActor;
             if(phase==0)
             {
-                if(Mathf.Abs(actor.x-ladderX)>.06f) return new PlayerCommand {movement=Vector2.right*Mathf.Sign(ladderX-actor.x)};
+                if(Mathf.Abs(actor.x-ladderX)>.06f) return ProbeRouteMotion.Approach(actor,ladderX,"prop-body:hub-ladder");
                 phase=1;
             }
             if(phase==1)
             {
                 if(actor.y<Map.arrivalY+.02f) return new PlayerCommand {movement=Vector2.up};
-                phase=2;return new PlayerCommand {movement=Vector2.right*Mathf.Sign(Map.arrivalX-ladderX),jump=true};
+                phase=2;var jump=ProbeRouteMotion.Approach(actor,Map.arrivalX,"prop-body:hub-map-jump");jump.jump=true;return jump;
             }
-            if(Mathf.Abs(actor.x-Map.arrivalX)>.08f) return new PlayerCommand {movement=Vector2.right*Mathf.Sign(Map.arrivalX-actor.x)};
+            if(Mathf.Abs(actor.x-Map.arrivalX)>.08f) return ProbeRouteMotion.Approach(actor,Map.arrivalX,"prop-body:hub-map");
             if(phase==2 && Map.Rejection(actor)==null && ActorTerrainMotion.Supported(runtime.Geometry.Get("hub"),Anatomy.Movement(actor),actor.Position))
             {phase=3;return new PlayerCommand {interact=true,hasAim=true,aim=Map.Bounds.center};}
             return default;

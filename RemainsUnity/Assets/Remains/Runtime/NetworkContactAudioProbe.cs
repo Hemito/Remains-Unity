@@ -158,8 +158,8 @@ namespace Remains.Runtime
         {
             if(finished || !fixture || phase==0) return default;
             var self=runtime.Session.LocalActor;if(self==null) return default;
-            var destination=Destination();float dx=destination.x-self.x;
-            var command=new PlayerCommand {movement=Mathf.Abs(dx)>.06f?Vector2.right*Mathf.Sign(dx):Vector2.zero,hasAim=true};
+            var destination=Destination();
+            var command=ProbeRouteMotion.Approach(self,destination.x,"contact-audio:"+(Targets?"targets":"props")+":"+phase);command.hasAim=true;
             if(Attack)
             {
                 if(Projectile && Source) command.movement.y=1;
@@ -300,7 +300,7 @@ namespace Remains.Runtime
         }
         private void Finish(bool success,string detail)
         {
-            if(finished) return;finished=true;
+            if(finished) return;finished=true;ProbeRouteMotion.SaveTrace(runtime.Options.Report);
             int expected=Targets?3:6;
             if(success && proofs.Count!=expected) {success=false;detail=$"Неполный локальный набор доказательств: count={proofs.Count}, expected={expected}. "+detail;}
             File.WriteAllText(runtime.Options.Report,StateJson.ToJson(new Report {success=success,detail=detail,context=Context(),

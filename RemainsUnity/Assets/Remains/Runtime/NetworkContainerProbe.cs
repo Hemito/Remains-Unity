@@ -57,7 +57,7 @@ namespace Remains.Runtime
                     var target=InteractionSelection.Select(value.Session.World,actor,value.Session.Rules,cursor,value.Session.Travel.Points(actor.level));
                     if(target.kind==InteractionKind.Container && target.id==ContainerState.PrototypeId)
                         return new PlayerCommand {interact=true,hasAim=true,aim=cursor};
-                    return new PlayerCommand {movement=new Vector2(Math.Sign(box.x-actor.x),0)};
+                    return ProbeRouteMotion.Approach(actor,box.x,"container:"+phase);
                 }
                 return default;
             };
@@ -100,7 +100,7 @@ namespace Remains.Runtime
                 if(Time.unscaledTime>deadline) Finish(false,"Таймаут подтверждения итогов проверки контейнера.");
                 return;
             }
-            if(Time.unscaledTime>deadline) {Finish(false,$"Таймаут контейнера: phase={phase}, rejected={rejected}, pending={sawPending}, acknowledgements={acknowledgements.Count}.");return;}
+            if(Time.unscaledTime>deadline) {Finish(false,$"Таймаут контейнера: phase={phase}, rejected={rejected}, pending={sawPending}, acknowledgements={acknowledgements.Count}, actor={runtime.Session.LocalActor?.Position}, opened={opened}, hud={runtime.Hud.ShownInventorySourceId}.");return;}
             var session=runtime.Session;var actor=session.LocalActor;if(actor==null) return;
             if(Resume)
             {
@@ -229,7 +229,7 @@ namespace Remains.Runtime
         }
         private void Finish(bool success,string detail)
         {
-            if(finished) return;finished=true;
+            if(finished) return;finished=true;ProbeRouteMotion.SaveTrace(runtime.Options.Report);
             File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail},true));StartCoroutine(Exit(success));
         }
         private IEnumerator Exit(bool success) {yield return new WaitForSecondsRealtime(1);Application.Quit(success?0:1);}

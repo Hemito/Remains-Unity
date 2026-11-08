@@ -52,7 +52,7 @@ namespace Remains.Runtime
         private bool Source=>prepared && runtime.Session.LocalActorId==manifest.source;
         private ActorState Actor=>runtime.Session.LocalActor;
         private ActorState Victim=>prepared?runtime.Session.World.Find(manifest.source):null;
-        private ContainerState Cargo=>runtime.Session.World.containers.Find(c=>c.id==(prepared?manifest.cargo:setup?.Cargo.id));
+        private ContainerState Cargo=>runtime.Session.World?.containers.Find(c=>c.id==(prepared?manifest.cargo:setup?.Cargo.id));
         private Vector2 Lift=>prepared?new Vector2(manifest.liftX,manifest.liftY):setup.Lift;
 
         public void Initialize(PrototypeRuntime value)
@@ -327,7 +327,7 @@ namespace Remains.Runtime
         }
         private void Finish(bool success,string detail)
         {
-            if(finished) return;finished=true;
+            if(finished) return;finished=true;ProbeRouteMotion.SaveTrace(runtime.Options.Report);
             if(success && (proofs.Count!=requiredHits+2 || !fell || launches.Count!=requiredHits || Source && (landingVoices.Count!=1 || Frames && !downCaptured)))
             {success=false;detail="Неполный локальный набор доказательств. "+detail;}
             File.WriteAllText(runtime.Options.Report,StateJson.ToJson(new Report {success=success,detail=detail,context=Context(),
