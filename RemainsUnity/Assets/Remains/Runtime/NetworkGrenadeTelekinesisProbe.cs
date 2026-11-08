@@ -91,6 +91,14 @@ namespace Remains.Runtime
         private void Observe(GrenadeState grenade,WorldState world)
         {
             evidence.id=grenade.id;
+            var flight=runtime.Grenades.Find(grenade.id);
+            if(flight!=null)
+            {
+                if(ReferenceEquals(flight.state,grenade))
+                {Finish(false,"Локальная симуляция гранаты изменяет канонический объект мира.");return;}
+                evidence.detachedFlight=true;
+            }
+            if(Host) evidence.sharedWorld=ReferenceEquals(runtime.Session.World,runtime.Session.ServerWorld);
             if(grenade.x==StalePose) staleSeen=true;
             if(grenade.generation==1)
             {
@@ -103,7 +111,21 @@ namespace Remains.Runtime
                 {
                     evidence.holdGeneration=grenade.generation;evidence.heldOwner=grenade.owner;
                     evidence.holdPosition=grenade.Position;evidence.holdFuse=grenade.remaining;
-                    if(!Host)
+                    if(Host)
+                    {
+                        var actor=world.Find(Catcher);
+                        try
+                        {
+                            // Replay through the common request coordinator. On a shared host this must be a
+                            // registered queued authority command; stale generation must still be rejected.
+                            runtime.Session.SendToServer(new GrenadeHoldRequest {grenade=grenade.id,
+                                generation=grenade.generation-1,actorGeneration=actor.generation,
+                                actorLifecycle=actor.lifecycleSequence});
+                            evidence.staleHoldReplaySent=true;
+                        }
+                        catch(Exception error) {Finish(false,"Координатор захвата гранаты: "+error.Message);return;}
+                    }
+                    else
                     {
                         NetworkClient.Send(new GrenadePoseMessage {id=grenade.id,generation=grenade.generation-1,
                             sequence=grenade.sequence+100,x=StalePose,y=StalePose,remaining=grenade.remaining});
@@ -138,7 +160,8 @@ namespace Remains.Runtime
             evidence.visuals=runtime.Explosions.Shown;
             evidence.catcherReceipts=catcher.resolvedExplosions.Count(id=>id==evidence.id);
             evidence.throwerReceipts=thrower.resolvedExplosions.Count(id=>id==evidence.id);
-            return !staleSeen && (Host?evidence.airborneSpeed>1:evidence.stalePoseSent) &&
+            return !staleSeen && evidence.detachedFlight && (!Host || evidence.sharedWorld==runtime.Session.SharedHostWorld && evidence.staleHoldReplaySent) &&
+                (Host?evidence.airborneSpeed>1:evidence.stalePoseSent) &&
                 evidence.holdGeneration==2 && (!Host || evidence.originalGeneration==1) &&
                 evidence.originalOwner!=evidence.heldOwner && evidence.holdFuse-evidence.lastHeldFuse>.4f &&
                 Vector2.Distance(evidence.holdPosition,evidence.lastHeldPosition)>1 &&
@@ -162,7 +185,7 @@ namespace Remains.Runtime
 
         [Serializable] private sealed class Evidence
         {
-            public bool success,expireWhileHeld,stalePoseSent;
+            public bool success,expireWhileHeld,stalePoseSent,staleHoldReplaySent,detachedFlight,sharedWorld;
             public string detail,id,originalOwner,heldOwner,releaseOwner;
             public int originalGeneration,holdGeneration,releaseGeneration,blastGeneration,blastCount,visuals,
                 catcherReceipts,throwerReceipts,catcherGrenades,throwerGrenades;

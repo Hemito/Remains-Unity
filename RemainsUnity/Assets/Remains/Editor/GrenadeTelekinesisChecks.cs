@@ -19,6 +19,11 @@ namespace Remains.Editor
             GrenadeRules.Hold(grenade,catcher);
             Require(grenade.holder==catcher.id && grenade.owner==catcher.owner && grenade.generation==2 &&
                 grenade.Velocity==Vector2.zero && grenade.angularVelocity==0,"Захват не остановил полёт и не сменил владельца.");
+            var flightCopy=grenade.Copy();
+            Require(!ReferenceEquals(flightCopy,grenade) && flightCopy.holder==catcher.id && flightCopy.generation==2 &&
+                flightCopy.owner==catcher.owner,"Копия полёта потеряла захват или совпадает с канонической гранатой.");
+            flightCopy.x=999;flightCopy.sequence++;
+            Require(grenade.x==9.7f && grenade.sequence==0,"Движение/sequence копии изменяет каноническую гранату.");
             GrenadeRules.Step(grenade,room,.25f);
             Require(Mathf.Abs(grenade.remaining-1.75f)<.001f && grenade.Position==new Vector2(9.7f,5),"Запал или положение при удержании.");
             GrenadeRules.MoveHeld(grenade,room,new Vector2(100,5),.1f);
@@ -43,6 +48,7 @@ namespace Remains.Editor
             for(int frame=0;frame<120 && grenade.remaining>0;frame++) GrenadeRules.Step(grenade,room,1f/60);
             Require(grenade.remaining==0 && GrenadeRules.Detonate(world,grenade,Array.Empty<string>())!=null &&
                 GrenadeRules.Detonate(world,grenade,Array.Empty<string>())==null,"Запал в руке должен завершиться одним взрывом.");
+            Debug.Log("GRENADE_TELEKINESIS_RULES_PASS: hold/release/fuse/ownership/restart and detached flight copy.");
         }
 
         private static void Require(bool valid,string message)
