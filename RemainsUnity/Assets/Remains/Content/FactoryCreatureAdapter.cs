@@ -70,7 +70,7 @@ namespace Remains.Content
                 int hash=localId.Aggregate(0,(value,c)=>unchecked(value*31+c));
                 string key=id;
                 CreatureEntry creature;
-                if(string.IsNullOrEmpty(rule.variantRule)) creature=catalog.Require(rule.actorTypes[(int)((uint)hash>>1)%rule.actorTypes.Length]);
+                if(string.IsNullOrEmpty(rule.variantRule)) creature=catalog.Require(catalog.ChooseStableVariant(rule,placement.Room.Cell.Y/2.0,hash));
                 else
                 {
                     string chosen=CreatureCatalog.ChooseVariant(rule,placement.Room.Cell.Y/2.0,FactoryRandomEncounters.VariantRandom(root,localId),out string reason,root.Prepared.Profile);
@@ -119,7 +119,7 @@ namespace Remains.Content
                 var node=new GameObject("Случайное существо: "+encounter.Point.Id);
                 node.transform.SetParent(root.transform,false);node.transform.localPosition=encounter.Point.Position;
                 int hash=localId.Aggregate(0,(value,c)=>unchecked(value*31+c));
-                var creature=chosenVariant??catalog.Require(rule.actorTypes[(int)((uint)hash>>1)%rule.actorTypes.Length]);
+                var creature=chosenVariant??catalog.Require(catalog.ChooseStableVariant(rule,encounter.Danger,hash));
                 var marker=node.AddComponent<RoomActorPlacement>();marker.Configure(localId,creature.actorType,(hash&1)==0?1:-1,false,null);marker.SetSpawn(creature.spawn);
                 if(creature.family==NpcCreatureBehaviours.Zombie)
                     marker.SetBuried(buriedZombie || RandomEncounterRules.ZombieDigs(encounter.Danger,FactoryRandomEncounters.VariantRandom(root,localId+":dig")));

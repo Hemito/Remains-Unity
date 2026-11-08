@@ -78,6 +78,7 @@ namespace Remains.Editor
                 var rooms=new List<FactoryRandomEncounters.RoomPlan>();
                 var plan=FactoryRandomEncounters.Plan(root,rooms);
                 var again=FactoryRandomEncounters.Plan(root);
+                CheckLowDangerVariants(root,authoring,plan);
                 Require(plan.Count==again.Count && plan.Zip(again,(a,b)=>a.LocalId==b.LocalId && a.Unit==b.Unit && a.Hidden==b.Hidden).All(x=>x),"План случайных врагов не повторяется.");
                 Require(plan.Select(e=>e.LocalId).Distinct(StringComparer.Ordinal).Count()==plan.Count,"Повтор точки в плане случайных врагов.");
                 var explicitIds=new HashSet<string>(root.Objects.Select(o=>$"{o.Room.Cell.X},{o.Room.Cell.Y}:{o.Source.Id}"),StringComparer.Ordinal);
@@ -108,7 +109,7 @@ namespace Remains.Editor
                     if(string.IsNullOrEmpty(rule.variantRule))
                     {
                         int hash=encounter.LocalId.Aggregate(0,(value,c)=>unchecked(value*31+c));
-                        actorType=rule.actorTypes[(int)((uint)hash>>1)%rule.actorTypes.Length];
+                        actorType=catalog.ChooseStableVariant(rule,encounter.Danger,hash);
                     }
                     else actorType=CreatureCatalog.ChooseVariant(rule,encounter.Danger,
                         FactoryRandomEncounters.VariantRandom(root,encounter.LocalId),out _,root.Prepared.Profile);
@@ -171,6 +172,28 @@ namespace Remains.Editor
             {
                 FactoryContentSources.Clear();
             }
+        }
+        private static void CheckLowDangerVariants(FactoryLevelRoot root,RoomAuthoring room,IReadOnlyList<FactoryRandomEncounters.Encounter> plan)
+        {
+            var catalog=CreatureCatalog.Load();
+            var points=root.Objects.ToDictionary(p=>$"{p.Room.Cell.X},{p.Room.Cell.Y}:{p.Source.Id}",StringComparer.Ordinal);
+            var random=plan.ToDictionary(p=>p.LocalId,StringComparer.Ordinal);
+            var failures=new List<string>();int placedFailures=0,randomFailures=0,checkedCount=0;
+            foreach(var marker in root.GetComponentsInChildren<RoomActorPlacement>(true))
+            {
+                var placement=marker.Read(room);
+                bool generated=marker.name.StartsWith("Случайное существо: ",StringComparison.Ordinal);
+                double danger=generated?random[placement.id].Danger:points[placement.id].Room.Cell.Y/2.0;
+                string source=catalog.Require(placement.type).sourceId;
+                if(!((source.StartsWith("bloat",StringComparison.Ordinal)&&danger<2) ||
+                    (source.StartsWith("scorp",StringComparison.Ordinal)&&danger<5)))continue;
+                checkedCount++;
+                if(source=="bloat0" || source=="scorp1")continue;
+                failures.Add(placement.id+"="+source+" danger="+danger);
+                if(generated)randomFailures++;else placedFailures++;
+            }
+            Require(failures.Count==0,$"Нарушены подтверждённые пороги bloat/scorp: явных {placedFailures}, случайных {randomFailures}; "+string.Join("; ",failures.Take(8)));
+            Debug.Log($"LowDangerVariants: PASS {root.Prepared.Level}, constrained actors={checkedCount}.");
         }
         private static void Require(bool condition,string message) {if(!condition) throw new InvalidOperationException(message);}
     }

@@ -101,6 +101,21 @@ namespace Remains.Content
             reason=$"{variant.unit}: без оружия (рукопашный без оружия ещё не реализован)";return null;
         }
 
+        // Confirmed factory thresholds: a bloat is bloat0 before danger 2, and scorp2 starts at danger 5.
+        // Keep the existing stable selection above these thresholds; full randomCid probability parity is separate.
+        public string ChooseStableVariant(CreatureObjectRule rule,double danger,int placementHash)
+        {
+            if(rule.actorTypes==null || rule.actorTypes.Length==0)
+                throw new InvalidOperationException("Объект "+rule.objectId+": нет подключённых вариантов.");
+            string required=rule.objectId=="bloat" && danger<2?"bloat0":rule.objectId=="scorp" && danger<5?"scorp1":null;
+            if(required!=null)
+            {
+                foreach(string actorType in rule.actorTypes)if(Require(actorType).sourceId==required)return actorType;
+                throw new InvalidOperationException($"Объект {rule.objectId}: не подключён вариант {required} для опасности {danger}.");
+            }
+            return rule.actorTypes[(int)((uint)placementHash>>1)%rule.actorTypes.Length];
+        }
+
         public string GapReason(string sourceId)
         {
             foreach(var gap in gaps) if(gap.sourceId==sourceId) return gap.reason;
