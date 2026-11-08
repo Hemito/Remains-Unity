@@ -58,7 +58,7 @@ namespace Remains.Content.VectorArt
             string expectedManifest=coverage?.manifestSha256;
             loading=Task.Run(()=>
             {
-                if(expectedManifest!=null && VectorArtPackage.Sha256(File.ReadAllBytes(VectorArtPackage.ManifestPath(root)))!=expectedManifest)
+                if(expectedManifest!=null && VectorArtPackage.ManifestTextSha256(root)!=expectedManifest)
                     throw new InvalidDataException("Хеш манифеста RVG не совпадает с индексом покрытия сборки.");
                 return VectorArtPackage.Load(root);
             });

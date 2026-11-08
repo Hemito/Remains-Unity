@@ -85,6 +85,9 @@ namespace Remains.Content.VectorArt
             }
             return new VectorArtPackage(root,manifest,documents,report);
         }
+        // Hash of the manifest text: Git checkouts store it with CRLF on Windows and LF on Linux, the content is the same.
+        public static string ManifestTextSha256(string root)=>
+            Sha256(new UTF8Encoding(false).GetBytes(File.ReadAllText(ManifestPath(root)).Replace("\r\n","\n")));
         public static string Sha256(byte[] data)
         {
             using var sha=SHA256.Create();
