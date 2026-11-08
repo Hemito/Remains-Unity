@@ -150,6 +150,12 @@ namespace Remains.Presentation
         }
         public void Draw()
         {
+            var canonical=state;state=ProjectState(state);
+            try {DrawProjected();}
+            finally {state=canonical;}
+        }
+        private void DrawProjected()
+        {
             // A buried zombie is not drawn until it digs out (UnitZombie.animate: vis.visible = false).
             bool hidden=ActorPresence.Hidden(state);
             if(view.enabled==hidden) view.enabled=!hidden;

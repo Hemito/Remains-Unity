@@ -37,9 +37,15 @@ namespace Remains.Gameplay
             sample.level==actor.level && sample.generation==actor.generation && sample.lifecycle==actor.lifecycleSequence &&
             sample.pose==actor.pose && sample.poseSequence==actor.poseSequence;
 
+        private readonly Dictionary<string,(ActorState source,Vector2 position,Vector2 bodyPosition,Vector2 tip,float phase)> presentations=new();
+        public ActorState Presentation(ActorState actor)
+        {
+            if(actor==null || !presentations.TryGetValue(actor.id,out var value) || !ReferenceEquals(value.source,actor)) return actor;
+            return actor.PresentationCopy(value.position,value.bodyPosition,value.tip,value.phase);
+        }
         private readonly ConnectedPlayers connected=new();
         public void Step(WorldState world,string localOwner,float dt,System.Func<string,bool> paused,double now,bool pairBoundBodyPhase=false,
-            IReadOnlyList<ActorState> frameActors=null,ConnectedPlayers framePlayers=null)
+            IReadOnlyList<ActorState> frameActors=null,ConnectedPlayers framePlayers=null,bool preserveWorld=false)
         {
             if(worldId!=world.worldId) {Clear();worldId=world.worldId;}
             tick++;dt=Mathf.Max(0,dt);
@@ -48,7 +54,11 @@ namespace Remains.Gameplay
             for(int i=0;i<actors.Count;i++)
             {
                 var actor=actors[i];
-                if(actor.owner==localOwner || !ActorPresence.IsPresent(actor)) {samples.Remove(actor.id);continue;}
+                if(actor.owner==localOwner || !ActorPresence.IsPresent(actor)) {samples.Remove(actor.id);presentations.Remove(actor.id);continue;}
+                var canonicalPosition=actor.Position;float canonicalPhase=actor.poseTime,canonicalCorrection=actor.poseCorrectionRemaining;
+                float canonicalTipX=actor.weaponTipX,canonicalTipY=actor.weaponTipY;
+                try
+                {
                 bool climbing=actor.climbing && !ActorSessionRules.IsPassive(actor);
                 bool pairedBody=pairBoundBodyPhase && !ActorSessionRules.IsPassive(actor) && ActorBodySupport.Sample(actor).HasFootProfile;
                 bool reset=!samples.TryGetValue(actor.id,out var sample) || sample.owner!=actor.owner || sample.level!=actor.level ||
@@ -66,6 +76,7 @@ namespace Remains.Gameplay
                 else if(ActorMotionReplication.IsNewer(actor.motionSequence,sample.sequence))
                 {
                     var received=actor.Position;
+                    if(preserveWorld && !climbing && !pairedBody) sample.phase=actor.poseTime;
                     float age=ObserveClock(actor,sample,now);
                     var projected=ActorSessionRules.IsPassive(actor) || climbing || pairedBody?received:received+actor.Velocity*age;
                     // Teleports must not be traversed as motion. Normal envelopes include the last observed speed.
@@ -108,12 +119,27 @@ namespace Remains.Gameplay
                     }
                 }
                 actor.Position=sample.position;
-                if(sample.climbing || sample.pairedBody) actor.poseTime=sample.phase;
+                if(preserveWorld || sample.climbing || sample.pairedBody) actor.poseTime=sample.phase;
                 if(running) ResolveTerrainPair(actor,sample);
                 var shown=actor.Position;actor.weaponTipX=shown.x+sample.tip.x;actor.weaponTipY=shown.y+sample.tip.y;
+                if(preserveWorld)
+                {
+                    if(running && !ControlsPosePhase(actor)) ActorPose.Advance(actor,dt);
+                    sample.phase=actor.poseTime;
+                    presentations[actor.id]=(actor,actor.Position,actor.BodyPosition,new Vector2(actor.weaponTipX,actor.weaponTipY),actor.poseTime);
+                }
+                }
+                finally
+                {
+                    if(preserveWorld)
+                    {
+                        actor.Position=canonicalPosition;actor.poseTime=canonicalPhase;actor.poseCorrectionRemaining=canonicalCorrection;
+                        actor.weaponTipX=canonicalTipX;actor.weaponTipY=canonicalTipY;
+                    }
+                }
             }
             removed.Clear();foreach(var pair in samples) if(pair.Value.seen!=tick) removed.Add(pair.Key);
-            foreach(string id in removed) samples.Remove(id);
+            foreach(string id in removed) {samples.Remove(id);presentations.Remove(id);}
         }
         private static Vector2 WeaponTip(ActorState actor)=>new(actor.weaponTipX,actor.weaponTipY);
         private void ResolveTerrainPair(ActorState actor,Sample sample)
@@ -160,6 +186,6 @@ namespace Remains.Gameplay
             // Only excess delivery delay is compensated; no cross-PC clock equality.
             return (float)System.Math.Clamp(offset-sample.clockOffset,0,PredictionSeconds);
         }
-        public void Clear()=>samples.Clear();
+        public void Clear() {samples.Clear();presentations.Clear();}
     }
 }

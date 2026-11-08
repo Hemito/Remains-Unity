@@ -50,7 +50,7 @@ namespace Remains.Networking
         {
             var actor=session.LocalActor;
             if(actor==null || mine==null || !NetworkClient.isConnected || session.World==null) return;
-            NetworkClient.Send(new MineGrabRequest {world=session.World.worldId,actor=actor.id,mine=mine.id,release=release,
+            session.SendToServer(new MineGrabRequest {world=session.World.worldId,actor=actor.id,mine=mine.id,release=release,
                 generation=actor.generation,lifecycle=actor.lifecycleSequence,x=position.x,y=position.y,drop=drop});
         }
         public void SendPose(MineState mine,Vector2 position)
@@ -59,7 +59,7 @@ namespace Remains.Networking
             sentPoses.TryGetValue(mine.id,out uint sequence);sentPoses[mine.id]=++sequence;
             var message=new MinePoseMessage {mine=mine.id,holder=actor.id,level=mine.level,sequence=sequence,x=position.x,y=position.y};
             PoseHeard?.Invoke(message);   // the holder draws its own pose at once
-            NetworkClient.Send(message,Channels.Unreliable);
+            session.SendToServer(message,Channels.Unreliable);
         }
         private void ReceiveGrab(NetworkConnectionToClient connection,MineGrabRequest request)
         {
@@ -133,10 +133,10 @@ namespace Remains.Networking
         private readonly System.Random chance=new();
         public void RegisterServer()
         {
-            NetworkServer.RegisterHandler<MineDisarmRequest>(MessageTiming.Server<MineDisarmRequest>(Receive));
-            NetworkServer.RegisterHandler<MinePlaceRequest>(MessageTiming.Server<MinePlaceRequest>(ReceivePlace));
-            NetworkServer.RegisterHandler<MineGrabRequest>(MessageTiming.Server<MineGrabRequest>(ReceiveGrab));
-            NetworkServer.RegisterHandler<MinePoseMessage>(MessageTiming.Server<MinePoseMessage>(ReceivePose));
+            session.RegisterServerHandler<MineDisarmRequest>(MessageTiming.Server<MineDisarmRequest>(Receive));
+            session.RegisterServerHandler<MinePlaceRequest>(MessageTiming.Server<MinePlaceRequest>(ReceivePlace));
+            session.RegisterServerHandler<MineGrabRequest>(MessageTiming.Server<MineGrabRequest>(ReceiveGrab));
+            session.RegisterServerHandler<MinePoseMessage>(MessageTiming.Server<MinePoseMessage>(ReceivePose));
         }
         public void RegisterClient()
         {
@@ -168,7 +168,7 @@ namespace Remains.Networking
             if(reason!=null) {session.ShowNotice(reason);return false;}
             pending=mine.id;deadline=Time.unscaledTimeAsDouble+10;
             session.PublishActor(actor);
-            NetworkClient.Send(new MineDisarmRequest {world=session.World.worldId,actor=actor.id,mine=mine.id,generation=actor.generation,lifecycle=actor.lifecycleSequence});
+            session.SendToServer(new MineDisarmRequest {world=session.World.worldId,actor=actor.id,mine=mine.id,generation=actor.generation,lifecycle=actor.lifecycleSequence});
             return true;
         }
         // Whether the actor holds a mine in telekinesis (an ordinary held item that places a mine).
@@ -189,7 +189,7 @@ namespace Remains.Networking
             var release=Remains.Gameplay.HeldItemPose.Mount(actor);
             if(!MineRules.TryDrop(room,release,profile,out var point)) {session.ShowNotice("Под миной нет опоры.");return false;}
             session.PublishActor(actor);
-            NetworkClient.Send(new MinePlaceRequest {transaction=Guid.NewGuid().ToString("N"),world=session.World.worldId,actor=actor.id,level=actor.level,
+            session.SendToServer(new MinePlaceRequest {transaction=Guid.NewGuid().ToString("N"),world=session.World.worldId,actor=actor.id,level=actor.level,
                 item=stack.id,generation=actor.generation,lifecycle=actor.lifecycleSequence,x=point.x,y=point.y,drop=Mathf.Max(0,release.y-point.y)});
             return true;
         }

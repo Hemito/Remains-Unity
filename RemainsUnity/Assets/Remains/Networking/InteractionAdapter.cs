@@ -19,12 +19,12 @@ namespace Remains.Networking
             this.session=session;this.roomForLevel=roomForLevel;
             session.ServerReady+=()=>
             {
-                NetworkServer.RegisterHandler<PropGrabMessage>(Remains.Networking.MessageTiming.Server<PropGrabMessage>(Grab));
-                NetworkServer.RegisterHandler<PropPoseMessage>(Remains.Networking.MessageTiming.Server<PropPoseMessage>(Pose));
-                NetworkServer.RegisterHandler<ThrowRequest>(Remains.Networking.MessageTiming.Server<ThrowRequest>(Throw));
-                NetworkServer.RegisterHandler<DebugGrantRequest>(Remains.Networking.MessageTiming.Server<DebugGrantRequest>(DebugGrant));
-                NetworkServer.RegisterHandler<GrenadePoseMessage>(Remains.Networking.MessageTiming.Server<GrenadePoseMessage>(GrenadePose));
-                NetworkServer.RegisterHandler<GrenadeHoldRequest>(Remains.Networking.MessageTiming.Server<GrenadeHoldRequest>(GrenadeHold));
+                session.RegisterServerHandler<PropGrabMessage>(Remains.Networking.MessageTiming.Server<PropGrabMessage>(Grab));
+                session.RegisterServerHandler<PropPoseMessage>(Remains.Networking.MessageTiming.Server<PropPoseMessage>(Pose));
+                session.RegisterServerHandler<ThrowRequest>(Remains.Networking.MessageTiming.Server<ThrowRequest>(Throw));
+                session.RegisterServerHandler<DebugGrantRequest>(Remains.Networking.MessageTiming.Server<DebugGrantRequest>(DebugGrant));
+                session.RegisterServerHandler<GrenadePoseMessage>(Remains.Networking.MessageTiming.Server<GrenadePoseMessage>(GrenadePose));
+                session.RegisterServerHandler<GrenadeHoldRequest>(Remains.Networking.MessageTiming.Server<GrenadeHoldRequest>(GrenadeHold));
             };
             session.ClientReady+=()=>
             {
@@ -156,7 +156,7 @@ namespace Remains.Networking
         {
             var actor=session.LocalActor;
             if(actor==null || !NetworkClient.isConnected) return;
-            NetworkClient.Send(new GrenadeHoldRequest {grenade=id,generation=generation,actorGeneration=actor.generation,
+            session.SendToServer(new GrenadeHoldRequest {grenade=id,generation=generation,actorGeneration=actor.generation,
                 actorLifecycle=actor.lifecycleSequence,release=release});
         }
         private static void Apply(GrenadeState state,GrenadePoseMessage message)
@@ -211,15 +211,15 @@ namespace Remains.Networking
         public void SendGrenade(GrenadeState state,bool detonate,string[] enemyHits=null)
         {
             state.sequence++;
-            NetworkClient.Send(new GrenadePoseMessage {id=state.id,generation=state.generation,sequence=state.sequence,
+            session.SendToServer(new GrenadePoseMessage {id=state.id,generation=state.generation,sequence=state.sequence,
                 x=state.x,y=state.y,vx=state.vx,vy=state.vy,remaining=state.remaining,simulationRemainder=state.simulationRemainder,
                 angle=state.angle,angularVelocity=state.angularVelocity,mirrored=state.mirrored,detonate=detonate,enemyHits=enemyHits,
                 shattered=state.shattered,impactVx=state.impactVx,impactVy=state.impactVy,fuel=state.fuel});
         }
         public void GrabProp(string prop,bool release)
         {
-            NetworkClient.Send(new PropGrabMessage { prop=prop,release=release });
-            PredictGrab(prop,release);
+            session.SendToServer(new PropGrabMessage { prop=prop,release=release });
+            if(!session.SharedHostWorld) PredictGrab(prop,release);
         }
         private static string BodyKey(PropState body)=>(body is ContainerState?"containers:":"props:")+body.id;
         // The grabbing client holds the body at once (decisions.md, 2026-10-24) with the generation the host will give
@@ -252,7 +252,13 @@ namespace Remains.Networking
         {
             if(!PropReplication.CanAcceptPose(prop)) return;
             if(newPose) prop.sequence++;
-            NetworkClient.Send(new PropPoseMessage { prop=prop.id,generation=prop.generation,sequence=prop.sequence,x=prop.x,y=prop.y,vx=prop.vx,vy=prop.vy,impactFriendlyPlayers=prop.impactFriendlyPlayers },Channels.Unreliable);
+            var message=new PropPoseMessage { prop=prop.id,generation=prop.generation,sequence=prop.sequence,x=prop.x,y=prop.y,vx=prop.vx,vy=prop.vy,impactFriendlyPlayers=prop.impactFriendlyPlayers };
+            if(session.SharedHostWorld)
+            {
+                if(!PropPoseScope.CanPublish(session.ServerWorld,session.LocalActor,prop,session.Pause.IsServerPaused(prop.level))) return;
+                WorldChanges.Mark(session.ServerWorld,prop);session.BroadcastState(message,Channels.Unreliable);
+            }
+            else session.SendToServer(message,Channels.Unreliable);
         }
         public bool ThrowGrenade(Vector2 aim,RoomLayout room=null)
         {
@@ -265,7 +271,7 @@ namespace Remains.Networking
             var request=GrenadeLaunchRequest.Capture(actor,aim,room);
             if(!GrenadeLaunchRequest.Matches(actor,request))
             {Debug.LogWarning($"Некорректная точка броска гранаты: actor={actor.id}, level={actor.level}, origin=({request.originX};{request.originY}), aim={aim}.");return false;}
-            NetworkClient.Send(request);return true;
+            session.SendToServer(request);return true;
         }
     }
 }

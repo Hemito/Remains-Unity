@@ -31,7 +31,7 @@ namespace Remains.Networking
         public bool Pending=>pending!=null;
         public event Action<MechanismReply> Finished;
         public SessionMechanisms(CoopSession session)=>this.session=session;
-        public void RegisterServer()=>NetworkServer.RegisterHandler<MechanismRequest>(Remains.Networking.MessageTiming.Server<MechanismRequest>(Receive));
+        public void RegisterServer()=>session.RegisterServerHandler<MechanismRequest>(Remains.Networking.MessageTiming.Server<MechanismRequest>(Receive));
         public void RegisterClient()
         {
             ResetClient();
@@ -110,7 +110,7 @@ namespace Remains.Networking
             request.platform=button.platformId;request.revision=button.revision;request.repairState=button.repairState;
             request.pressed=button.pressed;request.x=button.x;request.y=button.y;
             pending=request.operation;deadline=Time.unscaledTimeAsDouble+10;
-            session.PublishActor(actor);NetworkClient.Send(request);return true;
+            session.PublishActor(actor);session.SendToServer(request);return true;
         }
         private void Receive(NetworkConnectionToClient connection,MechanismRequest request)
         {

@@ -21,7 +21,7 @@ namespace Remains.Networking
         private readonly HashSet<string> effects=new();
         public event Action<LampState> Broken;
         public SessionLamps(CoopSession session)=>this.session=session;
-        public void RegisterServer(){ResetServer();NetworkServer.RegisterHandler<LampBreakRequest>(Remains.Networking.MessageTiming.Server<LampBreakRequest>(Receive));}
+        public void RegisterServer(){ResetServer();session.RegisterServerHandler<LampBreakRequest>(Remains.Networking.MessageTiming.Server<LampBreakRequest>(Receive));}
         public void ResetServer()=>ledger.Clear();
         public void ResetClient(){reported.Clear();effects.Clear();clientWorld=null;}
         public void RegisterClient()
@@ -71,7 +71,7 @@ namespace Remains.Networking
                     var entry=SurfaceContact.Entry(lamp.Bounds,attack.Origin,attack.End,weapon.projectileSpeed>0?0:attack.radius);
                     if(!entry.HasValue||entry.Value>limit||reachable!=null&&!reachable(entry.Value))continue;
                     if(!reported.Add(lamp.id))continue;
-                    NetworkClient.Send(new LampBreakRequest{json=StateJson.ToJson(new LampBreakRequestData{world=session.World.worldId,lamp=lamp.id,
+                    session.SendToServer(new LampBreakRequest{json=StateJson.ToJson(new LampBreakRequestData{world=session.World.worldId,lamp=lamp.id,
                         decisionActor=participant.id,decisionGeneration=participant.generation,decisionLifecycle=participant.lifecycleSequence,
                         sourceGeneration=source?.generation??0,sourceLifecycle=source?.lifecycleSequence??0,projectileGeneration=projectileGeneration,
                         attack=StateJson.Copy(attack)})});

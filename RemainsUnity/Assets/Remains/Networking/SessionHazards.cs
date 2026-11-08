@@ -47,8 +47,8 @@ namespace Remains.Networking
         public void RegisterServer()
         {
             ResetServer();
-            NetworkServer.RegisterHandler<HazardActionRequest>(MessageTiming.Server<HazardActionRequest>(ReceiveAction));
-            NetworkServer.RegisterHandler<HazardHitRequest>(MessageTiming.Server<HazardHitRequest>(ReceiveHit));
+            session.RegisterServerHandler<HazardActionRequest>(MessageTiming.Server<HazardActionRequest>(ReceiveAction));
+            session.RegisterServerHandler<HazardHitRequest>(MessageTiming.Server<HazardHitRequest>(ReceiveHit));
         }
         public void RegisterClient()
         {
@@ -74,7 +74,7 @@ namespace Remains.Networking
             if(reason!=null) {session.ShowNotice(reason);return false;}
             pending=hazard.id;deadline=Time.unscaledTimeAsDouble+10;
             session.PublishActor(actor);
-            NetworkClient.Send(new HazardActionRequest {world=session.World.worldId,actor=actor.id,hazard=hazard.id,generation=actor.generation,lifecycle=actor.lifecycleSequence});
+            session.SendToServer(new HazardActionRequest {world=session.World.worldId,actor=actor.id,hazard=hazard.id,generation=actor.generation,lifecycle=actor.lifecycleSequence});
             return true;
         }
         public void StepClient()
@@ -246,7 +246,7 @@ namespace Remains.Networking
                 var entry=SurfaceContact.Entry(HazardRules.Body(hazard,HazardRules.Profile(hazard)),attack.Origin,attack.End,weapon.projectileSpeed>0?0:attack.radius);
                 if(!entry.HasValue || entry.Value>limit || reachable!=null && !reachable(entry.Value)) continue;
                 if(!reported.Add(attack.id+"|"+hazard.id)) continue;
-                NetworkClient.Send(new HazardHitRequest {json=StateJson.ToJson(new HazardHitRequestData {world=session.World.worldId,hazard=hazard.id,
+                session.SendToServer(new HazardHitRequest {json=StateJson.ToJson(new HazardHitRequestData {world=session.World.worldId,hazard=hazard.id,
                     decisionActor=participant.id,decisionGeneration=participant.generation,decisionLifecycle=participant.lifecycleSequence,
                     sourceGeneration=source?.generation??0,sourceLifecycle=source?.lifecycleSequence??0,projectileGeneration=projectileGeneration,
                     attack=StateJson.Copy(attack)})});

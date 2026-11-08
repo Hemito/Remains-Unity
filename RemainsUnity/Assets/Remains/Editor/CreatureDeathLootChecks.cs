@@ -19,8 +19,26 @@ namespace Remains.Editor
         public static void Run()
         {
             ActorTypes.Load();Anatomy.Load();WeaponCatalog.Load();
-            CheckCatalog();CheckAcceptedAndReplay();CheckGuardsAndFailure();CheckNamespaceIndex();
+            CheckCatalog();CheckSharedHost();CheckAcceptedAndReplay();CheckGuardsAndFailure();CheckNamespaceIndex();
             Debug.Log("Добыча принятой гибели турели: PASS — исходные таблицы, отдельное оружие, actual lethal state, life receipt/zero result/save/handoff, foreign/stale guards и атомарный preflight.");
+        }
+        private static void CheckSharedHost()
+        {
+            var (world,actor)=World("shared-host-death");
+            actor.down=true;actor.health=0;actor.revision++;
+            Require(CreatureDeathLoot.PrepareSharedHost(world,actor,false)==null,"Missing live transition created shared loot");
+            var plan=CreatureDeathLoot.PrepareSharedHost(world,actor,true);
+            Require(plan!=null,"Shared transition did not prepare source loot");
+            using(var actors=world.actors.GetEnumerator())
+            {
+                Require(actors.MoveNext(),"Missing shared actor");
+                Require(plan.ApplyAccepted(world),"Shared death not committed");
+                Require(!actors.MoveNext(),"Unexpected actor after shared death");
+            }
+            Require(ReferenceEquals(world.Find(actor.id),actor),"Shared death replaced canonical actor identity");
+            string accepted=StateJson.ToJson(world);
+            Require(CreatureDeathLoot.PrepareSharedHost(world,actor,true)==null && !plan.ApplyAccepted(world) && accepted==StateJson.ToJson(world),"Shared death replay duplicated source loot");
+            Debug.Log("HOST_WORLD_DEATH_LOOT_PASS");
         }
         private static void CheckCatalog()
         {

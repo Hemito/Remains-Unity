@@ -23,7 +23,7 @@ namespace Remains.Networking
         public event Action<ActorHoldReply> Replied;
         public SessionActorHolds(CoopSession session)=>this.session=session;
         public void RegisterServer()
-        {replies.Clear();NetworkServer.RegisterHandler<ActorHoldRequest>(Remains.Networking.MessageTiming.Server<ActorHoldRequest>(Receive));NetworkServer.RegisterHandler<ActorHoldTargetMessage>(Remains.Networking.MessageTiming.Server<ActorHoldTargetMessage>(ReceiveTarget));}
+        {replies.Clear();session.RegisterServerHandler<ActorHoldRequest>(Remains.Networking.MessageTiming.Server<ActorHoldRequest>(Receive));session.RegisterServerHandler<ActorHoldTargetMessage>(Remains.Networking.MessageTiming.Server<ActorHoldTargetMessage>(ReceiveTarget));}
         public void RegisterClient()
         {
             NetworkClient.RegisterHandler<ActorHoldReply>(Remains.Networking.MessageTiming.Client<ActorHoldReply>(reply=>
@@ -41,7 +41,7 @@ namespace Remains.Networking
             var holder=session.LocalActor;var target=session.World?.Find(body);
             if(holder==null || target==null || !NetworkClient.isConnected) return null;
             string id=Guid.NewGuid().ToString("N");
-            NetworkClient.Send(new ActorHoldRequest {id=id,body=body,token=token,release=release,
+            session.SendToServer(new ActorHoldRequest {id=id,body=body,token=token,release=release,
                 bodyGeneration=target.generation,bodyLifecycle=target.lifecycleSequence,
                 holderGeneration=holder.generation,holderLifecycle=holder.lifecycleSequence});
             return id;
@@ -83,8 +83,8 @@ namespace Remains.Networking
             if(holder==null || body.hold?.holder!=holder.id) return;
             var message=new ActorHoldTargetMessage {body=body.id,holder=holder.id,epoch=body.holdEpoch,
                 sequence=unchecked(body.hold.sequence+1),x=target.x,y=target.y};
-            ActorHoldRules.SetTarget(body,holder.id,message.epoch,message.sequence,target);
-            NetworkClient.Send(message,Channels.Unreliable);
+            if(!session.SharedHostWorld) ActorHoldRules.SetTarget(body,holder.id,message.epoch,message.sequence,target);
+            session.SendToServer(message,Channels.Unreliable);
         }
         private void ReceiveTarget(NetworkConnectionToClient connection,ActorHoldTargetMessage message)
         {

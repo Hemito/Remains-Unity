@@ -27,6 +27,17 @@ namespace Remains.Content
             table.Validate();
             return Plan.Create(world,before,after,table);
         }
+        // A shared host has already applied its owner simulation in place. The session keeps only the previous
+        // life/alive scalar (no second actor/world graph); the durable receipt remains the once-per-life guard.
+        public static Plan PrepareSharedHost(WorldState world,ActorState actor,bool wasAlive)
+        {
+            if(!wasAlive || !SharedTransition(world,actor)) return null;
+            var table=SourceTable(actor.actorType);
+            if(table==null || CreatureDeathLootIds.Completed(world,Receipt(actor))) return null;
+            table.Validate();return Plan.Create(world,actor,actor,table,true);
+        }
+        private static bool SharedTransition(WorldState world,ActorState actor)=>world!=null && actor!=null &&
+            ReferenceEquals(world.Find(actor.id),actor) && !actor.player && actor.down && actor.health==0 && actor.lifecycleSequence>=0 && !string.IsNullOrEmpty(actor.owner);
         private static ContainerLootTable SourceTable(string type)
         {
             var entry=CreatureCatalog.Load().Creatures.FirstOrDefault(c=>c.actorType==type && NpcCreatureBehaviours.DropsLootOnDeath(c.family));
@@ -40,10 +51,11 @@ namespace Remains.Content
             private readonly ActorState before,after;
             private readonly string beforeJson,afterJson;
             private readonly long worldRevision;
+            private readonly bool sharedHost;
             private readonly ContainerState[] drops;
-            private Plan(WorldState world,ActorState before,ActorState after,ContainerState[] drops)
-            {worldId=world.worldId;receipt=Receipt(before);this.before=before;this.after=after;beforeJson=StateJson.ToJson(before);afterJson=StateJson.ToJson(after);worldRevision=world.revision;this.drops=drops;}
-            internal static Plan Create(WorldState world,ActorState before,ActorState after,ContainerLootTable table)
+            private Plan(WorldState world,ActorState before,ActorState after,ContainerState[] drops,bool sharedHost)
+            {this.sharedHost=sharedHost;worldId=world.worldId;receipt=Receipt(before);this.before=before;this.after=after;beforeJson=StateJson.ToJson(before);afterJson=StateJson.ToJson(after);worldRevision=world.revision;this.drops=drops;}
+            internal static Plan Create(WorldState world,ActorState before,ActorState after,ContainerLootTable table,bool sharedHost=false)
             {
                 var items=table.Generate(world.worldId,Receipt(before));
                 var drops=new List<ContainerState>();
@@ -61,11 +73,11 @@ namespace Remains.Content
                     drop.id=CreatureDeathLootIds.DropPrefix+item.id;
                     drop.items.Add(item);drops.Add(drop);
                 }
-                var result=new Plan(world,before,after,drops.ToArray());result.Validate(world);CreatureDeathLootIds.Validate(world,result.Ids());return result;
+                var result=new Plan(world,before,after,drops.ToArray(),sharedHost);result.Validate(world);CreatureDeathLootIds.Validate(world,result.Ids());return result;
             }
             private void Validate(WorldState world)
             {
-                if(world==null || world.worldId!=worldId || world.revision!=worldRevision || !Transition(world,before,after) || StateJson.ToJson(before)!=beforeJson || StateJson.ToJson(after)!=afterJson)
+                if(world==null || world.worldId!=worldId || world.revision!=worldRevision || !(sharedHost?SharedTransition(world,after):Transition(world,before,after)) || StateJson.ToJson(before)!=beforeJson || StateJson.ToJson(after)!=afterJson)
                     throw new InvalidOperationException("Изменилось принятое состояние гибели NPC: "+receipt);
                 if(world.revision==long.MaxValue)throw new InvalidOperationException("Исчерпана ревизия мира при гибели NPC: "+receipt);
             }
@@ -78,7 +90,7 @@ namespace Remains.Content
                 if(CreatureDeathLootIds.Completed(world,receipt))return false;
                 Validate(world);
                 CreatureDeathLootIds.Validate(world,Ids());CreatureDeathLootIds.Reserve(world,Ids());
-                world.actors[world.actors.IndexOf(before)]=after;
+                if(!sharedHost) world.actors[world.actors.IndexOf(before)]=after;
                 world.containers.AddRange(drops);world.completedTransactions.Add(receipt);CreatureDeathLootIds.Complete(world,receipt);
                 WorldChanges.Mark(world,after);foreach(var drop in drops)WorldChanges.Mark(world,drop);
                 return true;

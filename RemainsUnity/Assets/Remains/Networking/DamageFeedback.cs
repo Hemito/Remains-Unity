@@ -23,7 +23,7 @@ namespace Remains.Networking
             session.ServerReady+=()=>
             {
                 relayed.Clear();recentRelayed.Clear();
-                NetworkServer.RegisterHandler<DamageFeedbackMessage>(Remains.Networking.MessageTiming.Server<DamageFeedbackMessage>(Relay));
+                session.RegisterServerHandler<DamageFeedbackMessage>(Remains.Networking.MessageTiming.Server<DamageFeedbackMessage>(Relay));
             };
             session.ClientReady+=()=>
             {
@@ -48,8 +48,8 @@ namespace Remains.Networking
             var message=new DamageFeedbackMessage {result=result};
             // Bypass reliable head-of-line waiting for presentation only. The reliable
             // copy still delivers the result if the expedited datagram is lost.
-            NetworkClient.Send(message,Channels.Unreliable);
-            NetworkClient.Send(message);
+            session.SendToServer(message,Channels.Unreliable);
+            session.SendToServer(message);
         }
         private void Relay(NetworkConnectionToClient connection,DamageFeedbackMessage message,int channel)
         {

@@ -39,7 +39,7 @@ namespace Remains.Presentation
             if(clip==null || clip.samples<=0) throw new InvalidOperationException("Нет звука удара гранаты: "+settings.clip);
             controller.Impact+=Contact;session.ServerReady+=RegisterServer;session.ClientReady+=RegisterClient;
         }
-        private void RegisterServer()=>NetworkServer.RegisterHandler<GrenadeImpactSound>((connection,message)=>
+        private void RegisterServer()=>session.RegisterServerHandler<GrenadeImpactSound>((connection,message)=>
         {
             var actor=session.ConnectedActor(connection);
             var grenade=session.ServerWorld?.grenades.Find(value=>value.id==message.grenade);
@@ -67,7 +67,7 @@ namespace Remains.Presentation
             var message=new GrenadeImpactSound {token=Guid.NewGuid().ToString("N"),grenade=state.id,
                 level=state.level,generation=state.generation,x=state.x,y=state.y,gain=Mathf.Clamp01(speed/settings.fullGainSpeed)};
             Receive(message);
-            NetworkClient.Send(message);
+            session.SendToServer(message);
         }
         private void OnDestroy()
         {

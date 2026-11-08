@@ -5,6 +5,9 @@ namespace Remains.Presentation
 {
     public abstract class ActorVisual : MonoBehaviour
     {
+        private System.Func<ActorState,ActorState> projection;
+        public void ConfigurePresentationProjection(System.Func<ActorState,ActorState> value)=>projection=value;
+        protected ActorState ProjectState(ActorState actor)=>projection?.Invoke(actor)??actor;
         public abstract string ActorId {get;}
         public abstract void Bind(ActorState actor);
         public abstract void ApplyHeldAppearance(HeldPropColorSource colors);

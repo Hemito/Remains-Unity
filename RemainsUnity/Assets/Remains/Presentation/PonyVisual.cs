@@ -188,8 +188,13 @@ namespace Remains.Presentation
         private void LateUpdate()
         {
             using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("PonyVisual.LateUpdate");
-            if(state!=null)AdvanceNestedAnimation(Time.deltaTime);
-            DrawPose(state?.poseTime??0);
+            var canonical=state;state=ProjectState(state);
+            try
+            {
+                if(state!=null)AdvanceNestedAnimation(Time.deltaTime);
+                DrawPose(state?.poseTime??0);
+            }
+            finally {state=canonical;}
         }
         public void AdvanceNestedAnimation(float seconds)
         {

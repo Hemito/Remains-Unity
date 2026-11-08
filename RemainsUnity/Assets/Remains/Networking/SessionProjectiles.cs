@@ -23,7 +23,7 @@ namespace Remains.Networking
         private const double FinishedRetentionSeconds=10;
         private const int FinishedRetentionCap=256;
         public SessionProjectiles(CoopSession session) {this.session=session;}
-        public void RegisterServer() {finishedAt.Clear();NetworkServer.RegisterHandler<ProjectileProgressMessage>(Remains.Networking.MessageTiming.Server<ProjectileProgressMessage>(Progress));}
+        public void RegisterServer() {finishedAt.Clear();session.RegisterServerHandler<ProjectileProgressMessage>(Remains.Networking.MessageTiming.Server<ProjectileProgressMessage>(Progress));}
         public event Action Launched;
         public event Action<string> Confirmed;
         public event Action<string> Rejected;
@@ -47,8 +47,10 @@ namespace Remains.Networking
             if(flight!=null) ProjectileLifecycle.AcceptProgress(flight,flight.owner,message.generation,message.sequence,message.traveled,message.finished);
         }));
         }
+        public void SuppressLocalEcho(string id)=>localEffects.Add(id);
         private void ReceiveLaunch(ProjectileState state)
         {
+            if(session.SharedHostWorld) return;
             if(session.World==null) return;
             state.Path();
             bool wasPending=pending.Remove(state.launch.id);
@@ -81,7 +83,8 @@ namespace Remains.Networking
             // Gameplay deltas are live state. Existing 3-second recovery checkpoints persist
             // them together with actor damage; a shot does not write/send the whole save.
             world.revision++;
-            NetworkServer.SendToAll(new ProjectileLaunchMessage {json=Remains.Serialization.StateJson.ToJson(state)});
+            session.BroadcastState(new ProjectileLaunchMessage {json=Remains.Serialization.StateJson.ToJson(state)});
+            if(session.SharedHostWorld) Launched?.Invoke();
             return true;
         }
         public bool IsDecisionOwner(string owner,AttackEvent attack)
@@ -97,7 +100,7 @@ namespace Remains.Networking
             var flight=session.ServerWorld?.projectiles.Find(p=>p.launch.id==message.id);
             if(actor==null || flight==null || session.Pause.IsServerPaused(flight.launch.level) ||
                 !ProjectileLifecycle.AcceptProgress(flight,actor.owner,message.generation,message.sequence,message.traveled,message.finished)) return;
-            NetworkServer.SendToAll(message);
+            session.BroadcastState(message);
             if(message.finished) {PruneFinished(session.ServerWorld,Time.unscaledTimeAsDouble);session.ServerWorld.revision++;}
         }
         // Drops finished flights past the retention, with their launch key: while the flight exists Launch already refuses
@@ -117,7 +120,7 @@ namespace Remains.Networking
         public void Publish(ProjectileState state,float traveled,bool finished)
         {
             state.sequence++;
-            NetworkClient.Send(new ProjectileProgressMessage {id=state.launch.id,generation=state.generation,sequence=state.sequence,traveled=traveled,finished=finished});
+            session.SendToServer(new ProjectileProgressMessage {id=state.launch.id,generation=state.generation,sequence=state.sequence,traveled=traveled,finished=finished});
         }
     }
 }

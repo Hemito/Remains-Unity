@@ -111,9 +111,16 @@ namespace Remains.Domain
         public List<InjuryState> injuries = new();
         public Vector2 Position { get => new(x, y); set { x = value.x; y = value.y; } }
         // Derived body registration is transient; saves and motion packets retain the movement anchor.
-        public Vector2 BodyPosition => ActorBodySupport.Position(this);
+        [NonSerialized] private Vector2? presentationBodyPosition;
+        public Vector2 BodyPosition => presentationBodyPosition??ActorBodySupport.Position(this);
         public Vector2 Velocity { get => new(vx, vy); set { vx = value.x; vy = value.y; } }
         public ActorState Copy() => JsonUtility.FromJson<ActorState>(JsonUtility.ToJson(this));
+        // Read-only rendering shell: nested inventory/state references remain authoritative and must never be mutated.
+        public ActorState PresentationCopy(Vector2 position,Vector2 bodyPosition,Vector2 tip,float phase)
+        {
+            var shown=(ActorState)MemberwiseClone();shown.Position=position;shown.presentationBodyPosition=bodyPosition;
+            shown.weaponTipX=tip.x;shown.weaponTipY=tip.y;shown.poseTime=phase;return shown;
+        }
     }
 
     [Serializable] public sealed class InjuryState : ExtensibleState { public string id; public bool periodicDamage; }

@@ -5,6 +5,8 @@ using UnityEditor;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
 using Remains.Runtime;
+using Remains.Domain;
+using Remains.Gameplay;
 
 namespace Remains.Editor
 {
@@ -20,7 +22,36 @@ namespace Remains.Editor
                 bool failed=false;try{LaunchOptions.Parse(args);}catch(ArgumentException){failed=true;}
                 Require(failed,"Invalid mode must fail");
             }
+            CheckPresentationIsolation();
             Debug.Log("HOST_WORLD_OPTIONS_PASS");
+        }
+        private static void CheckPresentationIsolation()
+        {
+            foreach(int fps in new[]{30,60,144})
+            {
+                var actor=new ActorState {id="remote",owner="remote",level="hub",player=true,connected=true,vx=4,pose="run",motionSequence=1,motionClockGeneration=0};
+                var local=new ActorState {id="local",owner="local",level="hub",player=true,connected=true};
+                var world=new WorldState();world.actors.Add(actor);world.actors.Add(local);
+                string canonical=Remains.Serialization.StateJson.ToJson(world);
+                var motion=new RemoteActorMotion();
+                for(int frame=0;frame<fps;frame++)
+                {
+                    motion.Step(world,"local",1f/fps,_=>false,(double)frame/fps,false,true);
+                    Require(Remains.Serialization.StateJson.ToJson(world)==canonical,"Render interpolation changed authoritative graph");
+                }
+                var shown=motion.Presentation(actor);
+                Require(!ReferenceEquals(shown,actor) && ReferenceEquals(shown.inventory,actor.inventory),"Presentation must be a shallow read-only shell");
+                Require(shown.x>actor.x && shown.poseTime>actor.poseTime,"Detached motion and animation did not advance");
+                Require(ReferenceEquals(motion.Presentation(local),local),"Local simulation was projected");
+                actor.owner="local";motion.Step(world,"local",1f/fps,_=>false,2,false,true);
+                Require(ReferenceEquals(motion.Presentation(actor),actor),"Stale remote projection survived ownership transfer");
+            }
+            Debug.Log("HOST_WORLD_PRESENTATION_PASS");
+        }
+        public static void RunCore()
+        {
+            Run();CreatureDeathLootChecks.Run();RemoteActorMotionChecks.Run();ActorMotionReplicationChecks.Run();WorldReplicationChecks.Run();
+            Debug.Log("HOST_WORLD_CORE_PASS");
         }
         public static void BuildLinuxDevelopment()=>BuildLinux(true);
         public static void BuildLinuxRelease()=>BuildLinux(false);

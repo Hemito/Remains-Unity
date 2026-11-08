@@ -54,8 +54,8 @@ namespace Remains.Networking
             var settings=TelekinesisSettings.Load();
             plausibility=new PropImpactPlausibility(settings.range,settings.releaseRange,level=>RoomLayout.Load(level,session.ServerWorld));
             serverGraph=null;pending.Clear();serverExpirations.Clear();nextRetry=0;
-            NetworkServer.RegisterHandler<PropImpactSampleMessage>(MessageTiming.Server<PropImpactSampleMessage>(Sample));
-            NetworkServer.RegisterHandler<PropImpactRequest>(MessageTiming.Server<PropImpactRequest>(Contact));
+            session.RegisterServerHandler<PropImpactSampleMessage>(MessageTiming.Server<PropImpactSampleMessage>(Sample));
+            session.RegisterServerHandler<PropImpactRequest>(MessageTiming.Server<PropImpactRequest>(Contact));
         }
         public void RegisterClient()
         {
@@ -104,8 +104,8 @@ namespace Remains.Networking
             foreach(var prop in WorldProps.All(session.World)) if(prop.impacts!=null)
                 foreach(var contact in prop.impacts.contacts) Put(localPending,contact);
         }
-        public void Publish(PropImpactSample sample)=>NetworkClient.Send(new PropImpactSampleMessage {json=StateJson.ToJson(sample)});
-        public void Report(PropImpactSample sample,ActorState target)=>NetworkClient.Send(new PropImpactRequest
+        public void Publish(PropImpactSample sample)=>session.SendToServer(new PropImpactSampleMessage {json=StateJson.ToJson(sample)});
+        public void Report(PropImpactSample sample,ActorState target)=>session.SendToServer(new PropImpactRequest
         {prop=sample.prop,sample=sample.id,target=target.id,generation=target.generation,lifecycle=target.lifecycleSequence,targetVx=target.vx,targetVy=target.vy});
         public void Expire(string level,double now)
         {

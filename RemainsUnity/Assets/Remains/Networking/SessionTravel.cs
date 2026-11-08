@@ -33,7 +33,7 @@ namespace Remains.Networking
         public void RegisterServer()
         {
             replies.Clear();points.Clear();
-            NetworkServer.RegisterHandler<TravelRequest>(Remains.Networking.MessageTiming.Server<TravelRequest>(ReceiveRequest));
+            session.RegisterServerHandler<TravelRequest>(Remains.Networking.MessageTiming.Server<TravelRequest>(ReceiveRequest));
         }
         public void RegisterClient()
         {
@@ -79,7 +79,7 @@ namespace Remains.Networking
             deadline = Time.unscaledTime + 10;
             // Reliable ordering publishes pending health changes before the request.
             session.PublishActor(actor);
-            NetworkClient.Send(new TravelRequest { id = pending, source = actor.level, destination = destination,point=pointId,
+            session.SendToServer(new TravelRequest { id = pending, source = actor.level, destination = destination,point=pointId,
                 generation = actor.generation, lifecycle = actor.lifecycleSequence });
             Debug.Log($"Переход отправлен: request={pending}, actor={actor.id}, destination={destination}, time={Time.unscaledTime}.");
             session.ShowNotice("Ожидание подтверждения перехода…");

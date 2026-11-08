@@ -20,7 +20,7 @@ namespace Remains.Networking
         public event Action<ContainerInspectReply> Finished;
         public event Action<ContainerInspectRequest> Requested;
         public SessionContainerInspection(CoopSession session)=>this.session=session;
-        public void RegisterServer()=>NetworkServer.RegisterHandler<ContainerInspectRequest>(Remains.Networking.MessageTiming.Server<ContainerInspectRequest>(Receive));
+        public void RegisterServer()=>session.RegisterServerHandler<ContainerInspectRequest>(Remains.Networking.MessageTiming.Server<ContainerInspectRequest>(Receive));
         public void RegisterClient()
         {
             ResetClient();
@@ -54,7 +54,7 @@ namespace Remains.Networking
             string request=Guid.NewGuid().ToString("N");var captured=new ContainerInspectionContext(world,actor,container);
             pending.Add(request,(captured,Time.realtimeSinceStartupAsDouble+10));
             var message=new ContainerInspectRequest {request=request,json=Remains.Serialization.StateJson.ToJson(captured)};
-            session.PublishActor(actor);NetworkClient.Send(message);Requested?.Invoke(message);return true;
+            session.PublishActor(actor);session.SendToServer(message);Requested?.Invoke(message);return true;
         }
         private void Receive(NetworkConnectionToClient connection,ContainerInspectRequest message)
         {

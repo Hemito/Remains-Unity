@@ -28,7 +28,7 @@ namespace Remains.Networking
         public event Action<DoorDamageReply> Finished;
         public event Action<DoorDamageRequestData> Reported;
         public SessionDoorDamage(CoopSession session)=>this.session=session;
-        public void RegisterServer() {ResetServer();NetworkServer.RegisterHandler<DoorDamageRequest>(Remains.Networking.MessageTiming.Server<DoorDamageRequest>(Receive));}
+        public void RegisterServer() {ResetServer();session.RegisterServerHandler<DoorDamageRequest>(Remains.Networking.MessageTiming.Server<DoorDamageRequest>(Receive));}
         public void RegisterClient()
         {
             ResetClient();
@@ -71,7 +71,7 @@ namespace Remains.Networking
                 decisionGeneration=participant.generation,decisionLifecycle=participant.lifecycleSequence,
                 sourceGeneration=source?.generation??0,sourceLifecycle=source?.lifecycleSequence??0,
                 projectileGeneration=projectileGeneration,attack=StateJson.Copy(attack),contact=contact};
-            NetworkClient.Send(new DoorDamageRequest {json=StateJson.ToJson(request)});
+            session.SendToServer(new DoorDamageRequest {json=StateJson.ToJson(request)});
             PredictDamage(request,door.revision);
             Reported?.Invoke(request);return true;
         }

@@ -23,7 +23,7 @@ namespace Remains.Networking
         public void RegisterServer()
         {
             serverGate.Clear();
-            NetworkServer.RegisterHandler<ReloadSoundMessage>(Remains.Networking.MessageTiming.Server<ReloadSoundMessage>((connection,message)=>
+            session.RegisterServerHandler<ReloadSoundMessage>(Remains.Networking.MessageTiming.Server<ReloadSoundMessage>((connection,message)=>
             {
                 var actor=session.ServerWorld==null?null:session.ConnectedActor(connection);
                 if(actor==null || actor.id!=message.actor || !Matches(actor,message)) return;
@@ -49,7 +49,7 @@ namespace Remains.Networking
         public void Send(ReloadSoundMessage message)
         {
             if(!NetworkClient.isConnected) return;
-            NetworkClient.Send(message);Sent?.Invoke(message);
+            session.SendToServer(message);Sent?.Invoke(message);
         }
     }
 }

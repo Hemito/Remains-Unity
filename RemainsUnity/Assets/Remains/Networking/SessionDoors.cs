@@ -22,7 +22,7 @@ namespace Remains.Networking
         public event Action<DoorReply> Finished;
         public event Action<string,string,DoorReply> NpcFinished;
         public SessionDoors(CoopSession session)=>this.session=session;
-        public void RegisterServer()=>NetworkServer.RegisterHandler<DoorRequest>(Remains.Networking.MessageTiming.Server<DoorRequest>(Receive));
+        public void RegisterServer()=>session.RegisterServerHandler<DoorRequest>(Remains.Networking.MessageTiming.Server<DoorRequest>(Receive));
         public void RegisterClient()
         {
             ResetClient();
@@ -67,7 +67,7 @@ namespace Remains.Networking
         {
             // Position update precedes the command on the reliable channel.
             session.PublishActor(actor);
-            NetworkClient.Send(new DoorRequest {request=request,world=session.World.worldId,door=door.id,actor=actor.id,
+            session.SendToServer(new DoorRequest {request=request,world=session.World.worldId,door=door.id,actor=actor.id,
                 generation=actor.generation,lifecycle=actor.lifecycleSequence,revision=door.revision,open=open});
             PredictOpen(actor.id,door.id,door.revision,open);
         }

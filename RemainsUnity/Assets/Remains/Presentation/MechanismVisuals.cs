@@ -27,7 +27,7 @@ namespace Remains.Presentation
         private void Reconcile()
         {
             var world=session.World;string visible=session.LocalActor?.level;
-            if(ReferenceEquals(world,boundWorld) && level==visible) return;
+            if(ReferenceEquals(world,boundWorld) && level==visible && !session.LastChange.Any(WorldChangeKind.Skeleton)) return;
             boundWorld=world;
             if(worldId!=world?.worldId || level!=visible) {Clear();worldId=world?.worldId;level=visible;}
             if(world==null || visible==null) return;

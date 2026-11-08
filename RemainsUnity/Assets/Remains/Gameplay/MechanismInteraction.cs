@@ -24,7 +24,7 @@ namespace Remains.Gameplay
         private void Reconcile()
         {
             var world=session.World;
-            if(ReferenceEquals(world,boundWorld)) return;
+            if(ReferenceEquals(world,boundWorld) && !session.LastChange.Any(WorldChangeKind.Skeleton)) return;
             boundWorld=world;
             if(world==null) {Points=Array.Empty<MechanismInteractionPoint>();Cancel("Ремонт отменён: сессия завершена.");return;}
             var points=new List<MechanismInteractionPoint>();

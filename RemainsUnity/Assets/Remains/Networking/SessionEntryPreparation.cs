@@ -101,7 +101,7 @@ namespace Remains.Networking
         }
         public SessionEntryPreparation(CoopSession session) {this.session=session??throw new ArgumentNullException(nameof(session));}
         public void RegisterServer()
-        {ResetServer();NetworkServer.RegisterHandler<EntryPreparedMessage>(Remains.Networking.MessageTiming.Server<EntryPreparedMessage>(Ready));}
+        {ResetServer();session.RegisterServerHandler<EntryPreparedMessage>(Remains.Networking.MessageTiming.Server<EntryPreparedMessage>(Ready));}
         public void RegisterClient()
         {ResetClient();NetworkClient.RegisterHandler<EntryPreparationPartMessage>(Remains.Networking.MessageTiming.Client<EntryPreparationPartMessage>(Receive));}
         public void Begin(NetworkConnectionToClient connection,JoinMessage join)
@@ -205,7 +205,7 @@ namespace Remains.Networking
             if(!ClientPending || incoming!=null || Current==null || token!=Current.Token || session.World!=null || !NetworkClient.isConnected)
                 throw new InvalidOperationException($"Локация не соответствует ожидающему входу: token={token}, expected={Current?.Token}.");
             if(!client.MarkPrepared(token)) return;
-            NetworkClient.Send(new EntryPreparedMessage {token=token,fingerprint=Current.GeometryFingerprint});
+            session.SendToServer(new EntryPreparedMessage {token=token,fingerprint=Current.GeometryFingerprint});
         }
         internal void Take(WorldState welcomed,string actorId)
         {

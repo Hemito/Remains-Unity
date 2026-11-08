@@ -70,9 +70,9 @@ namespace Remains.Networking
             var initial=startup.Mode==SessionStartupMode.ContinueSelected?startup.Selected:
                 startup.Mode==SessionStartupMode.NewWorld?null:session.Saves.SelectedSnapshot();
             initialHash=initial?.Id;
-            NetworkServer.RegisterHandler<SaveOfferMessage>(Remains.Networking.MessageTiming.Server<SaveOfferMessage>(ReceiveOffer));
-            NetworkServer.RegisterHandler<SaveChunkMessage>(Remains.Networking.MessageTiming.Server<SaveChunkMessage>(ReceiveChunk));
-            NetworkServer.RegisterHandler<SaveTransferErrorMessage>(Remains.Networking.MessageTiming.Server<SaveTransferErrorMessage>((connection,message)=>
+            session.RegisterServerHandler<SaveOfferMessage>(Remains.Networking.MessageTiming.Server<SaveOfferMessage>(ReceiveOffer));
+            session.RegisterServerHandler<SaveChunkMessage>(Remains.Networking.MessageTiming.Server<SaveChunkMessage>(ReceiveChunk));
+            session.RegisterServerHandler<SaveTransferErrorMessage>(Remains.Networking.MessageTiming.Server<SaveTransferErrorMessage>((connection,message)=>
             {if(Busy && connection.connectionId==source && message.request==request) Fail(message.error);}));
         }
         public void RegisterClient()
@@ -126,9 +126,9 @@ namespace Remains.Networking
             foreach(var copy in copies)
             {
                 clientCopies[copy.Id]=copy;
-                NetworkClient.Send(new SaveOfferMessage {json=JsonUtility.ToJson(WorldSummary.From(copy))});
+                session.SendToServer(new SaveOfferMessage {json=JsonUtility.ToJson(WorldSummary.From(copy))});
             }
-            NetworkClient.Send(new SaveOfferMessage {complete=true});
+            session.SendToServer(new SaveOfferMessage {complete=true});
             published=true;
         }
         private void ReceiveOffer(NetworkConnectionToClient connection,SaveOfferMessage message)
@@ -206,7 +206,7 @@ namespace Remains.Networking
                 outgoing=bytes;outgoingRequest=message.request;SentBytes=0;
             }
             catch(Exception exception) when(exception is InvalidDataException || exception is IOException)
-            {NetworkClient.Send(new SaveTransferErrorMessage {request=message.request,error=exception.Message});}
+            {session.SendToServer(new SaveTransferErrorMessage {request=message.request,error=exception.Message});}
         }
         private void ReceiveChunk(NetworkConnectionToClient connection,SaveChunkMessage message)
         {
@@ -281,7 +281,7 @@ namespace Remains.Networking
             {
                 var data=new byte[Math.Min(SnapshotTransfer.ChunkSize,outgoing.Length-SentBytes)];
                 Buffer.BlockCopy(outgoing,SentBytes,data,0,data.Length);
-                NetworkClient.Send(new SaveChunkMessage {request=outgoingRequest,total=outgoing.Length,offset=SentBytes,data=data});
+                session.SendToServer(new SaveChunkMessage {request=outgoingRequest,total=outgoing.Length,offset=SentBytes,data=data});
                 SentBytes+=data.Length;
                 if(SentBytes==outgoing.Length) outgoing=null;
             }

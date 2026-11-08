@@ -33,15 +33,15 @@ namespace Remains.Networking
         public bool PauseOnInventory {get;private set;}
         public event Action Changed;
         public SessionPause(CoopSession session)=>this.session=session;
-        public bool IsPaused(string level)=>level!=null && pausedLevels.Contains(level);
+        public bool IsPaused(string level)=>session.SharedHostWorld?IsServerPaused(level):level!=null && pausedLevels.Contains(level);
         public bool IsServerPaused(string level)=>coordinator!=null && coordinator.IsPausedForPlayers(session.ServerPlayers,level);
         public void RegisterServer()
         {
             coordinator=new LevelPauseCoordinator(session.Rules.Pause);
             published=new PauseStateMessage {revision=0,levels=Array.Empty<string>()};
-            NetworkServer.RegisterHandler<PauseIntentMessage>(Remains.Networking.MessageTiming.Server<PauseIntentMessage>((connection,message)=>
+            session.RegisterServerHandler<PauseIntentMessage>(Remains.Networking.MessageTiming.Server<PauseIntentMessage>((connection,message)=>
                 Apply(connection,coordinator.SetIntent(session.ConnectedActor(connection),message.generation,message.lifecycle,message.menu,message.inventory))));
-            NetworkServer.RegisterHandler<ManualPauseMessage>(Remains.Networking.MessageTiming.Server<ManualPauseMessage>((connection,message)=>
+            session.RegisterServerHandler<ManualPauseMessage>(Remains.Networking.MessageTiming.Server<ManualPauseMessage>((connection,message)=>
                 Apply(connection,coordinator.SetManual(session.ConnectedActor(connection),message.generation,message.lifecycle,message.paused))));
         }
         public void RegisterClient()
@@ -62,13 +62,13 @@ namespace Remains.Networking
         {
             var actor=session.LocalActor;
             if(actor==null || !NetworkClient.isConnected) return;
-            NetworkClient.Send(new PauseIntentMessage {generation=actor.generation,lifecycle=actor.lifecycleSequence,menu=menu,inventory=inventory});
+            session.SendToServer(new PauseIntentMessage {generation=actor.generation,lifecycle=actor.lifecycleSequence,menu=menu,inventory=inventory});
         }
         public void SetManual(bool paused)
         {
             var actor=session.LocalActor;
             if(actor==null || !NetworkClient.isConnected) return;
-            NetworkClient.Send(new ManualPauseMessage {generation=actor.generation,lifecycle=actor.lifecycleSequence,paused=paused});
+            session.SendToServer(new ManualPauseMessage {generation=actor.generation,lifecycle=actor.lifecycleSequence,paused=paused});
         }
         private void Apply(NetworkConnectionToClient connection,string reason)
         {
@@ -87,6 +87,7 @@ namespace Remains.Networking
                 published=new PauseStateMessage {revision=published.revision+1,pauseOnMenu=coordinator.PauseOnMenu,
                     pauseOnInventory=coordinator.PauseOnInventory,levels=levels};
             // Also send an unchanged state after joins/world transitions so late clients see it.
+            if(session.SharedHostWorld) Receive(published);
             NetworkServer.SendToAll(published);
             session.LevelTime.Publish();
         }
