@@ -10,6 +10,15 @@ namespace Remains.Runtime
     // A virtual Unity device only. Never injects input into Windows or another process.
     public static class UiPointerProbe
     {
+        private static Mouse AddProbeMouse()
+        {
+            // Native multi-process probes have inactive windows. Their synthetic input must still reach the UI;
+            // this opt-in test utility is never called by ordinary gameplay.
+            InputSystem.settings.backgroundBehavior=InputSettings.BackgroundBehavior.IgnoreFocus;
+            var mouse=InputSystem.AddDevice<Mouse>("SessionProbeMouse");
+            Debug.Log("Указатель проверки: focused="+Application.isFocused+", enabled="+mouse.enabled+", background="+InputSystem.settings.backgroundBehavior);
+            return mouse;
+        }
         public static Rect ScreenBounds(RectTransform target)
         {
             if(target==null) throw new System.ArgumentNullException(nameof(target));
@@ -25,7 +34,7 @@ namespace Remains.Runtime
         }
         public static IEnumerator Click(RectTransform target,Vector2? localPoint=null,bool followTarget=false)
         {
-            var mouse=InputSystem.AddDevice<Mouse>("SessionProbeMouse");
+            var mouse=AddProbeMouse();
             try
             {
                 yield return null;
@@ -56,7 +65,7 @@ namespace Remains.Runtime
         public static IEnumerator HoldOutside(RectTransform target,System.Action afterPress,
             System.Action<Vector2> verifyHeld,System.Action<Vector2> verifyReleased)
         {
-            var mouse=InputSystem.AddDevice<Mouse>("SessionProbeMouse");
+            var mouse=AddProbeMouse();
             try
             {
                 yield return null;Canvas.ForceUpdateCanvases();
