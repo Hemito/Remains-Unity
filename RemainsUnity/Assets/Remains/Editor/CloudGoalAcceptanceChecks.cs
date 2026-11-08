@@ -14,19 +14,22 @@ namespace Remains.Editor
     {
         [Serializable] public sealed class Case {public string name,status,detail;public long milliseconds;}
         [Serializable] public sealed class Report {public string revision,utc,version,renderer;public List<Case> cases=new();}
-        public static void BuildWindowsBatch()
+        public static void BuildWindowsBatch()=>BuildStandalone(BuildTarget.StandaloneWindows64,true,"Windows","Remains.exe");
+        public static void BuildWindowsReleaseBatch()=>BuildStandalone(BuildTarget.StandaloneWindows64,false,"WindowsRelease","Remains.exe");
+        public static void BuildLinuxBatch()=>BuildStandalone(BuildTarget.StandaloneLinux64,true,"Linux","Remains");
+        private static void BuildStandalone(BuildTarget target,bool development,string folder,string executable)
         {
             try
             {
-                if(!BuildPipeline.IsBuildTargetSupported(BuildTargetGroup.Standalone,BuildTarget.StandaloneWindows64))
-                    throw new InvalidOperationException("Windows Mono module is not recognized by this Editor.");
+                if(!BuildPipeline.IsBuildTargetSupported(BuildTargetGroup.Standalone,target))
+                    throw new InvalidOperationException("Requested build module is not recognized: "+target);
                 ActorShadowSourceChecks.Run();
                 var scenes=EditorBuildSettings.scenes.Where(scene=>scene.enabled).Select(scene=>scene.path).ToArray();
                 if(scenes.Length!=1) throw new InvalidOperationException("Expected one saved startup scene.");
-                string output=Path.GetFullPath(Path.Combine(Application.dataPath,"../Builds/Windows/Remains.exe"));
-                var build=BuildPipeline.BuildPlayer(new BuildPlayerOptions {scenes=scenes,locationPathName=output,target=BuildTarget.StandaloneWindows64,options=BuildOptions.Development});
-                if(build.summary.result!=BuildResult.Succeeded) throw new InvalidOperationException("Windows build failed: "+build.summary.result);
-                Debug.Log("CLOUD_GOAL_WINDOWS_BUILD_PASS "+output+" bytes="+build.summary.totalSize);
+                string output=Path.GetFullPath(Path.Combine(Application.dataPath,"../Builds",folder,executable));
+                var build=BuildPipeline.BuildPlayer(new BuildPlayerOptions {scenes=scenes,locationPathName=output,target=target,options=development?BuildOptions.Development:BuildOptions.None});
+                if(build.summary.result!=BuildResult.Succeeded) throw new InvalidOperationException("Player build failed: "+build.summary.result);
+                Debug.Log("CLOUD_GOAL_PLAYER_BUILD_PASS target="+target+" development="+development+" output="+output+" bytes="+build.summary.totalSize);
                 EditorApplication.Exit(0);
             }
             catch(Exception error) {Debug.LogException(error);EditorApplication.Exit(1);}
