@@ -207,7 +207,10 @@ namespace Remains.Editor
         private static void CheckMissingData()
         {
             var room=Room(1);var actor=Actor(room,60,1,"missing-contacts");actor.climbing=true;actor.anatomy="raider";
-            ExpectDataError(()=>new LadderEntryPose().Select(actor,room),actor,room);
+            // An atlas profile explicitly declares no drawn foot contacts. That is valid,
+            // unlike a missing required pose on a profile which does declare its feet.
+            Require(!Anatomy.DeclaresSupportContacts(actor.anatomy) && new LadderEntryPose().Select(actor,room)=="climb",
+                "Профиль без видимых опор должен использовать обычную позу хвата.");
             actor.anatomy="pony";
             ExpectDataError(()=>new LadderEntryPose("missing-entry-pose").Select(actor,room),actor,room);
         }
