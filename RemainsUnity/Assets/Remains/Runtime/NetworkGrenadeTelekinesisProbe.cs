@@ -185,8 +185,11 @@ namespace Remains.Runtime
         private bool Validate()
         {
             var world=runtime.Session.World;
-            if(world==null || string.IsNullOrEmpty(evidence.id)) return false;
+            if(world==null || string.IsNullOrEmpty(evidence.id))
+            {evidence.validationFailure="Нет мира или наблюдённой гранаты.";return false;}
             var catcher=world.Find(Catcher);var thrower=world.Find(Thrower);
+            if(catcher==null || thrower==null)
+            {evidence.validationFailure="Нет обоих участников сценария.";return false;}
             evidence.catcherGrenades=InventoryJournal.Count(catcher,"grenade");
             evidence.throwerGrenades=InventoryJournal.Count(thrower,"grenade");
             evidence.blastCount=world.explosions.Count(value=>value.attack.id==evidence.id);
@@ -197,7 +200,7 @@ namespace Remains.Runtime
             evidence.throwerReceipts=thrower.resolvedExplosions.Count(id=>id==evidence.id);
             bool observed=Host?peerReady && peerFlightSeen && peerHoldSeen && peerMotionSeen:
                 evidence.readySent && evidence.flightSeenSent && evidence.holdSeenSent && evidence.motionSeenSent;
-            return observed && !staleSeen && evidence.detachedFlight && (!Host || evidence.sharedWorld==runtime.Session.SharedHostWorld && evidence.staleHoldReplaySent) &&
+            bool valid=observed && !staleSeen && evidence.detachedFlight && (!Host || evidence.sharedWorld==runtime.Session.SharedHostWorld && evidence.staleHoldReplaySent) &&
                 (Host?evidence.airborneSpeed>1:evidence.stalePoseSent) &&
                 evidence.holdGeneration==2 && evidence.originalGeneration==1 &&
                 evidence.originalOwner!=evidence.heldOwner && evidence.holdFuse-evidence.lastHeldFuse>.4f &&
@@ -209,12 +212,19 @@ namespace Remains.Runtime
                 evidence.blastCount==1 && blast.attack.attacker==Thrower && evidence.visuals==1 &&
                 evidence.catcherReceipts==1 && evidence.throwerReceipts==1 &&
                 evidence.throwerGrenades==4 && evidence.catcherGrenades==5 && world.grenades.Count==0 && WorldProps.Find(world,evidence.id)==null;
+            if(!valid) evidence.validationFailure=$"Наблюдения подтверждены: {observed}; устаревшая поза: {staleSeen}; отдельный полёт: {evidence.detachedFlight}; "+
+                $"поколения initial/held/release/blast: {evidence.originalGeneration}/{evidence.holdGeneration}/{evidence.releaseGeneration}/{evidence.blastGeneration}; "+
+                $"перенос: {Vector2.Distance(evidence.holdPosition,evidence.lastHeldPosition):R}м; запал при удержании: {evidence.holdFuse-evidence.lastHeldFuse:R}с; "+
+                $"полёт после отпускания: {evidence.freeFlightDistance:R}м; взрыв/эффект: {evidence.blastCount}/{evidence.visuals}; "+
+                $"receipt catcher/thrower: {evidence.catcherReceipts}/{evidence.throwerReceipts}; инвентарь catcher/thrower: {evidence.catcherGrenades}/{evidence.throwerGrenades}.";
+            return valid;
         }
 
         private void Finish(bool success,string detail)
         {
             if(finished) return;
             finished=true;evidence.success=success;evidence.detail=detail;evidence.expireWhileHeld=Expire;
+            if(!success && !string.IsNullOrEmpty(evidence.validationFailure))evidence.detail+=" "+evidence.validationFailure;
             evidence.peerReady=peerReady;evidence.peerFlightSeen=peerFlightSeen;evidence.peerHoldSeen=peerHoldSeen;evidence.peerMotionSeen=peerMotionSeen;
             File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(evidence,true));
             StartCoroutine(Exit(success));
@@ -225,7 +235,7 @@ namespace Remains.Runtime
         {
             public bool success,expireWhileHeld,stalePoseSent,staleHoldReplaySent,detachedFlight,sharedWorld;
             public bool readySent,flightSeenSent,holdSeenSent,motionSeenSent,peerReady,peerFlightSeen,peerHoldSeen,peerMotionSeen;
-            public string detail,id,originalOwner,heldOwner,releaseOwner;
+            public string detail,validationFailure,id,originalOwner,heldOwner,releaseOwner;
             public int originalGeneration,holdGeneration,releaseGeneration,blastGeneration,blastCount,visuals,
                 catcherReceipts,throwerReceipts,catcherGrenades,throwerGrenades;
             public float airborneSpeed,holdFuse,lastHeldFuse,releaseFuse,freeFlightDistance;
