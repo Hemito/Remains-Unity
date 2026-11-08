@@ -37,7 +37,7 @@ namespace Remains.Content
             var prepared=new Dictionary<string,PonyHeadStyleDefinition>(StringComparer.Ordinal);
             foreach(var style in source.styles) prepared.Add(style.id,style);
             using var hash=SHA256.Create();
-            string fingerprint=Convert.ToBase64String(hash.ComputeHash(Encoding.UTF8.GetBytes(asset.text)));
+            string fingerprint=Convert.ToBase64String(hash.ComputeHash(Encoding.UTF8.GetBytes(asset.text.Replace("\r\n","\n"))));
             styles=Array.AsReadOnly(source.styles);SourceJsonText=asset.text;SourceHash=fingerprint;byId=prepared;
         }
         public static void Validate(PonyHeadStyleList source,string context)
