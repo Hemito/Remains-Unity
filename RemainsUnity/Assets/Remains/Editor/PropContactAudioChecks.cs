@@ -30,6 +30,7 @@ namespace Remains.Editor
         // Can run without loading audio assets: exercises production motion and observation classes.
         public static void RunMotion()
         {
+            RunFirstFreeSample();
             var room=new RoomLayout {left=-10,right=10,bottom=0,top=10,ladders=Array.Empty<RoomLadder>(),
                 platforms=new[]{new RoomSurface {x=-10,y=-1,width=20,height=1}}};
             foreach(int fps in new[]{30,60,144})
@@ -73,6 +74,31 @@ namespace Remains.Editor
                 falling.generation++;
                 Require(track.Sample(falling,room,neighbours,false,3)==MotionContact.None,"Передача владения создала удар.");
             }
+        }
+        private static void RunFirstFreeSample()
+        {
+            var room=new RoomLayout {left=-10,right=10,bottom=-2,top=10,ladders=Array.Empty<RoomLadder>(),
+                platforms=new[]{new RoomSurface {x=-10,y=-1,width=20,height=1}}};
+            foreach(string context in new[]{"release","owner","world","reconnect","generation","teleport","pause"})
+            {
+                var prop=new ContainerState {id="short-drop",level="hub",owner="owner",y=.75f,width=.6f,height=.6f,
+                    anchorHeight=0,held=true,generation=2};
+                var track=new PropContactObservation();var neighbours=new[]{prop};
+                Require(track.Sample(prop,room,neighbours,false,3,"world")==MotionContact.None,"Удержание создало звук.");
+                prop.held=false;prop.generation++;
+                PropMotion.Step(prop,room,1f/3,null,neighbours);
+                Require(Mathf.Abs(prop.y)<.001f,"Настоящая физика не воспроизвела одношаговое падение .75м при3Гц.");
+                if(context=="owner")prop.owner="other";
+                if(context=="generation")prop.generation++;
+                if(context=="teleport")prop.x=5;
+                if(context=="reconnect")track=new PropContactObservation();
+                string world=context=="world"?"other-world":"world";bool paused=context=="pause";
+                var expected=context=="release"?MotionContact.Landing:MotionContact.None;
+                Require(track.Sample(prop,room,neighbours,paused,3,world)==expected,"Первое свободное наблюдение: "+context);
+                for(int i=0;i<5;i++)
+                    Require(track.Sample(prop,room,neighbours,false,3,world)==MotionContact.None,"Повтор/отложенный звук: "+context);
+            }
+            Debug.Log("PROP_CONTACT_SHORT_RELEASE_PASS: actual3Hz first-free landing once; owner/world/reconnect/generation/teleport/pause guards retained");
         }
         private static int Advance(PropState prop,RoomLayout room,PropState[] neighbours,PropContactObservation track,int fps,bool paused=false)
         {

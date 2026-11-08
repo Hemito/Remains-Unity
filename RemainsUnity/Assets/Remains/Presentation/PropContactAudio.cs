@@ -120,7 +120,7 @@ namespace Remains.Presentation
         private void Sample(PropState prop,RoomLayout room,bool paused)
         {
             if(!tracks.TryGetValue(prop.id,out var track) ||
-                track.Sample(prop,room,props,paused,settings.teleportDistance)!=MotionContact.Landing) return;
+                track.Sample(prop,room,props,paused,settings.teleportDistance,session.World.worldId)!=MotionContact.Landing) return;
             if(!TryGetLandingClip(prop,out var clip,out var reason))
             {
                 string item=(prop as ContainerState)?.presentationItem;
