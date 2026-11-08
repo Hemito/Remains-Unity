@@ -6,6 +6,7 @@ using UnityEngine;
 
 namespace Remains.Presentation
 {
+    [DefaultExecutionOrder(1000)] // Read the same completed runtime projection as weapon/item visuals.
     public sealed class AtlasActorVisual : ActorVisual
     {
         private const float InvertedLift=.8f;
