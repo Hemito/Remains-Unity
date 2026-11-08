@@ -67,14 +67,14 @@ namespace Remains.Runtime
             if(phase==0)
             {
                 float destination=Host?25:self.id=="player:session-client-1"?23.8f:28+int.Parse(self.character.Split('-').Last());
-                command.movement=Vector2.right*(Mathf.Abs(destination-self.x)>.05f?Mathf.Sign(destination-self.x):0);return command;
+                command.movement=ProbeRouteMotion.Approach(self,destination,"revival/0").movement;return command;
             }
             if(!Host) return command;
             float age=Time.unscaledTime-since;
             if(phase==1) {command.weapon="pistol";command.hasAim=true;command.aim=Victim.Position+Vector2.up*.55f;command.fire=!Victim.down;}
             if(phase==2) command.revive=age<.55f;
-            if(phase==3) {command.movement=self.x<27.4f?Vector2.right:Vector2.zero;command.revive=true;}
-            if(phase==4) command.movement=Mathf.Abs(self.x-25)>.05f?Vector2.right*Mathf.Sign(25-self.x):Vector2.zero;
+            if(phase==3) {command.movement=ProbeRouteMotion.Approach(self,27.4f,"revival/3").movement;command.revive=true;}
+            if(phase==4) command.movement=ProbeRouteMotion.Approach(self,25,"revival/4").movement;
             if(phase==5)
             {
                 if(!grenade)
@@ -221,6 +221,7 @@ namespace Remains.Runtime
         private void Finish(bool success,string detail)
         {
             if(finished) return;finished=true;
+            ProbeRouteMotion.SaveTrace(runtime.Options.Report);
             if(PauseScenario) {success &= pauseWindow.Verified==1;detail+=$" Проверенные паузы поднятия: {pauseWindow.Verified}.";}
             if(success && !Resume)
             {

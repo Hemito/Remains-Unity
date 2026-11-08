@@ -58,11 +58,9 @@ namespace Remains.Runtime
             fired=true;
             return new PlayerCommand {weapon=phase<=1?"crowbar":"spear",fire=true,hasAim=true,aim=self.Position+new Vector2(5,.8f)};
         }
-        private static PlayerCommand Approach(ActorState actor,float target)
+        private PlayerCommand Approach(ActorState actor,float target)
         {
-            float delta=target-actor.x;
-            bool coast=Mathf.Abs(actor.vx)>.1f && (actor.vx*delta<0 || Mathf.Abs(delta)<Mathf.Abs(actor.vx)*.1f+.025f);
-            return new PlayerCommand {movement=new Vector2(!coast && Mathf.Abs(delta)>.03f?Mathf.Sign(delta):0,0)};
+            return ProbeRouteMotion.Approach(actor,target,"melee/"+phase+"/"+route);
         }
         private void Update()
         {
@@ -98,6 +96,7 @@ namespace Remains.Runtime
         private void Finish(bool success,string detail)
         {
             if(finished)return;finished=true;
+            ProbeRouteMotion.SaveTrace(runtime.Options.Report);
             if(PauseScenario && pauseWindow.Verified!=2) success=false;
             int expectedSounds=UiScenario?3:2;
             if(runtime.Audio.MeleeSounds!=expectedSounds) success=false;
