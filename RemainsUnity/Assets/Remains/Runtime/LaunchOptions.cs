@@ -17,6 +17,7 @@ namespace Remains.Runtime
         public int ProbeFrameRate { get; private set; } = 60;
         public bool NetworkStress { get; private set; }
         public bool Diagnostics { get; private set; }
+        public bool? HostSelfTicks {get;private set;}
         public void SetSelectedCharacter(string character)
         {
             if(string.IsNullOrWhiteSpace(character)) throw new ArgumentException("Не указан выбранный персонаж.");
@@ -24,8 +25,12 @@ namespace Remains.Runtime
         }
         public static LaunchOptions Parse()
         {
+            return Parse(Environment.GetCommandLineArgs());
+        }
+        public static LaunchOptions Parse(string[] args)
+        {
             var options = new LaunchOptions();
-            var args = Environment.GetCommandLineArgs();
+            if(args==null) throw new ArgumentNullException(nameof(args));
             for (int i = 0; i < args.Length - 1; i++)
             {
                 switch (args[i])
@@ -46,8 +51,12 @@ namespace Remains.Runtime
                         break;
                     case "--network-stress": options.NetworkStress=bool.Parse(args[++i]); break;
                     case "--diagnostics": options.Diagnostics=bool.Parse(args[++i]); break;
+                    case "--host-self-ticks":
+                        options.HostSelfTicks=args[++i] switch {"on"=>true,"off"=>false,_=>throw new ArgumentException("--host-self-ticks expects on or off")};
+                        break;
                 }
             }
+            if(args.Length>0 && args[args.Length-1]=="--host-self-ticks") throw new ArgumentException("--host-self-ticks expects on or off");
             return options;
         }
     }
