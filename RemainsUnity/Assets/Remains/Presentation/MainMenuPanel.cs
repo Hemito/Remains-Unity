@@ -27,11 +27,13 @@ namespace Remains.Presentation
         public static string DescribeWorld(string name,string branch,long revision,string snapshot)=>
             WorldCopyLabels.SelectedText(name,branch,revision,snapshot);
         public RectTransform SoundRect=>view.Settings.GetComponent<RectTransform>();
-        public MainMenuPanel(Transform parent,Action host,Action join,Action worlds,Action settings,Action newGame,Action characters=null,Action compareCopies=null)
+        public MainMenuPanel(Transform parent,Action host,Action join,Action worlds,Action settings,Action newGame,Action characters=null,
+            Action compareCopies=null,Action controls=null)
         {
             var prefab=GameAssets.Load<MainMenuView>("Presentation/MainMenu");
             if(prefab==null) throw new InvalidOperationException("Нет префаба главного меню Presentation/MainMenu.");
             prefab.Validate();view=UnityEngine.Object.Instantiate(prefab,parent,false);
+            if(controls!=null) ControlSettingsPanel.AddEntry(view.Settings,controls);
             view.Host.onClick.AddListener(()=>host());view.Join.onClick.AddListener(()=>join());
             view.Worlds.onClick.AddListener(()=>worlds());view.Settings.onClick.AddListener(()=>settings());
             view.NewGame.onClick.AddListener(()=>newGame());view.Exit.onClick.AddListener(()=>Application.Quit());

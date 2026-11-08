@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Remains.Content;
 using Remains.Domain;
+using Remains.Gameplay;
 using UnityEngine;
 using UnityEngine.UI;
 namespace Remains.Presentation
@@ -15,6 +16,8 @@ namespace Remains.Presentation
         private readonly Image health,mana;
         private readonly HealthBarWarning healthWarning;
         private readonly Button[] weapons;
+        private readonly Text[] shortcutLabels;
+        private KeyboardBindings keys=KeyboardBindings.Defaults;
         private readonly string[] ids;
         private readonly HashSet<string> missing=new();
         private ActorState displayedActor;
@@ -40,10 +43,12 @@ namespace Remains.Presentation
                 name.rectTransform,healthText.rectTransform,manaText.rectTransform});
             healthWarning=new HealthBarWarning(health.sprite,view.HealthWarningFrames);
             shortcutIcons=new Image[weapons.Length];
+            shortcutLabels=new Text[weapons.Length];
             for(int i=0;i<weapons.Length;i++)
             {
                 string id=i<ids.Length?ids[i]:null,slot=ItemShortcuts.Keys[i];
                 shortcutIcons[i]=view.WeaponIcons[i];
+                shortcutLabels[i]=weapons[i].GetComponentInChildren<Text>(true);
                 weapons[i].onClick.AddListener(()=>
                 {
                     if(displayedActor==null || displayedActor.weaponInventoryVersion!=0 && displayedActor.weaponInventoryVersion!=1) return;
@@ -58,6 +63,12 @@ namespace Remains.Presentation
                 });
             }
         }
+        public void SetBindings(KeyboardBindings value)
+        {
+            keys=value;selectedItem.SetBindings(value);
+            for(int i=0;i<shortcutLabels.Length;i++)
+                if(shortcutLabels[i]!=null) shortcutLabels[i].text=$"[{keys.Label(KeyboardBindings.Shortcut(i))}]";
+        }
         public void Refresh(ActorState actor,bool visible,float? reloadRemaining=null)
         {
             displayedActor=actor;
@@ -68,7 +79,7 @@ namespace Remains.Presentation
             if(actor.weaponInventoryVersion==0 && missing.Add("legacy:"+actor.id))
                 Debug.LogWarning($"HUD показывает диагностические определения старого инвентаря: actor={actor.id}, inventoryVersion={actor.weaponInventoryVersion}. Для игры требуется миграция экземпляров.");
             int grenadeCount=GrenadeItems.Count(actor);   // every hand grenade; G throws GrenadeItems.Next
-            grenades.text=$"G · Гранаты: {grenadeCount}";
+            grenades.text=$"{keys.Label(PlayerBinding.Grenade)} · Гранаты: {grenadeCount}";
             var grenadeColor=grenadeCount>0 && !actor.down?new Color(.65f,1,.75f):new Color(.4f,.5f,.44f);
             grenades.color=grenadeColor;grenadeIcon.color=grenadeCount>0 && !actor.down?Color.white:new Color(.5f,.5f,.5f);
             name.text=actor.down?"Без сознания · нужна помощь":actor.character;

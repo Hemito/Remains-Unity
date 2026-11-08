@@ -46,7 +46,7 @@ namespace Remains.Domain
             {
                 var magazine=Magazine(actor,definition.id);
                 if(magazine==null) {reason=$"Нет магазина оружия {definition.id}. Проверьте сохранение и набор модов.";return false;}
-                if(magazine.rounds<definition.ammoPerShot) {reason=definition.rechargeSeconds>0?"Оружие подзаряжается.":"Магазин пуст. Нажмите R для перезарядки.";return false;}
+                if(magazine.rounds<definition.ammoPerShot) {reason=definition.rechargeSeconds>0?"Оружие подзаряжается.":"Магазин пуст. Перезарядите оружие.";return false;}
                 if(magazine.revision==long.MaxValue) throw new InvalidOperationException("Исчерпан номер состояния магазина.");
             }
             return true;

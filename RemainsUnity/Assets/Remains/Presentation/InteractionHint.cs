@@ -21,6 +21,7 @@ namespace Remains.Presentation
         private bool hasTarget;
         private bool allowed;
         private string sizedText;
+        private string interactKey="E";
         private ActorState actor;
         private readonly Func<Rect?> drawnActorBounds;
         private bool missingActorWarning;
@@ -51,6 +52,11 @@ namespace Remains.Presentation
             worldOutline?.Dispose();worldOutline=new WorldInteractionOutline(worldCamera,resolve);missingOutlineWarning=false;
             UpdateOutline();
         }
+        public void SetInteractKey(string key)
+        {
+            if(interactKey==key) return;
+            interactKey=key;content=Content.None;
+        }
         public void Refresh(ContainerState container,bool visible,ActorState localActor=null)
         {
             RefreshSource(container,visible,localActor);
@@ -68,8 +74,8 @@ namespace Remains.Presentation
                 if(content!=next || next==Content.MassContainer && displayedMass!=mass || next==Content.SecuredContainer && displayedTitle!=security)
                 {
                     content=next;displayedMass=mass;displayedTitle=security;
-                    SetText(security??(source.IsLooseItem?(pickupPending?"Подбор выбранной вещи подтверждается…":"E · Подобрать предмет"):
-                        source.Body!=null?"E · Обыскать тело":mass.HasValue?$"E · Контейнер · {mass:0.#} кг":"E · Контейнер · Закреплён"),security!=null?Color.yellow:normalColor);
+                    SetText(security??(source.IsLooseItem?(pickupPending?"Подбор выбранной вещи подтверждается…":$"{interactKey} · Подобрать предмет"):
+                        source.Body!=null?$"{interactKey} · Обыскать тело":mass.HasValue?$"{interactKey} · Контейнер · {mass:0.#} кг":$"{interactKey} · Контейнер · Закреплён"),security!=null?Color.yellow:normalColor);
                 }
                 var bounds=source.Bounds;targetTop=new Vector2(bounds.center.x,bounds.yMax+.25f);
             }
@@ -87,7 +93,7 @@ namespace Remains.Presentation
             if(ally!=null)
             {
                 var bounds=InventorySource.BodyBounds(ally);
-                if(content!=Content.Revival) {content=Content.Revival;SetText("Удерживайте E · Поднять союзника",normalColor);}
+                if(content!=Content.Revival) {content=Content.Revival;SetText($"Удерживайте {interactKey} · Поднять союзника",normalColor);}
                 targetTop=new Vector2(bounds.center.x,bounds.yMax+.25f);
             }
         }
@@ -97,7 +103,7 @@ namespace Remains.Presentation
             if(!hasTarget || !allowed) UpdateOutline();
             if(point!=null)
             {
-                if(content!=Content.Travel || displayedTitle!=point.title) {content=Content.Travel;displayedTitle=point.title;SetText("E · "+point.title,normalColor);}
+                if(content!=Content.Travel || displayedTitle!=point.title) {content=Content.Travel;displayedTitle=point.title;SetText($"{interactKey} · {point.title}",normalColor);}
                 targetTop=new Vector2(point.x+point.width*.5f,point.y+point.height+.25f);
             }
         }
@@ -108,7 +114,7 @@ namespace Remains.Presentation
             if(door!=null)
             {
                 var next=door.open?Content.DoorOpen:Content.DoorClosed;
-                if(content!=next) {content=next;SetText(door.open?"E · Закрыть дверь":"E · Открыть дверь",Color.yellow);}
+                if(content!=next) {content=next;SetText($"{interactKey} · {(door.open?"Закрыть дверь":"Открыть дверь")}",Color.yellow);}
                 targetTop=new Vector2(door.x+door.width*.5f,door.y+door.height+.25f);
             }
         }
@@ -126,8 +132,8 @@ namespace Remains.Presentation
                 {
                     content=next;displayedPercent=percent;
                     SetText(pending?"Подтверждение взаимодействия…":button.repairState==MechanismRepairStates.Ready?
-                        "E · Запустить платформу":button.repairState==MechanismRepairStates.NeedsRepair?
-                        progress>0?$"E (удерживать) · Ремонт: {progress:P0}":"E (удерживать) · Починить кнопку":"Ремонт кнопки пока недоступен",Color.yellow);
+                        $"{interactKey} · Запустить платформу":button.repairState==MechanismRepairStates.NeedsRepair?
+                        progress>0?$"{interactKey} (удерживать) · Ремонт: {progress:P0}":$"{interactKey} (удерживать) · Починить кнопку":"Ремонт кнопки пока недоступен",Color.yellow);
                 }
                 targetTop=new Vector2(bounds.center.x,bounds.yMax+.25f);
             }
@@ -138,7 +144,7 @@ namespace Remains.Presentation
             if(!hasTarget || !allowed) UpdateOutline();
             if(!hasTarget) return;
             var next=pending?Content.MinePending:Content.Mine;
-            if(content!=next) {content=next;SetText(pending?"Обезвреживание подтверждается…":"E · Обезвредить мину",Color.yellow);}
+            if(content!=next) {content=next;SetText(pending?"Обезвреживание подтверждается…":$"{interactKey} · Обезвредить мину",Color.yellow);}
             targetTop=new Vector2(bounds.center.x,bounds.yMax+.25f);
         }
         // A trap or charge: its action and name ("Обезвредить капкан", "Взвести капкан"); null when it is gone.
@@ -150,7 +156,7 @@ namespace Remains.Presentation
             if(!hasTarget || !allowed) UpdateOutline();
             if(!hasTarget) return;
             content=pending?Content.MinePending:Content.Hazard;
-            SetText(pending?"Действие подтверждается…":"E · "+action,Color.yellow);
+            SetText(pending?"Действие подтверждается…":$"{interactKey} · {action}",Color.yellow);
             targetTop=new Vector2(bounds.center.x,bounds.yMax+.25f);
         }
         private void SetText(string value,Color color)

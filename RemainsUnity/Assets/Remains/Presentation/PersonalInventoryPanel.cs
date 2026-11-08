@@ -13,6 +13,7 @@ namespace Remains.Presentation
     public sealed class PersonalInventoryPanel
     {
         private readonly CoopSession session;
+        private KeyboardBindings keys=KeyboardBindings.Defaults;
         private readonly Func<ItemShortcutActions> itemActions;
         private readonly Func<string,string> itemName;
         private readonly Func<int> quantity;
@@ -59,6 +60,7 @@ namespace Remains.Presentation
         public RectTransform DepositRect=>deposit.GetComponent<RectTransform>();
         public RectTransform UseRect=>use.GetComponent<RectTransform>();
         public RectTransform WeaponRect(int index)=>weaponButtons[index].GetComponent<RectTransform>();
+        public void SetBindings(KeyboardBindings value)=>keys=value;
         public PersonalInventoryPanel(PersonalInventoryView view,CoopSession session,Func<string,string> itemName,Func<int> quantity,Action<string> equip,InventoryArtwork artwork,Action<string> equipItem=null,Action pageSound=null,ItemTextCatalog itemText=null,Func<ItemShortcutActions> itemActions=null)
         {
             this.itemActions=itemActions;
@@ -143,7 +145,7 @@ namespace Remains.Presentation
                 var assigned=ItemShortcuts.Get(actor,ItemShortcuts.Keys[i]);
                 OriginalButtonStyle.SetSelected(weaponButtons[i],instances?chosenItem!=null && assigned?.id==selected:legacy!=null && actor?.weapon==legacy);
                 weaponButtons[i].interactable=actor is {down:false} && (instances?chosenItem!=null:legacy!=null);
-                weaponButtons[i].GetComponentInChildren<Text>().text=$"[{ItemShortcuts.Keys[i]}]";
+                weaponButtons[i].GetComponentInChildren<Text>().text=$"[{keys.Label(KeyboardBindings.Shortcut(i))}]";
                 artwork.Set(weaponIcons[i],instances?assigned?.definition:legacy);
             }
             firstVisibleRow=Mathf.Clamp(firstVisibleRow,0,Math.Max(0,count-rows.Length));
@@ -190,7 +192,7 @@ namespace Remains.Presentation
             use.GetComponentInChildren<Text>().text=availability.Caption??"Использовать";
             foreach(var button in new[]{use,deposit,previous,next})
                 button.GetComponentInChildren<Text>().color=button.interactable?new Color(.65f,1,.75f):new Color(.3f,.4f,.34f);
-            description.SetText(chosen==null?(count==0?"В этой категории пока нет предметов.":"Выберите предмет в списке."):$"{itemName(chosen.definition)}\nВ наличии: {chosen.count}\nДоступно: {availableChosen}\n\n"+(weaponSelected?WeaponDescription(actor,chosen):(Remains.Domain.MineRules.PlacedWeapon(chosen.definition)!=null?"Мина: выберите, чтобы держать телекинезом; ЛКМ или G — отпустить\n\n":"")+
+            description.SetText(chosen==null?(count==0?"В этой категории пока нет предметов.":"Выберите предмет в списке."):$"{itemName(chosen.definition)}\nВ наличии: {chosen.count}\nДоступно: {availableChosen}\n\n"+(weaponSelected?WeaponDescription(actor,chosen):(Remains.Domain.MineRules.PlacedWeapon(chosen.definition)!=null?$"Мина: выберите, чтобы держать телекинезом. ЛКМ или {keys.Label(PlayerBinding.Grenade)} — отпустить\n\n":"")+
                 itemText.Description(chosen.definition,"PersonalInventoryPanel: actor="+actor.id+", item="+chosen.id)+ArmorProtectionDescription.For(chosen.definition)),actor?.id,chosen?.id,!weaponSelected);
             actionStatus.text=session.Deposits.Pending?"Ожидаем подтверждения передачи…":chosen==null?"":
                 availability.Rejection??(container==null?"":rejection??"");

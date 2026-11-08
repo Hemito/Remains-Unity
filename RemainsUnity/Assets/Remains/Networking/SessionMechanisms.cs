@@ -145,7 +145,7 @@ namespace Remains.Networking
                 else
                 {
                     var platform=world.movingPlatforms.Find(p=>p.id==button.platformId);
-                    if(platform==null || platform.revision!=request.platformRevision) reason="Состояние платформы изменилось. Нажмите E ещё раз.";
+                    if(platform==null || platform.revision!=request.platformRevision) reason="Состояние платформы изменилось. Повторите взаимодействие.";
                     else result=operations.TryActivate(actor,button,platform,types[platform.definition],session.LevelTime.ReadServer(platform.level),
                         request.revision,type.interactionRadius,request.operation);
                 }
@@ -153,7 +153,7 @@ namespace Remains.Networking
             bool accepted=reason==null && result.Outcome!=MechanismOperationOutcome.Rejected;
             if(accepted && result.Outcome==MechanismOperationOutcome.Changed) session.CommitWorld();
             connection.Send(new MechanismReply {operation=request.operation,accepted=accepted,
-                reason=reason??result.Reason??(request.repair?"Кнопка отремонтирована. Нажмите E для запуска платформы.":"Платформа запущена.")});
+                reason=reason??result.Reason??(request.repair?"Кнопка отремонтирована. Теперь можно запустить платформу.":"Платформа запущена.")});
         }
     }
 }

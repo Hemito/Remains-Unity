@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Remains.Content;
 using Remains.Domain;
+using Remains.Gameplay;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -14,6 +15,7 @@ namespace Remains.Presentation
         private readonly SelectedItemHudView view;
         private readonly InventoryArtwork artwork;
         private readonly ItemTextCatalog text;
+        private KeyboardBindings keys=KeyboardBindings.Defaults;
         private readonly HashSet<string> missing=new(StringComparer.Ordinal);
         private string shownDefinition,shownAmmo;
         private WeaponDefinition weapon;
@@ -27,6 +29,7 @@ namespace Remains.Presentation
             this.text=text??throw new ArgumentNullException(nameof(text));
             view.Validate();
         }
+        public void SetBindings(KeyboardBindings value)=>keys=value;
 
         public void Refresh(ActorState actor,bool visible,float? reloadRemaining=null)
         {
@@ -57,7 +60,7 @@ namespace Remains.Presentation
                 if(item==null) SetText(view.ItemName,"Предмет закончился");
                 counter=item==null?"":$"В копытах: {available}";
                 action=item==null?"Предмет закончился · выберите другой":available==0?
-                    "Вещь зарезервирована для передачи…":"ЛКМ — бросить 1 · Shift+ЛКМ — стопку";
+                    "Вещь зарезервирована для передачи…":$"ЛКМ — бросить 1 · {keys.Label(PlayerBinding.Sprint)}+ЛКМ — стопку";
             }
             else if(string.IsNullOrEmpty(id))
             {
@@ -100,8 +103,8 @@ namespace Remains.Presentation
                         }
                         else
                         action=reloadRemaining.HasValue?$"Перезарядка · {Mathf.Max(0,reloadRemaining.Value):0.0} с":
-                            magazine.rounds<weapon.ammoPerShot?(reserve>0?"Магазин пуст · R":"Нет боеприпасов"):
-                            magazine.rounds<weapon.magazineSize && reserve>0?"R — перезарядить":"";
+                            magazine.rounds<weapon.ammoPerShot?(reserve>0?$"Магазин пуст · {keys.Label(PlayerBinding.Reload)}":"Нет боеприпасов"):
+                            magazine.rounds<weapon.magazineSize && reserve>0?$"{keys.Label(PlayerBinding.Reload)} — перезарядить":"";
                     }
                 }
                 if(!legacy && available==0) action="Вещь зарезервирована для передачи…";

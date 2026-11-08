@@ -3,6 +3,7 @@ using Remains.Networking;
 using Remains.Persistence;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 using Remains.Content;
@@ -16,6 +17,8 @@ namespace Remains.Presentation
     public sealed class PrototypeHud : MonoBehaviour, IDisposable
     {
         private CoopSession session;
+        private InputPreferences inputPreferences;
+        private Text inventoryButtonLabel,menuButtonLabel;
         private bool disposed;
         private Text status;
         private Text message;
@@ -95,8 +98,10 @@ namespace Remains.Presentation
         public bool RoomLoadingVisible=>roomLoading!=null && roomLoading.IsVisible;
         public RectTransform RoomLoadingRect=>roomLoading.Rect;
         public AudioSettingsPanel AudioSettings {get;private set;}
+        public ControlSettingsPanel ControlSettings {get;private set;}
         public RectTransform MainMenuSoundRect=>mainMenu.SoundRect;
-        public bool BlocksGameplayInput=>RoomPresentationPending || inventory.activeSelf || PauseMenu.IsOpen || AudioSettings.IsOpen || WorldMap.IsOpen || debugItems?.IsOpen==true;
+        public bool BlocksGameplayInput=>RoomPresentationPending || inventory.activeSelf || PauseMenu.IsOpen ||
+            AudioSettings.IsOpen || ControlSettings.IsOpen || WorldMap.IsOpen || debugItems?.IsOpen==true;
         public bool InventoryOpen=>inventory.activeSelf;
         public bool BlocksPointerGameplay(Vector2 screenPosition)=>BlocksGameplayInput || containerPanel.PointerBlocked(screenPosition);
         public void CloseContainerForSprint(bool sprint,Vector2 movement)
@@ -150,10 +155,11 @@ namespace Remains.Presentation
         public event Action<InventorySource> ContainerOpened;
         public event Action<string> JoinRequested;
 
-        public void Initialize(CoopSession value,AudioPreferences audioPreferences=null,Camera worldCamera=null)
+        public void Initialize(CoopSession value,AudioPreferences audioPreferences=null,Camera worldCamera=null,InputPreferences input=null)
         {
             if(disposed) throw new ObjectDisposedException(nameof(PrototypeHud),"Завершённый HUD нельзя инициализировать повторно.");
             session = value;
+            inputPreferences=input??new InputPreferences(null);
             itemText=ItemTextCatalog.Load();
             font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             if (font == null) throw new InvalidOperationException("Не найден системный шрифт Unity LegacyRuntime.ttf.");
@@ -168,8 +174,11 @@ namespace Remains.Presentation
             audioPreferences??=new AudioPreferences(null);
             inventoryAudio=gameObject.AddComponent<InventoryAudio>();inventoryAudio.Initialize(audioPreferences);
             AudioSettings=new AudioSettingsPanel(transform,audioPreferences);
+            ControlSettings=new ControlSettingsPanel(transform,elements,inputPreferences);
             var events = new GameObject("События интерфейса"); events.AddComponent<EventSystem>(); events.AddComponent<InputSystemUIInputModule>();
             var sessionHud=SessionHudView.Create(transform);status=sessionHud.Status;
+            inventoryButtonLabel=sessionHud.Inventory.GetComponentInChildren<Text>();
+            menuButtonLabel=sessionHud.Menu.GetComponentInChildren<Text>();
             combatHud=new CombatHud(transform,weapon=>EquipWeapon?.Invoke(weapon),item=>EquipWeaponItem?.Invoke(item),slot=>
             {
                 if(UseItemShortcut==null) {Debug.LogWarning("Не подключено действие быстрой клавиши: slot="+slot,this);return;}
@@ -195,7 +204,7 @@ namespace Remains.Presentation
                 {
                     if(SelectCharacter?.Invoke(character.text)!=true) return;
                     PrepareConnection(_=>{session.ConfigureHostStartup(SessionStartupIntent.ChooseCopies());HostRequested?.Invoke();});
-                });
+                },controls:ControlSettings.Open);
             lobby=mainMenu.Controls;selectedWorld=mainMenu.World;worldPickerButton=mainMenu.Worlds;hostButton=mainMenu.Host;
             selectedWorldPanel=mainMenu.Root.AddComponent<SelectedWorldPanel>();selectedWorldPanel.Initialize(selectedWorld,hostButton,()=>!newGameOperation.Busy && !session.CharacterSelectionLocked);
             newGameOperation=mainMenu.Root.AddComponent<BackgroundSaveOperation>();
@@ -229,13 +238,27 @@ namespace Remains.Presentation
             SessionMods=new SessionModPanel(transform,elements,session);
             NetworkLobby=new WorldLobbyPanel(transform,session,Refresh);
             CharacterContent=new CharacterContentPanel(transform,elements,session);
-            PauseMenu=new PauseMenu(pauseView,session,()=>inventory.activeSelf || ContainerOpen,()=>AudioSettings.Open(),()=>WorldMap.IsOpen || debugItems?.IsOpen==true);
+            PauseMenu=new PauseMenu(pauseView,session,()=>inventory.activeSelf || ContainerOpen,()=>AudioSettings.Open(),
+                ()=>WorldMap.IsOpen || debugItems?.IsOpen==true,ControlSettings.Open);
             debugItems=new DebugItemsPanel(DebugItemsView.Create(transform),session,inventoryArtwork,ItemName,()=>PauseMenu.PublishIntent());
             WorldMap.StateChanged+=PauseMenu.PublishIntent;
             sessionHud.Inventory.onClick.AddListener(ToggleInventory);
             sessionHud.Menu.onClick.AddListener(ToggleMenu);
             roomLoading=RoomLoadingView.Create(transform,font,pauseMenuLayer);
+            inputPreferences.Changed+=RefreshBindingLabels;
+            RefreshBindingLabels();
             Refresh();
+        }
+
+        private void RefreshBindingLabels()
+        {
+            var keys=inputPreferences.Current;
+            inventoryButtonLabel.text=$"Инвентарь · {keys.Label(PlayerBinding.Inventory)}";
+            menuButtonLabel.text=$"Меню · {keys.Label(PlayerBinding.Menu)}";
+            containerHint.SetInteractKey(keys.Label(PlayerBinding.Interact));
+            combatHud.SetBindings(keys);
+            personalItems.SetBindings(keys);
+            PauseMenu.SetBindings(keys);
         }
 
         // Explicit presentation events own this flag; loading is not a pause request.
@@ -297,6 +320,7 @@ namespace Remains.Presentation
 
         public void ToggleMenu()
         {
+            if(ControlSettings.IsOpen) {ControlSettings.Cancel();return;}
             if(Characters!=null) {Characters.Close();return;}
             if(debugItems?.IsOpen==true) {debugItems.Close();return;}
             if(AudioSettings.IsOpen) {AudioSettings.Cancel();return;}
@@ -305,21 +329,21 @@ namespace Remains.Presentation
             if(ContainerOpen) {CloseContainer();return;}
             PauseMenu.Toggle();
         }
-        public void ToggleInventory() {if(RoomPresentationPending || AudioSettings.IsOpen || PauseMenu.IsOpen || debugItems?.IsOpen==true) return;if(WorldMap.IsOpen) WorldMap.Close();inventoryAudio.Toggle();inventory.SetActive(!inventory.activeSelf);if(inventory.activeSelf) inventory.transform.SetAsLastSibling();Refresh();PauseMenu.PublishIntent();}
+        public void ToggleInventory() {if(RoomPresentationPending || AudioSettings.IsOpen || ControlSettings.IsOpen || PauseMenu.IsOpen || debugItems?.IsOpen==true) return;if(WorldMap.IsOpen) WorldMap.Close();inventoryAudio.Toggle();inventory.SetActive(!inventory.activeSelf);if(inventory.activeSelf) inventory.transform.SetAsLastSibling();Refresh();PauseMenu.PublishIntent();}
         public void OpenContainer() {if(!ContainerOpen) ToggleContainer();}
         public void ToggleContainer()
         {
             if(ContainerOpen) {CloseContainer();return;}
-            if(RoomPresentationPending || AudioSettings.IsOpen || PauseMenu.IsOpen || session.Travel.Pending || session.LocalActor is not {down:false}) return;
+            if(RoomPresentationPending || AudioSettings.IsOpen || ControlSettings.IsOpen || PauseMenu.IsOpen || session.Travel.Pending || session.LocalActor is not {down:false}) return;
             var target=CurrentInteraction;
             if(target.kind!=InteractionKind.Container) {ShowMessage("Курсор не выбрал доступный контейнер.");return;}
             OpenContainer(target.id);
         }
         public void OpenContainer(string id)
         {
-            if(RoomPresentationPending || AudioSettings.IsOpen || PauseMenu.IsOpen || session.Travel.Pending || session.LocalActor is not {down:false}) return;
+            if(RoomPresentationPending || AudioSettings.IsOpen || ControlSettings.IsOpen || PauseMenu.IsOpen || session.Travel.Pending || session.LocalActor is not {down:false}) return;
             var source=InventorySource.Resolve(session.World,id);
-            if(source?.IsLooseItem==true) {ShowMessage("Свободная вещь подбирается по E целиком.");return;}
+                if(source?.IsLooseItem==true) {ShowMessage($"Свободная вещь подбирается по {inputPreferences.Current.Label(PlayerBinding.Interact)} целиком.");return;}
             if(!ContainerAccess.Accessible(session.LocalActor,source,session.Rules.Loot,session.Rules.Deposit))
             {ShowMessage("Контейнер больше недоступен.");return;}
             if(!containerPanel.Open(source.id)) return;
@@ -452,12 +476,16 @@ namespace Remains.Presentation
         private void Update()
         {
             using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("PrototypeHud.Update");
-            if(session.LocalActor==null && Application.isFocused && UnityEngine.InputSystem.Keyboard.current?.escapeKey.wasPressedThisFrame==true)
+            var keyboard=Keyboard.current;
+            bool focused=Application.isFocused;
+            if(ControlSettings.ConsumesKeyboard)
+            {if(focused) ControlSettings.ReadKeyboard(keyboard);}
+            else if(session.LocalActor==null && focused && inputPreferences.Current.Pressed(keyboard,PlayerBinding.Menu))
             {
                 if(Characters!=null) ToggleMenu();
                 else if(AudioSettings.IsOpen) AudioSettings.Cancel();
             }
-            if(debugItems!=null && debugItems.WatchWord(UnityEngine.InputSystem.Keyboard.current,PauseMenu.IsOpen && Application.isFocused)) {PauseMenu.Toggle();debugItems.Open();}
+            if(debugItems!=null && debugItems.WatchWord(keyboard,PauseMenu.IsOpen && focused && !ControlSettings.ConsumesKeyboard)) {PauseMenu.Toggle();debugItems.Open();}
             WorldMap.Refresh();
             RefreshInteractionHint();
             RefreshGameplayHud(session.LocalActor);
@@ -465,7 +493,7 @@ namespace Remains.Presentation
             if(revival==null) return;
             float progress=RevivalProgress?.Invoke() ?? 0;
             revival.text=RevivalPending?.Invoke()==true?"Ожидаем подтверждения поднятия…":
-                progress>0?$"Поднимаем союзника: {progress:P0} · удерживайте E":"";
+                progress>0?$"Поднимаем союзника: {progress:P0} · удерживайте {inputPreferences.Current.Label(PlayerBinding.Interact)}":"";
             revival.transform.parent.gameObject.SetActive(!RoomPresentationPending && !string.IsNullOrEmpty(revival.text));
         }
         // Runtime destruction and detached Editor owners share one teardown path.
@@ -476,12 +504,13 @@ namespace Remains.Presentation
             disposed=true;enabled=false;
             NetworkLobby?.Dispose();
             containerHint?.Dispose();
+            if(inputPreferences!=null) inputPreferences.Changed-=RefreshBindingLabels;
             if(session is not null)
             {session.Changed-=Refresh;session.SessionStopped-=RefreshAfterSessionStop;session.Notice-=ShowMessage;}
             if(WorldMap!=null && PauseMenu!=null) WorldMap.StateChanged-=PauseMenu.PublishIntent;
         }
         private void OnDestroy()=>Dispose();
-        private void LateUpdate() {using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("PrototypeHud.LateUpdate");containerPanel?.Step(RoomPresentationPending || InventoryOpen || PauseMenu.IsOpen || AudioSettings.IsOpen || WorldMap.IsOpen);}
+        private void LateUpdate() {using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("PrototypeHud.LateUpdate");containerPanel?.Step(RoomPresentationPending || InventoryOpen || PauseMenu.IsOpen || AudioSettings.IsOpen || ControlSettings.IsOpen || WorldMap.IsOpen);}
         private static void ApplyOriginalImage(Image image,string key,bool filled)
         {
             var texture=GameAssets.Load<Texture2D>("Original/Hud/"+key);

@@ -47,7 +47,7 @@ namespace Remains.Presentation
         public bool Open(string id)
         {
             var source=InventorySource.Resolve(session.World,id);
-            if(source?.IsLooseItem==true) {session.ShowNotice("Свободная вещь подбирается по E целиком.");return false;}
+            if(source?.IsLooseItem==true) {session.ShowNotice("Свободная вещь подбирается целиком действием взаимодействия.");return false;}
             if(!ContainerAccess.Accessible(session.LocalActor,source,session.Rules.Loot,session.Rules.Deposit))
             {session.ShowNotice("Контейнер больше недоступен.");return false;}
             view.BeginSource(id);sourceId=id;row=0;Refresh();

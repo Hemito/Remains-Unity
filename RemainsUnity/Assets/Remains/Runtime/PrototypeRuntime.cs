@@ -47,6 +47,7 @@ namespace Remains.Runtime
         public ActorDeathAudio DeathAudio {get;private set;}
         public ExplosionEffects Explosions {get;private set;}
         public AudioPreferences AudioPreferences {get;private set;}
+        public InputPreferences InputPreferences {get;private set;}
         public DoorVisuals DoorVisuals {get;private set;}
         public MineVisuals MineVisuals {get;private set;}
         public HazardVisuals HazardVisuals {get;private set;}
@@ -285,7 +286,9 @@ namespace Remains.Runtime
             Music=CreateOwnedObject("Музыка локации").AddComponent<AreaMusic>();Music.Initialize(Session);
             if(Application.isBatchMode && Options.Smoke!=null && string.IsNullOrEmpty(Options.SaveDirectory))
                 throw new System.InvalidOperationException("Фоновая проверка требует отдельного каталога --save-dir для настроек.");
-            AudioPreferences=new AudioPreferences(Path.Combine(Options.SaveDirectory??ProjectStorage.RootDirectory,"Settings","audio.json"));
+            string settingsDirectory=Path.Combine(Options.SaveDirectory??ProjectStorage.RootDirectory,"Settings");
+            AudioPreferences=new AudioPreferences(Path.Combine(settingsDirectory,"audio.json"));
+            InputPreferences=new InputPreferences(Path.Combine(settingsDirectory,"controls.json"));
             musicMixVolume=Music.Volume;AudioPreferences.Changed+=ApplyAudioPreferences;ApplyAudioPreferences();
             PonyVisual.Prepare();
             Session.Changed+=RefreshVisuals;
@@ -294,7 +297,7 @@ namespace Remains.Runtime
             ItemActions=new ItemShortcutActions(Session,EquipWeaponItem);
             if (!Application.isBatchMode || Options.Smoke=="characters-delete" || Options.Smoke?.StartsWith("lighting-preparation")==true || (Options.Smoke is "performance-audit" or "seed104-baseline") || Options.Smoke?.StartsWith("characters")==true || Options.Smoke?.StartsWith("prop-body")==true || Options.Smoke?.StartsWith("travel-points")==true || Options.Smoke?.StartsWith("door")==true || Options.Smoke?.Contains("-frames-")==true || Options.Smoke?.Contains("-mismatch-")==true || (Options.Smoke?.StartsWith("pause")==true || Options.Smoke?.StartsWith("body")==true) || Options.Smoke?.Contains("-ffui-")==true || Options.Smoke?.StartsWith("journey")==true || Options.Smoke?.StartsWith("session")==true || Options.Smoke?.StartsWith("container")==true || Options.Smoke=="history" || Options.Smoke=="world-management" || Options.Smoke=="world-library-volume" || Options.Smoke?.StartsWith("lobby")==true || Options.Smoke?.StartsWith("duplicate")==true)
             {
-                hud=CreateOwnedObject("Интерфейс").AddComponent<PrototypeHud>(); hud.Initialize(Session,AudioPreferences,cameraView);
+                hud=CreateOwnedObject("Интерфейс").AddComponent<PrototypeHud>(); hud.Initialize(Session,AudioPreferences,cameraView,InputPreferences);
                 roomPresentation.SetHud(hud);
                 hud.LocalActorVisual=()=>Session.LocalActor==null?null:FindActorVisual(Session.LocalActor.id);
                 hud.LocalWeaponArtwork=()=>Session.LocalActor==null?null:interactionVisuals.FindWeapon(Session.LocalActor.id)?.Artwork;
@@ -313,7 +316,7 @@ namespace Remains.Runtime
                 hud.EquipWeaponItem=EquipWeaponItem;
                 hud.ConfigureItemActions(ItemActions);
                 hud.UseItemShortcut=slot=>ItemActions.Activate(slot,lastGameplayAim,Application.isFocused &&
-                    (Keyboard.current?.leftShiftKey.isPressed==true || Keyboard.current?.rightShiftKey.isPressed==true));
+                    InputPreferences.Current.Held(Keyboard.current,PlayerBinding.Sprint));
                 hud.EquipWeapon=weapon=>{if(Session.LocalActor is {down:false}) Combat.Weapon=weapon;};
                 bool characterProbe=Options.Smoke?.StartsWith("characters")==true;
                 var characterLibrary=saveLibraries?.Characters??new CharacterLibrary(Path.Combine(ProjectStorage.RootDirectory,"Profiles"),Options.SaveDirectory);
@@ -659,7 +662,8 @@ namespace Remains.Runtime
             using(Remains.Diagnostics.FrameHitchLog.Section("Подбор")) Pickup.Step();
             if (actor==null || !NetworkClient.isConnected)
             {
-                if(Session.EntryPreparation.ClientPending && Application.isFocused && Keyboard.current?.escapeKey.wasPressedThisFrame==true)
+                if(Session.EntryPreparation.ClientPending && Application.isFocused && hud?.ControlSettings?.ConsumesKeyboard!=true &&
+                    InputPreferences.Current.Pressed(Keyboard.current,PlayerBinding.Menu))
                 {if(NetworkServer.active) Session.StopHost();else Session.StopClient();}
                 remoteMotion.Clear();InteractionFocus.Clear();return;
             }
@@ -765,25 +769,10 @@ namespace Remains.Runtime
 
         private PlayerCommand ReadCommand()
         {
-            var command=new PlayerCommand();
             // Background simulation continues, but desktop devices drive only the focused instance.
-            if(!Application.isFocused) return command;
-            var keyboard=Keyboard.current; var mouse=Mouse.current;
-            if(keyboard!=null)
-            {
-                command.movement=new Vector2((keyboard.dKey.isPressed?1:0)-(keyboard.aKey.isPressed?1:0),
-                    (keyboard.wKey.isPressed?1:0)-(keyboard.sKey.isPressed?1:0));
-                command.jump=keyboard.spaceKey.wasPressedThisFrame;
-                command.jumpHeld=keyboard.spaceKey.isPressed;
-                command.sprint=keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed;
-                command.weaponShortcut=ItemShortcutInput.Pressed(keyboard);command.shortcutWholeStack=command.sprint;command.throwWholeStack=command.sprint;
-                command.inventory=keyboard.tabKey.wasPressedThisFrame;
-                command.menu=keyboard.escapeKey.wasPressedThisFrame;
-                command.reload=keyboard.rKey.wasPressedThisFrame;
-                command.interact=keyboard.eKey.wasPressedThisFrame;command.revive=keyboard.eKey.isPressed;command.telekinesis=keyboard.qKey.isPressed;
-                command.grenade=keyboard.gKey.wasPressedThisFrame;command.heal=keyboard.hKey.wasPressedThisFrame;
-                command.strike=keyboard.fKey.wasPressedThisFrame;   // Ctr keyPunch (F), a kick with the run key
-            }
+            if(!Application.isFocused || hud?.ControlSettings?.ConsumesKeyboard==true) return default;
+            var command=InputPreferences.Current.Read(Keyboard.current);
+            var mouse=Mouse.current;
             if(mouse!=null)
             {
                 command.pointer=mouse.position.ReadValue();command.hasPointer=true;

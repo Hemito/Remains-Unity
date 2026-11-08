@@ -5,16 +5,18 @@ namespace Remains.Gameplay
 {
     public static class ItemShortcutInput
     {
-        public static Key KeyFor(string slot)=>slot switch
+        public static Key KeyFor(string slot)
         {
-            "1"=>Key.Digit1,"2"=>Key.Digit2,"3"=>Key.Digit3,"4"=>Key.Digit4,"5"=>Key.Digit5,"6"=>Key.Digit6,
-            "7"=>Key.Digit7,"8"=>Key.Digit8,"9"=>Key.Digit9,"0"=>Key.Digit0,"-"=>Key.Minus,"="=>Key.Equals,
-            _=>throw new System.ArgumentException("Неизвестная быстрая клавиша предмета: "+slot)
-        };
-        public static string Pressed(Keyboard keyboard)
+            for(int i=0;i<ItemShortcuts.Keys.Count;i++)
+                if(ItemShortcuts.Keys[i]==slot) return KeyboardBindings.Defaults.KeyFor(KeyboardBindings.Shortcut(i));
+            throw new System.ArgumentException("Неизвестная быстрая клавиша предмета: "+slot);
+        }
+        public static string Pressed(Keyboard keyboard,KeyboardBindings bindings=null)
         {
             if(keyboard==null) return null;
-            foreach(var slot in ItemShortcuts.Keys) if(keyboard[KeyFor(slot)].wasPressedThisFrame) return slot;
+            bindings??=KeyboardBindings.Defaults;
+            for(int i=0;i<ItemShortcuts.Keys.Count;i++)
+                if(bindings.Pressed(keyboard,KeyboardBindings.Shortcut(i))) return ItemShortcuts.Keys[i];
             return null;
         }
     }

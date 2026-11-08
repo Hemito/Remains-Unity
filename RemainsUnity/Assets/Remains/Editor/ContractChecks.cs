@@ -19,6 +19,7 @@ namespace Remains.Editor
             WorldReplicationChecks.Run();
             ProjectStorageChecks.Run();LevelTimeReplicaChecks.Run();MechanismOperationsChecks.Run();
             ItemShortcutChecks.Run();
+            ControlSettingsChecks.Run();
             DroppedItemShapeChecks.Run();
             CreatureDeathLootChecks.Run();
             PropImpactChecks.Run();
