@@ -24,7 +24,7 @@ namespace Remains.Presentation
         public void InvalidateSupport()=>reusableSupport=false;
         public MotionContact Sample(PropState prop,RoomLayout room,IEnumerable<PropState> neighbours,bool paused,float teleportDistance,string world=null)
         {
-            if(!prop.hasPhysicalBody) {InvalidateSupport();return MotionContact.None;}
+            if(!prop.hasPhysicalBody) {held=false;InvalidateSupport();return MotionContact.None;}
             if(world!=null && sampledWorld!=world)
             {contacts=new MotionContacts();sampledWorld=world;held=false;InvalidateSupport();}
             hull.width=prop.width;hull.height=prop.height;

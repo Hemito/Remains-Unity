@@ -77,9 +77,13 @@ namespace Remains.Editor
         }
         private static void RunFirstFreeSample()
         {
+            var previous=new MotionContacts();
+            previous.Sample(Vector2.up*.75f,"hub",2,false,false,true,float.MaxValue,float.MaxValue,3);
+            Require(previous.Sample(Vector2.zero,"hub",3,true,false,false,float.MaxValue,float.MaxValue,3)==MotionContact.None,
+                "Прежний reset поколения больше не воспроизводит пропуск короткого падения.");
             var room=new RoomLayout {left=-10,right=10,bottom=-2,top=10,ladders=Array.Empty<RoomLadder>(),
                 platforms=new[]{new RoomSurface {x=-10,y=-1,width=20,height=1}}};
-            foreach(string context in new[]{"release","owner","world","reconnect","generation","teleport","pause"})
+            foreach(string context in new[]{"release","owner","world","level","reconnect","generation","teleport","pause","unknown-world"})
             {
                 var prop=new ContainerState {id="short-drop",level="hub",owner="owner",y=.75f,width=.6f,height=.6f,
                     anchorHeight=0,held=true,generation=2};
@@ -89,10 +93,11 @@ namespace Remains.Editor
                 PropMotion.Step(prop,room,1f/3,null,neighbours);
                 Require(Mathf.Abs(prop.y)<.001f,"Настоящая физика не воспроизвела одношаговое падение .75м при3Гц.");
                 if(context=="owner")prop.owner="other";
+                if(context=="level")prop.level="factory:0";
                 if(context=="generation")prop.generation++;
                 if(context=="teleport")prop.x=5;
                 if(context=="reconnect")track=new PropContactObservation();
-                string world=context=="world"?"other-world":"world";bool paused=context=="pause";
+                string world=context=="world"?"other-world":context=="unknown-world"?null:"world";bool paused=context=="pause";
                 var expected=context=="release"?MotionContact.Landing:MotionContact.None;
                 Require(track.Sample(prop,room,neighbours,paused,3,world)==expected,"Первое свободное наблюдение: "+context);
                 for(int i=0;i<5;i++)
