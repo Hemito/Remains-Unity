@@ -1063,6 +1063,8 @@ namespace Remains.Networking
             ObservePoseCorrection("actor",current,actor.pose,actor.poseTime);
             if (current != null) World.actors.Remove(current);
             World.actors.Add(actor);
+            // One host world: this is also the server graph, whose player list must follow the replacement.
+            if(ReferenceEquals(World,ServerWorld)) TrackServerPlayer(actor);
             if(selfHealTransition) PublishActor(actor);else RaiseChanged(WorldChangeKind.Actors,new[]{"actors:"+actor.id});
         }
 
