@@ -37,7 +37,7 @@ namespace Remains.Editor
                 var motion=new RemoteActorMotion();
                 for(int frame=0;frame<fps;frame++)
                 {
-                    motion.Step(world,"local",1f/fps,_=>false,(double)frame/fps,false,true);
+                    motion.Step(world,"local",1f/fps,_=>false,(double)frame/fps,false,preserveWorld:true);
                     Require(Remains.Serialization.StateJson.ToJson(world)==canonical,"Render interpolation changed authoritative graph");
                 }
                 var shown=motion.Presentation(actor);
@@ -47,7 +47,7 @@ namespace Remains.Editor
                 Require((HeldItemPose.Mount(shown)-HeldItemPose.Mount(actor)-delta).sqrMagnitude<1e-8f,"Held item detached from rendered body");
                 Require((WeaponPose.SampleRanged(shown).Root-WeaponPose.SampleRanged(actor).Root-delta).sqrMagnitude<1e-8f,"Weapon detached from rendered body");
                 Require(ReferenceEquals(motion.Presentation(local),local),"Local simulation was projected");
-                actor.owner="local";motion.Step(world,"local",1f/fps,_=>false,2,false,true);
+                actor.owner="local";motion.Step(world,"local",1f/fps,_=>false,2,false,preserveWorld:true);
                 Require(ReferenceEquals(motion.Presentation(actor),actor),"Stale remote projection survived ownership transfer");
             }
             Debug.Log("HOST_WORLD_PRESENTATION_PASS");

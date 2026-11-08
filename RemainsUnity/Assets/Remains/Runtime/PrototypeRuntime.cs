@@ -576,7 +576,7 @@ namespace Remains.Runtime
                 if(visual is AtlasActorVisual atlas) atlas.ConfigureVisibleArea(actorActivity.InVisibleArea);
             }
             if(visual is PonyVisual pony) pony.ConfigureMagicSource(ponyMagic);
-            visual.ConfigurePresentationProjection(Session.SharedHostWorld?remoteMotion.Presentation:null);
+            visual.ConfigurePresentationProjection(Session?.SharedHostWorld==true?remoteMotion.Presentation:null);
             visual.Bind(actor);
             visual.SetVisible(id==Session?.LocalActorId || activeVisuals.ContainsKey(id));
         }

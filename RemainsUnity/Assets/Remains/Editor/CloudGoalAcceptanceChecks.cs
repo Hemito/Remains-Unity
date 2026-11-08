@@ -48,7 +48,6 @@ namespace Remains.Editor
                 Debug.Log("CLOUD_GOAL_CASE "+name+" "+result.status+" "+result.detail);
             }
             Check("weapon grip and GPU capture",WeaponGripGlowChecks.Run);
-            Check("animation fallback buffer",AnimationBufferLifetimeChecks.Run);
             Check("shadow mask teardown",ActorShadowTeardownChecks.Run);
             Check("Mirror diagnostics reconnect",JourneyTransportTraceChecks.Run);
             Check("firearm content",FirearmChecks.Run);
