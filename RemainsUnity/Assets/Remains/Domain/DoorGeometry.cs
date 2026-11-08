@@ -18,7 +18,9 @@ namespace Remains.Domain
                 door.Validate();
                 if(!ids.Add(door.id)) throw new InvalidOperationException("Повторный ID двери: "+door.id);
                 if(door.level!=level || !door.Blocks) continue;
-                result.Add(new RoomSurface {x=door.x,y=door.y,width=door.width,height=door.height,texture=door.surfaceTexture,sourceDoorId=door.id});
+                // Original grate phis=2: retain the actor barrier while allowing shots through its openings.
+                result.Add(new RoomSurface {x=door.x,y=door.y,width=door.width,height=door.height,texture=door.surfaceTexture,
+                    sourceDoorId=door.id,shotsPassThrough=door.definition=="grate"});
             }
             return result.ToArray();
         }
