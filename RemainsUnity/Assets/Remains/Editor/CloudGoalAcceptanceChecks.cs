@@ -17,6 +17,7 @@ namespace Remains.Editor
         public static void BuildWindowsBatch()=>BuildStandalone(BuildTarget.StandaloneWindows64,true,"Windows","Remains.exe");
         public static void BuildWindowsReleaseBatch()=>BuildStandalone(BuildTarget.StandaloneWindows64,false,"WindowsRelease","Remains.exe");
         public static void BuildLinuxBatch()=>BuildStandalone(BuildTarget.StandaloneLinux64,true,"Linux","Remains");
+        public static void BuildLinuxReleaseBatch()=>BuildStandalone(BuildTarget.StandaloneLinux64,false,"LinuxRelease","Remains");
         private static void BuildStandalone(BuildTarget target,bool development,string folder,string executable)
         {
             try
@@ -65,6 +66,9 @@ namespace Remains.Editor
             Check("host shared graph and authority",HostWorldChecks.Run);
             Check("shared ladder controller",RoomEditorLadderChecks.Run);
             Check("empty room layer geometry",RoomEmptyLayerGeometryChecks.Run);
+            Check("DSP preset menu and persistence",AudioDspSettingsChecks.Run);
+            Check("DSP loop playback recovery",AudioDspLoopChecks.Run);
+            Check("held prop release and landing",PropContactAudioChecks.Run);
             string directory=Path.GetFullPath(Path.Combine(Application.dataPath,"../../Verification/cloud-goal"));Directory.CreateDirectory(directory);
             File.WriteAllText(Path.Combine(directory,"results.json"),JsonUtility.ToJson(report,true));
             Debug.Log("CLOUD_GOAL_SUMMARY total="+report.cases.Count+" failed="+failed);
