@@ -55,10 +55,33 @@ namespace Remains.Editor
                 // The installed creatures: every placed random NPC is a connected plan entry.
                 var catalog=CreatureCatalog.Load();
                 var placed=root.GetComponentsInChildren<RoomActorPlacement>(true).Where(p=>p.name.StartsWith("Случайное существо: ",StringComparison.Ordinal)).ToArray();
-                // A danger-chosen unit (raiders) is placed only when its chosen variant and weapon are connected.
-                int expected=plan.Count(e=>!e.Hidden && catalog.TryObject(e.Unit,out var rule) && (string.IsNullOrEmpty(rule.variantRule) ||
-                    CreatureCatalog.ChooseVariant(rule,e.Danger,FactoryRandomEncounters.VariantRandom(root,e.LocalId),out _)!=null));
-                Require(placed.Length==expected,$"Поставлено случайных существ {placed.Length}, по плану подключённых {expected}.");
+                // Hidden zombies are connected NPCs too. Numbered factory profiles also affect cid and weapon danger.
+                var expected=new Dictionary<string,string>(StringComparer.Ordinal);
+                var hiddenZombies=new HashSet<string>(StringComparer.Ordinal);
+                foreach(var encounter in plan)
+                {
+                    if(encounter.Hidden && encounter.Unit!="zombie" || !catalog.TryObject(encounter.Unit,out var rule))continue;
+                    string actorType;
+                    if(string.IsNullOrEmpty(rule.variantRule))
+                    {
+                        int hash=encounter.LocalId.Aggregate(0,(value,c)=>unchecked(value*31+c));
+                        actorType=rule.actorTypes[(int)((uint)hash>>1)%rule.actorTypes.Length];
+                    }
+                    else actorType=CreatureCatalog.ChooseVariant(rule,encounter.Danger,
+                        FactoryRandomEncounters.VariantRandom(root,encounter.LocalId),out _,root.Prepared.Profile);
+                    if(actorType==null)continue;
+                    expected.Add(encounter.LocalId,actorType);
+                    if(encounter.Hidden)hiddenZombies.Add(encounter.LocalId);
+                }
+                Require(placed.Length==expected.Count,$"Поставлено случайных существ {placed.Length}, по плану подключённых {expected.Count}.");
+                foreach(var marker in placed)
+                {
+                    var placement=marker.Read(authoring);
+                    Require(expected.TryGetValue(placement.id,out string actorType) && placement.type==actorType,
+                        $"Существо {placement.id}: поставлено {placement.type}, ожидалось {actorType}.");
+                    if(hiddenZombies.Contains(placement.id))Require(ActorPresence.Hidden(marker.ReadNpc(authoring,"factory:0")),
+                        "Скрытый зомби появился незакопанным: "+placement.id);
+                }
                 // Node names carry the template object's world ID: one NPC per object.
                 var allIds=root.GetComponentsInChildren<RoomActorPlacement>(true).Select(p=>p.name.Substring(p.name.IndexOf(": ",StringComparison.Ordinal)+2)).ToArray();
                 Require(allIds.Distinct(StringComparer.Ordinal).Count()==allIds.Length,"Повтор объекта среди NPC завода.");
