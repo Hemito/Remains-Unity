@@ -16,19 +16,29 @@ namespace Remains.Editor
             try {Run();EditorApplication.Exit(0);}
             catch(Exception error) {Debug.LogException(error);EditorApplication.Exit(1);}
         }
-        public static void Run()
+        public static void Run()=>Run(true);
+        public static void RunTransformsBatch()
         {
-            WeaponRigs.Load();
+            try {Run(false);EditorApplication.Exit(0);}
+            catch(Exception error) {Debug.LogException(error);EditorApplication.Exit(1);}
+        }
+        private static void Run(bool capture)
+        {
+            WeaponRigs.Load();CheckActorRoles();
             int cases=0;
             foreach(var rig in WeaponRigs.All)
             {
                 var view=UnityEngine.Object.Instantiate(WeaponRigs.Prefab(rig.id));
+                Sprite ownedSprite=null;Material ownedMaterial=null;
                 try
                 {
                     view.SetFrame(view.ResolveRestSprite());
                     view.PrepareGrip(new Color(.2f,.5f,1));view.DrawGrip(true);
+                    // MonoBehaviour teardown is otherwise suppressed in EditMode: opt this fixture into its callbacks.
+                    view.GripGlow.runInEditMode=true;
                     var glow=view.GripGlow.Renderer;
                     var sprite=glow.sprite;var material=glow.sharedMaterial;
+                    ownedSprite=sprite;ownedMaterial=material;
                     foreach(bool mirrored in new[]{false,true})
                     foreach(float angle in new[]{0f,45f,90f,180f,270f})
                     {
@@ -46,9 +56,40 @@ namespace Remains.Editor
                     view.DrawGrip(true);view.SetVisible(false);Require(!glow.gameObject.activeInHierarchy,"Убранное оружие оставило дымку.");
                 }
                 finally {UnityEngine.Object.DestroyImmediate(view.gameObject);}
+                Require(ownedSprite==null && ownedMaterial==null,"Уничтожение оружия оставило ресурсы дымки: "+rig.id);
             }
-            Capture();
-            Debug.Log("WEAPON_GRIP_GLOW_PASS: transform cases="+cases+"; color, reuse, hide and actual GPU before/after readback.");
+            if(capture)Capture();
+            Debug.Log("WEAPON_GRIP_GLOW_PASS: transform cases="+cases+"; color, reuse, hide, native material/sprite release; GPU capture="+capture+".");
+        }
+        public static void RunRolesBatch()
+        {
+            try {WeaponRigs.Load();CheckActorRoles();EditorApplication.Exit(0);}
+            catch(Exception error) {Debug.LogException(error);EditorApplication.Exit(1);}
+        }
+        private static void CheckActorRoles()
+        {
+            ActorTypes.Load();PonyAppearance.Prepare();
+            foreach(string id in new[]{"pony","raider2-mach","raider4-axe","raider4-shovel"})
+            {
+                var actor=new ActorState {id="grip-"+id,actorType=id};
+                Require(WeaponGripGlow.UsesLevitatedWeapon(actor),"Телекинетическое оружие пропущено: "+id);
+                var view=UnityEngine.Object.Instantiate(WeaponRigs.Prefab("pistol"));
+                Sprite ownedSprite=null;Material ownedMaterial=null;
+                try
+                {
+                    var expected=PonyAppearance.FromRgb(PonyAppearance.Snapshot(actor).Magic);
+                    view.PrepareGrip(expected);view.GripGlow.runInEditMode=true;view.DrawGrip(true);
+                    var renderer=view.GripGlow.Renderer;ownedSprite=renderer.sprite;ownedMaterial=renderer.sharedMaterial;
+                    Require(renderer.enabled && renderer.color.r==expected.r && renderer.color.g==expected.g && renderer.color.b==expected.b,
+                        "Цвет телекинетического NPC не следует существующей политике внешности: "+id);
+                }
+                finally {UnityEngine.Object.DestroyImmediate(view.gameObject);}
+                Require(ownedSprite==null && ownedMaterial==null,"Дымка NPC оставила ресурсы после уничтожения: "+id);
+            }
+            foreach(var type in EntityAssetCatalog.Load().CreateActors())
+                if(type.atlasWeaponSocket || type.behavior==NpcCreatureBehaviours.Turret)
+                    Require(!WeaponGripGlow.UsesLevitatedWeapon(new ActorState {actorType=type.id}),"Дымка добавлена оружию в зубах/турели: "+type.id);
+            Debug.Log("WEAPON_GRIP_ROLES_PASS: pony and three real levitated raiders, existing appearance color policy, socket/turret exclusions, material/sprite release.");
         }
         private static void Capture()
         {
@@ -73,7 +114,7 @@ namespace Remains.Editor
                     v.SetFrame(v.ResolveRestSprite());v.Artwork.sharedMaterial=plain;
                     v.transform.position=new Vector3((i%3-1)*2.2f,(i/3==0?1:-1),0);
                     v.transform.rotation=Quaternion.Euler(0,0,i*23);
-                    v.SetMirrored(i%2==1);v.PrepareGrip(new Color(.2f,.7f,1));v.DrawGrip(false);views.Add(v);
+                    v.SetMirrored(i%2==1);v.PrepareGrip(new Color(.2f,.7f,1));v.GripGlow.runInEditMode=true;v.DrawGrip(false);views.Add(v);
                 }
                 string dir=Path.GetFullPath(Path.Combine(Application.dataPath,"../../Verification/pt32"));Directory.CreateDirectory(dir);
                 Color32[] before=null;

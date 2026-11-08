@@ -12,6 +12,12 @@ namespace Remains.Presentation
         private Sprite quad;
         private Material material;
         public SpriteRenderer Renderer=>renderer;
+        public static bool UsesLevitatedWeapon(Remains.Domain.ActorState actor)
+        {
+            var type=ActorTypes.Get(actor.actorType);
+            return !type.atlasWeaponSocket && (type.presentation=="pony" ||
+                type.raider?.attacker==Remains.Domain.RaiderAttacker.Levitated);
+        }
         public void Initialize(SpriteRenderer artwork,Vector2 center,Vector2 size)
         {
             if(renderer!=null) throw new InvalidOperationException("Дымка рукоятки уже подготовлена.");

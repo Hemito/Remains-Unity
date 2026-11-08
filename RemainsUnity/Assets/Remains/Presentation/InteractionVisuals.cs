@@ -263,8 +263,7 @@ namespace Remains.Presentation
             sprites[actor.weapon]=rest;
             layers.Attach(actor.id,view.transform);return view;
         }
-        private static bool LevitatedWeapon(ActorState actor)=>
-            Remains.Content.ActorTypes.Get(actor.actorType).presentation=="pony" && !Remains.Content.AtlasWeaponSockets.Enabled(actor);
+        private static bool LevitatedWeapon(ActorState actor)=>WeaponGripGlow.UsesLevitatedWeapon(actor);
         private static void PrepareGrip(WeaponView view,ActorState actor)
         {
             if(LevitatedWeapon(actor)) view.PrepareGrip(Remains.Content.PonyAppearance.FromRgb(Remains.Content.PonyAppearance.Snapshot(actor).Magic));
