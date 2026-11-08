@@ -10,13 +10,16 @@ namespace Remains.Editor
 {
     // Factory handoff coverage from the public catalogs, independent of private re-export tools.
     // This is native Editor/domain acceptance; it does not replace Player, LAN, listening or visual gameplay review.
+    // Optional -factory-check Name runs only that check; unknown names fail instead of silently passing.
     public static class FactoryContentAcceptanceChecks
     {
         [Serializable] private sealed class Result {public string name;public bool success;public string detail;}
-        [Serializable] private sealed class Report {public string unityVersion,utc;public int passed,failed;public List<Result> checks=new();}
+        [Serializable] private sealed class Report {public string unityVersion,utc,selected;public int passed,failed;public List<Result> checks=new();}
         public static void RunBatch()
         {
-            var report=new Report {unityVersion=Application.unityVersion,utc=DateTime.UtcNow.ToString("O")};
+            var args=Environment.GetCommandLineArgs();int selected=Array.IndexOf(args,"-factory-check");
+            var report=new Report {unityVersion=Application.unityVersion,utc=DateTime.UtcNow.ToString("O"),
+                selected=selected<0?null:selected+1<args.Length?args[selected+1]:"<missing check name>"};
             Check(report,"FactoryContainerLockChecks",FactoryContainerLockChecks.Run);
             Check(report,"FactoryEnemyScalingChecks",FactoryEnemyScalingChecks.Run);
             Check(report,"MechanismOperationsChecks",MechanismOperationsChecks.Run);
@@ -40,7 +43,12 @@ namespace Remains.Editor
             Check(report,"FactoryFileCabinetChecks",FactoryFileCabinetChecks.Run);
             Check(report,"DoorBarrierChecks",DoorBarrierChecks.Run);
             Check(report,"DoorCombatChecks",DoorCombatChecks.Run);
-            string output=Path.GetFullPath(Path.Combine(Application.dataPath,"../Temp/factory-content-acceptance.json"));
+            if(report.passed+report.failed==0)
+            {
+                report.failed=1;report.checks.Add(new Result {name=report.selected,detail="Unknown factory check"});
+            }
+            // Unity removes Temp during shutdown. Library keeps the report available after EditorApplication.Exit.
+            string output=Path.GetFullPath(Path.Combine(Application.dataPath,"../Library/FactoryVerification/factory-content-acceptance.json"));
             Directory.CreateDirectory(Path.GetDirectoryName(output));
             File.WriteAllText(output,JsonUtility.ToJson(report,true));
             Debug.Log($"FACTORY_CONTENT_ACCEPTANCE: passed={report.passed}, failed={report.failed}; report={output}");
@@ -48,6 +56,7 @@ namespace Remains.Editor
         }
         private static void Check(Report report,string name,Action run)
         {
+            if(report.selected!=null && report.selected!=name)return;
             var result=new Result {name=name};
             try
             {
