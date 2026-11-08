@@ -1,0 +1,61 @@
+using Remains.RoomEditor;
+using Remains.RoomFormat;
+var root=Path.GetFullPath(args.Length>0?args[0]:Path.Combine(AppContext.BaseDirectory,"../../../../../../RemainsUnity/Assets/Remains/Rooms/Original"));
+var definitions=File.ReadAllText(Path.Combine(root,"definitions.json"));
+var art=File.ReadAllText(Path.Combine(root,"Tiles/tiles-manifest.json"));
+EditorDocument Create()=>new(definitions,art);
+void Check(bool ok,string message){if(!ok)throw new Exception(message);}
+var files=Directory.GetFiles(root,"*.room.json",SearchOption.AllDirectories);
+foreach(var file in files){var text=File.ReadAllText(file);var doc=Create();doc.Open(text);Check(doc.Save()==text,"Bytes changed: "+file);Check(RoomSerializer.Write(RoomSerializer.Read(text,file))==text,"Game canonical roundtrip changed: "+file);}
+Console.WriteLine($"PASS {files.Length} original rooms: game serializer + editor byte-identical roundtrip");
+var d=Create();d.New("test",12,10);
+string solid=d.Definitions.Items.Values.First(x=>x.Kind==RoomDefinitionKind.Solid).Id;
+d.Paint("solid",solid,1,1,3,2,"rectangle");Check(d.Pick("solid",3,2)==solid,"rectangle");
+d.Undo();Check(d.Pick("solid",3,2)==".","undo");d.Redo();
+d.Paint("solid",solid,0,0,0,0,"fill");Check(d.Pick("solid",11,9)==solid,"flood fill");
+d.Paint("solid",".",0,0,11,9,"brush");Check(d.Pick("solid",11,9)==".","line stroke");
+string before=d.Save();try{d.Resize(2,2,false);throw new Exception("crop accepted");}catch(InvalidOperationException){}Check(d.Save()==before,"failed mutation was not atomic");
+d.Copy(0,0,3,2);d.Paste(5,5);Check(d.Pick("solid",8,6)==solid,"paste remaps palettes");
+d.Resize(14,12,false);Check(d.Pick("solid",8,6)==solid,"resize moved bottom-left coordinates");
+var stair=d.Definitions.Items.Values.First(x=>x.Kind==RoomDefinitionKind.Stairs && x.MirrorForm!=null);d.Paint("stairs",stair.Id,1,1,1,1,"brush");d.MirrorLayer("stairs",0,0,3,3);Check(d.Pick("stairs",2,1)==stair.MirrorForm,"directional mirror");
+string type=d.Definitions.Items.Values.First(x=>x.Kind==RoomDefinitionKind.Object).Id;
+var a=d.AddEntity("objects",type,1,1);var b=d.AddEntity("objects",type,2,1);d.Link(0,b);d.Copy(0,0,3,2);d.Paste(7,8);
+Check(d.Room.Objects.Select(o=>o.Id).Distinct().Count()==4,"duplicate pasted IDs");Check(d.Room.Objects[2].Links[0]["targ"]==d.Room.Objects[3].Id,"pasted link target not remapped");
+before=d.Save();try{d.SetParameters("objects",0,"{\"bad\":1}");throw new Exception("non-string params accepted");}catch(FormatException){}Check(d.Save()==before,"parameter failure not atomic");
+d.SetParameters("objects",0,"{\"text\":\"<script>alert(1)</script>\"}");Check(d.Room.Objects[0].Params["text"].StartsWith("<script>"),"data loss");
+var restored=Create();restored.Open(d.Save());Check(restored.Save()==d.Save(),"edited reopen");
+var odd=Create();string imported="\n"+RoomSerializer.Write(new RoomFile{Template="whitespace",Width=2,Height=2})+"\n";odd.Open(imported);odd.Paint("water","~",1,1,1,1,"brush");odd.Undo();Check(odd.Save()==imported,"undo loses imported whitespace");
+Console.WriteLine("PASS transactional editing, tools, directional mirror, palette paste, link remapping, resize, history, malformed parameters");
+var m=new MapDocument();var empty=Create();empty.New("map-room",30,24);empty.SetConnectors(string.Join(',',Enumerable.Repeat(3,22)));m.AddRoom(empty.Save());m.New(2,2,"map-room");m.AddSeam(0,0,false,0,2);m.AddSeam(1,0,true,6,2);m.AddSeam(0,1,false,0,2);
+var mapText=m.Save();Check(FactoryLayoutReader.Read(mapText,"map").Write()==mapText,"map canonical roundtrip");
+Check(m.Validate(d.Definitions).All(i=>!i.StartsWith("Нет цепочки")),"map connectivity");
+m.SetRoom(1,0,"map-room",true);var grid=m.Build(d.Definitions,solid);Check(grid.Level.Width==59&&grid.Level.Height==47,"shared map boundary dimensions");
+m.RemoveSeam(2);Check(m.Validate(d.Definitions).Any(i=>i.StartsWith("Нет цепочки")),"disconnected map not detected");m.Undo();Check(m.Layout.Seams.Count==3,"map undo");
+try{m.AddSeam(1,0,false,0,2);throw new Exception("outer seam accepted");}catch(FormatException){}Check(m.Layout.Seams.Count==3,"failed map edit not atomic");
+Console.WriteLine("PASS stored map roundtrip, shared-boundary game geometry, mirrors, seam connectivity, map history and invalid seam rollback");
+var content=Path.GetFullPath(Path.Combine(root,"../../Resources/Content"));
+var movement=MovementProfile.Read(File.ReadAllText(Path.Combine(content,"movement.json")),File.ReadAllText(Path.Combine(content,"anatomy.json")));
+Check(movement.Hull.width==1&&movement.Hull.height==1.4f&&movement.Settings.jumpSpeed==7.2f,"movement profile not sourced from game data");
+var nav=Create();nav.New("navigation",16,9);nav.Paint("solid",solid,0,0,15,0,"rectangle");nav.Paint("solid",solid,8,1,8,8,"rectangle");
+var routes=await Reachability.Analyze(nav.Room,nav.Definitions,movement,2,1);
+Check(routes.Reached.Any(p=>p.X<=5),"navigation did not reach floor");Check(!routes.Reached.Any(p=>p.X>=9),"navigation crossed full-height wall");
+var cancelled=new CancellationTokenSource();cancelled.Cancel();try{await Reachability.Analyze(nav.Room,nav.Definitions,movement,2,1,cancelled.Token);throw new Exception("navigation ignored cancellation");}catch(OperationCanceledException){}
+Console.WriteLine($"PASS shared movement kernels, actual pony profile, barrier navigation and cancellation ({routes.Milliseconds:F0} ms, {routes.Explored} states)");
+var gap=Create();gap.New("jump-gap",16,9);gap.Paint("solid",solid,0,0,4,0,"rectangle");gap.Paint("solid",solid,9,0,15,0,"rectangle");var gapRoutes=await Reachability.Analyze(gap.Room,gap.Definitions,movement,2,1);Check(gapRoutes.Reached.Any(p=>p.X>=10),"shared jump search did not cross supported gap");
+var largestFile=files.OrderByDescending(f=>{var r=RoomSerializer.Read(File.ReadAllText(f),f);return r.Width*r.Height;}).First();var largest=Create();largest.Open(File.ReadAllText(largestFile));var largeRoutes=await Reachability.Analyze(largest.Room,largest.Definitions,movement,1,1);
+Console.WriteLine($"PASS jump gap; largest-room route benchmark {Path.GetFileName(largestFile)} {largest.Room.Width}x{largest.Room.Height}: {largeRoutes.Milliseconds:F0} ms, {largeRoutes.Explored} states, truncated={largeRoutes.Truncated}");
+var bundle=m.SaveDraft();var restoredMap=new MapDocument();restoredMap.OpenDraft(bundle);Check(restoredMap.Save()==m.Save()&&restoredMap.Templates["map-room"].Width==30,"map draft failed to restore custom templates");Console.WriteLine("PASS custom room templates survive map draft reload");
+var ladderDoc=Create();ladderDoc.New("ladder-route",12,12);ladderDoc.Paint("solid",solid,0,0,11,0,"rectangle");
+string platform=ladderDoc.Definitions.Items.Values.First(x=>x.Kind==RoomDefinitionKind.Platform).Id;string ladder=ladderDoc.Definitions.Items.Values.First(x=>x.Kind==RoomDefinitionKind.Ladder).Id;
+ladderDoc.Paint("platform",platform,0,8,11,8,"rectangle");ladderDoc.Paint("ladder",ladder,4,1,4,10,"rectangle");
+var ladderRoutes=await Reachability.Analyze(ladderDoc.Room,ladderDoc.Definitions,movement,4,1);Check(ladderRoutes.Reached.Any(p=>p.Y>=9),"shared ladder admission/upward route missing");Console.WriteLine($"PASS shared ladder admission/upward route ({ladderRoutes.Milliseconds:F0} ms)");
+var lower=new Remains.Domain.RoomLadder{x=2,bottom=0,top=3};var upper=new Remains.Domain.RoomLadder{x=2,bottom=3,top=6};
+Check(ReferenceEquals(Remains.Gameplay.LadderMotion.Select(new[]{upper,lower},2,3,true,lower),lower),"shared ladder selection lost existing grip at junction");Check(!Remains.Gameplay.LadderMotion.Attach(lower,false,false,false,false,1,3),"shared ladder admitted upwards at top");
+
+var bom=Create();string bomText="\ufeff"+RoomSerializer.Write(new RoomFile{Template="bom",Width=2,Height=2});bom.Open(bomText);Check(bom.Save()==bomText,"UTF8 BOM input bytes not preserved");Console.WriteLine("PASS UTF8 BOM preservation without edits");
+var replacement=Create();replacement.New("map-room",30,24);replacement.Paint("water","~",1,1,1,1,"brush");restoredMap.AddRoom(replacement.Save());Check(restoredMap.Templates["map-room"].Layers.ContainsKey("water"),"template replacement did not apply");restoredMap.Undo();Check(!restoredMap.Templates["map-room"].Layers.ContainsKey("water"),"map undo lost prior template contents");restoredMap.Redo();Check(restoredMap.Templates["map-room"].Layers.ContainsKey("water"),"template redo missing");
+try{await Reachability.Analyze(new RoomFile{Template="too-large",Width=1024,Height=1024},d.Definitions,movement,1,1);throw new Exception("large navigation source accepted");}catch(InvalidOperationException){}
+Console.WriteLine("PASS map-template replace/undo/redo and pre-analysis resource guard");
+var numbers=Create();numbers.New("number-params",8,8);string decorType=numbers.Definitions.Items.Values.First(x=>x.Kind==RoomDefinitionKind.Decor).Id;numbers.AddEntity("decor",decorType,1,1);string numberBefore=numbers.Save();try{numbers.SetParameters("decor",0,"{\"w\":\"NaN\"}");throw new Exception("NaN accepted");}catch(FormatException){}Check(numbers.Save()==numberBefore,"invalid decor number changed model");Console.WriteLine("PASS nonfinite decor parameters rejected atomically");
+RenderChecks.Run(root);
+var options=Create();options.SetOptions("{\"backwall\":\"sky\",\"lon\":\"-1\"}");Check(options.Room.Options["backwall"]=="sky"&&options.Room.Options["lon"]=="-1","room options failed");var beforeOptions=options.Save();try{options.SetOptions("{\"lon\":1}");throw new Exception("non-string room option accepted");}catch(FormatException){}Check(options.Save()==beforeOptions,"options validation not atomic");Console.WriteLine("PASS room options edit and atomic invalid-value rejection");

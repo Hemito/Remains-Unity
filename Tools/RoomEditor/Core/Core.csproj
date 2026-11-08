@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net8.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>disable</Nullable><DebugType>none</DebugType><DebugSymbols>false</DebugSymbols><PathMap>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/../../..'))=/_/remains</PathMap></PropertyGroup>
+  <ItemGroup><Compile Include="../../../RemainsUnity/Assets/Remains/RoomFormat/**/*.cs" Link="RoomFormat/%(RecursiveDir)%(Filename)%(Extension)" /></ItemGroup>
+<ItemGroup>
+<Compile Include="../../../RemainsUnity/Assets/Remains/Domain/ActorTerrainMotion.cs" Link="Movement/ActorTerrainMotion.cs"/>
+<Compile Include="../../../RemainsUnity/Assets/Remains/Domain/ActorStepMotion.cs" Link="Movement/ActorStepMotion.cs"/>
+<Compile Include="../../../RemainsUnity/Assets/Remains/Domain/SlopeContactMotion.cs" Link="Movement/SlopeContactMotion.cs"/>
+<Compile Include="../../../RemainsUnity/Assets/Remains/Domain/RoomSupport.cs" Link="Movement/RoomSupport.cs"/>
+<Compile Include="../../../RemainsUnity/Assets/Remains/Domain/RoomSurfaces.cs" Link="Movement/RoomSurfaces.cs"/>
+<Compile Include="../../../RemainsUnity/Assets/Remains/Domain/RoomSurfaceIndex.cs" Link="Movement/RoomSurfaceIndex.cs"/>
+<Compile Include="../../../RemainsUnity/Assets/Remains/Gameplay/HorizontalMotion.cs" Link="Movement/HorizontalMotion.cs"/>
+<Compile Include="../../../RemainsUnity/Assets/Remains/Gameplay/VerticalMotion.cs" Link="Movement/VerticalMotion.cs"/>
+<Compile Include="../../../RemainsUnity/Assets/Remains/Content/MovementSettings.cs" Link="Movement/MovementSettings.cs"/>
+<Compile Include="../../../RemainsUnity/Assets/Remains/Gameplay/LadderMotion.cs" Link="Movement/LadderMotion.cs"/>
+</ItemGroup>
+</Project>

@@ -1,0 +1,200 @@
+@page "/"
+@using Remains.RoomEditor
+@using Remains.RoomFormat
+@inject HttpClient Http
+@inject IJSRuntime JS
+@implements IDisposable
+
+<PageTitle>@Strings.Text001</PageTitle>
+<header><h1>REMAINS <span class="muted">@Strings.Text002</span></h1><span class="badge">@Strings.FormatVersion@(RoomFile.CurrentVersion)</span><small>@Strings.Text003</small><button @onclick="()=>showMap=false">@Strings.Text004</button><button @onclick="()=>showMap=true">@Strings.Text005</button></header>
+@if (doc == null)
+{
+    <div class="loading">@(error ?? Strings.Loading)</div>
+}
+else
+{
+<div style="display:@(showMap?"none":"contents")"><main>
+<aside>
+ <section><h2>@Strings.Text006</h2>
+  <label>@Strings.Text007<input class="wide" aria-label="@Strings.Text007" @bind="template" /></label>
+  <div class="row"><label>@Strings.Text008<input aria-label="@Strings.Text008" type="number" @bind="width" min="1"/></label><label>@Strings.Text009<input aria-label="@Strings.Text009" type="number" @bind="height" min="1"/></label></div>
+  <div class="row"><button @onclick="NewRoom">@Strings.Text010</button><button @onclick="Resize">@Strings.Text011</button><button @onclick="Rename">@Strings.Text007</button></div>
+  <label><input type="checkbox" @bind="allowCrop"/>@Strings.Text012</label>
+  <label>@Strings.Text013<InputFile class="file-input" OnChange="OpenFile" accept=".json"/></label>
+  <button class="wide" @onclick="Download">@Strings.Text014</button>
+  <label>@Strings.Text015<select class="wide" @bind="original"><option value="">@Strings.Text016</option>@foreach(var name in originals){<option value="@name">@name</option>}</select></label>
+  <button @onclick="OpenOriginal" disabled="@(original.Length == 0)">@Strings.Text017</button>
+ </section>
+ <section><h2>@Strings.RoomOptions</h2><textarea aria-label="@Strings.RoomOptions" @bind="options"></textarea><button @onclick="SaveOptions">@Strings.Text038</button><p class="muted">@Strings.RoomOptionsHint</p></section>
+ <section><h2>@Strings.Text018</h2>
+  @foreach(var name in Strings.Layer.Keys)
+  {<div class="row"><input type="checkbox" aria-label="@(Strings.Show+Strings.Layer[name])" checked="@visible.Contains(name)" @onchange="e=>ToggleLayer(name,e)"/><button class="@(layer==name?"selected":"")" @onclick="()=>SelectLayer(name)">@Strings.Layer[name]</button></div>}
+ </section>
+ <section><h2>@Strings.Text019</h2><input class="wide" placeholder="@Strings.Text051" aria-label="@Strings.Text052" @bind="search" @bind:event="oninput"/>
+  @if(layer=="height" || layer=="water")
+  {<div class="row">@foreach(var v in (layer=="height"?new[]{"1","2","3"}:new[]{"~"})){<button @onclick="()=>paint=v" class="@(paint==v?"selected":"")">@v</button>}</div>}
+  else
+  {<div class="palette">@foreach(var d in Palette().Take(paletteLimit)){<button title="@d.Id" class="@(paint==d.Id?"selected":"")" @onclick="()=>ChooseDefinition(d.Id)">@if(Preview(d) is string img){<img src="@img" loading="lazy" alt=""/>}@(d.Name??d.Id)</button>}</div>
+   @if(Palette().Count()>paletteLimit){<button class="wide" @onclick="()=>paletteLimit+=60">@Strings.Text020</button>}}
+ </section>
+ <footer><a href="data/LICENSING.md" target="_blank">@Strings.Text021</a> · <a href="data/THIRD_PARTY_NOTICES.md" target="_blank">@Strings.Text022</a><p>@Strings.Text023</p></footer>
+</aside>
+<div class="workspace">
+ <div class="toolbar">
+  @foreach(var t in Strings.Tool){<button title="@t.Value" class="@(tool==t.Key?"selected":"")" @onclick="()=>tool=t.Key">@t.Value</button>}
+  <button title="Ctrl+Z" disabled="@(!doc.CanUndo)" @onclick="()=>Run(doc.Undo)">@Strings.Text024</button><button title="Ctrl+Y" disabled="@(!doc.CanRedo)" @onclick="()=>Run(doc.Redo)">@Strings.Text025</button>
+  <button title="@Strings.Text053" @onclick="Copy">@Strings.Text026</button><button title="@Strings.Text054" @onclick="Mirror">@Strings.Text027</button>
+  <label><input type="checkbox" @bind="showGrid" @bind:after="Draw"/>@Strings.ShowGrid</label><label><input type="checkbox" @bind="showNames" @bind:after="Draw"/>@Strings.ShowObjectNames</label>
+  <label>@Strings.LeftColumn<input type="number" min="0" @bind="panX"/></label><label>@Strings.TopRow<input type="number" min="0" @bind="panRow"/></label><button @onclick="ChangeViewport">@Strings.ShowArea</button>
+  <label>@Strings.Text028<select value="@zoom" @onchange="ChangeZoom">@foreach(int z in new[]{8,12,16,24,32,48}){<option value="@z">@z @Strings.PixelsPerCell</option>}</select></label>
+ </div>
+ <div class="canvas-wrap"><canvas id="room-canvas" aria-label="@Strings.Text055" tabindex="0"></canvas></div>
+ <div class="status">@status · @doc.Room.Width × @doc.Room.Height @Strings.Cells · @Strings.MetersValue(doc.Room.Width*doc.Room.Cell) × @Strings.MetersValue(doc.Room.Height*doc.Room.Cell) @Strings.Meters · @(doc.Dirty ? Strings.Changed : Strings.Unchanged)</div>
+</div>
+<aside>
+ @if(error!=null){<div class="error" role="alert">@error</div>}
+ <section><h2>@Strings.Text029</h2><div class="entity-list">
+ @for(int i=0;i<doc.Room.Objects.Count;i++){int n=i;var o=doc.Room.Objects[i];<button class="@(entityLayer=="objects" && entityIndex==n?"selected":"")" @onclick='()=>ChooseEntity("objects",n)'>@o.Id · @o.Type.Split(':').Last() (@o.X,@o.Y)</button>}
+ @for(int i=0;i<doc.Room.Decor.Count;i++){int n=i;var o=doc.Room.Decor[i];<button class="@(entityLayer=="decor" && entityIndex==n?"selected":"")" @onclick='()=>ChooseEntity("decor",n)'>@Strings.Decor @n · @o.Type.Split(':').Last() (@o.X,@o.Y)</button>}
+ </div>
+ @if(EntityValid())
+ {
+  <p>@Strings.Selected @entityLayer #@entityIndex</p><div class="row"><input type="number" aria-label="@Strings.Text056" @bind="entityX"/><input type="number" aria-label="@Strings.Text057" @bind="entityY"/><button @onclick="MoveEntity">@Strings.Text030</button></div>
+  @if(entityLayer=="decor"){<div class="row">@foreach(string key in new[]{"w","h","a","fr","lon"}){string k=key;<label>@k<input type="number" aria-label="@k" step="any" value="@(doc.Room.Decor[entityIndex].Params.TryGetValue(k,out var value)?value:"")" @onchange="e=>SaveDecorNumber(k,(string)e.Value)"/></label>}</div>}
+  <p class="muted">@Strings.Text031</p><textarea aria-label="@Strings.Text058" @bind="parameters"></textarea><div class="row"><button @onclick="SaveParams">@Strings.Text032</button><button @onclick="DeleteEntity">@Strings.Text033</button></div>
+  @if(entityLayer=="objects")
+  {
+   <label>@Strings.Text034<select class="wide" @bind="linkTarget"><option value="">@Strings.Text035</option>@foreach(var o in doc.Room.Objects.Where(o=>o.Id!=null)){<option value="@o.Id">@o.Id</option>}</select></label><button @onclick="AddLink">@Strings.Text036</button>
+   @for(int i=0;i<doc.Room.Objects[entityIndex].Links.Count;i++){int n=i;var link=doc.Room.Objects[entityIndex].Links[n];<div class="row"><small>@string.Join(", ",link.Select(v=>v.Key+"="+v.Value))</small><button @onclick="()=>Run(()=>doc.RemoveLink(entityIndex,n))">×</button></div>}
+  }
+ }
+ </section>
+ <section><h2>@Strings.Text037</h2><input class="wide" aria-label="@Strings.Text059" @bind="connectors"/><button @onclick="SaveConnectors">@Strings.Text038</button><p class="muted">@Strings.Text039</p></section>
+ <section><h2>@Strings.Text040</h2><button @onclick="Refresh">@Strings.Text041</button>@if(issues.Count==0){<p class="notice">@Strings.Text042</p>}else{<ul class="warnings">@foreach(var issue in issues.Take(60)){<li>@issue</li>}</ul>}
+  <details open><summary>@Strings.Text043</summary><button @onclick='()=>tool="path-start"'>@Strings.ChooseRouteStart</button><button @onclick="AnalyzeRoutes" disabled="@(navigationCancellation!=null)">@Strings.AnalyzeRoutes</button><button @onclick="CancelNavigation" disabled="@(navigationCancellation==null)">@Strings.Stop</button><p>@navigationStatus</p><p class="muted">@Strings.NavigationHint</p></details>
+ </section>
+ <section><h2>@Strings.Text044</h2><button disabled title="@Strings.Text060">@Strings.Text045</button><p class="muted">@Strings.MissingLight</p></section>
+ <details><summary>@Strings.Text046</summary><p>@Strings.RenderDescription</p>@foreach(var issue in renderIssues.Take(12)){<p class="warnings">@issue</p>}</details>
+ <p class="muted">@Strings.Text048</p>
+</aside>
+</main></div><div style="display:@(showMap?"contents":"none")"><MapEditor @ref="mapEditor" RoomDocument="doc" Movement="movement" OpenRoom="OpenMapRoom" /></div>
+}
+
+@code {
+ RoomLandCatalog lands;IReadOnlyDictionary<string,string> withoutPicture;List<string> renderIssues=new();
+ MapEditor mapEditor; EditorDocument doc; MovementProfile movement; ReachabilityResult navigation; CancellationTokenSource navigationCancellation; int routeX=1,routeY=1;string navigationStatus; DotNetObjectReference<Home>reference;
+ string layer="solid",tool="brush",paint=".",search="",template="my-room",original="",parameters="{}",options="{}",connectors="",linkTarget="",entityLayer="objects",selectedEntityId,error,status=Strings.Message1Home;
+ int panX,panRow;
+ int width=30,height=20,zoom=24,paletteLimit=60,entityIndex=-1,entityX,entityY,sx,sy,ex,ey;
+ bool allowCrop,initialized,hasSelection,showMap,showGrid=true,showNames;
+ string[] originals=Array.Empty<string>(); List<string> issues=new();
+ HashSet<string> visible=new(Strings.Layer.Keys);
+ protected override async Task OnInitializedAsync()
+ {
+  try
+  {
+   var defs=await Http.GetStringAsync("data/definitions.json");var art=await Http.GetStringAsync("data/Tiles/tiles-manifest.json");doc=new(defs,art);
+   originals=await Http.GetFromJsonAsync<string[]>("data/rooms.json");
+   lands=RoomLandCatalog.Read(await Http.GetStringAsync("data/lands.json"),"lands.json");
+   withoutPicture=DecorWithoutPicture.Read(await Http.GetStringAsync("data/decor-without-picture.json"),"decor-without-picture.json");
+   movement=MovementProfile.Read(await Http.GetStringAsync("data/movement.json"),await Http.GetStringAsync("data/anatomy.json"));
+   string draft=null;try{draft=await JS.InvokeAsync<string>("roomEditor.loadDraft");}catch(Exception e){error=Strings.AutosaveError+e.Message;}
+   if(draft!=null){try{doc.Open(draft);status=Strings.Message2Home;}catch(Exception e){error=Strings.Message3Home+e.Message;}}
+   Sync(); SelectLayer("solid"); issues=doc.Validate();
+  }catch(Exception e){error=e.Message;}
+ }
+ protected override async Task OnAfterRenderAsync(bool first)
+ {
+  if(doc==null)return;
+  if(!initialized){reference=DotNetObjectReference.Create(this);await JS.InvokeVoidAsync("roomEditor.init",reference);initialized=true;}
+  await Draw();
+ }
+ IEnumerable<RoomDefinition> Palette()=>doc.Definitions.Items.Values.Where(d=>d.Kind==EditorDocument.Kind(layer) && (string.IsNullOrEmpty(search)||(d.Name??"").Contains(search,StringComparison.OrdinalIgnoreCase)||d.Id.Contains(search,StringComparison.OrdinalIgnoreCase)));
+ string Preview(RoomDefinition d)
+ {
+  string id=d.Kind==RoomDefinitionKind.Decor?TileManifest.DecorFrameId(d.Art,Math.Max(1,d.DecorFrame)):d.Kind==RoomDefinitionKind.Object?TileManifest.ObjectFrameId(d.Art,1):d.MainTexture;
+  return id!=null&&doc.Art.Art.TryGetValue(id,out var art)?"data/Tiles/"+art.File:null;
+ }
+ void ClampView(){panX=Math.Clamp(panX,0,Math.Max(0,doc.Room.Width-1));panRow=Math.Clamp(panRow,0,Math.Max(0,doc.Room.Height-1));}
+ async Task ChangeViewport(){ClampView();await Draw();}
+ void Sync(){ClampView();template=doc.Room.Template;width=doc.Room.Width;height=doc.Room.Height;connectors=string.Join(",",doc.Room.Connectors);ReconcileSelection();var value=JsonValue.NewObject();foreach(var p in doc.Room.Options)value.Set(p.Key,JsonValue.Of(p.Value));options=JsonText.Write(value);}
+ void ChooseDefinition(string id){paint=id;if(layer=="decor"||layer=="objects")tool="brush";}
+ void SelectLayer(string name){layer=name;search="";paletteLimit=60;paint=layer=="height"?"1":layer=="water"?"~":Palette().FirstOrDefault()?.Id??".";}
+ async Task ToggleLayer(string name,ChangeEventArgs e){if((bool)e.Value)visible.Add(name);else visible.Remove(name);await Draw();}
+ async Task Run(Action command){CancelNavigation();navigation=null;try{command();error=null;Sync();issues=doc.Validate();try{await JS.InvokeVoidAsync("roomEditor.saveDraft",doc.Save());}catch(Exception e){error=Strings.AutosaveError+e.Message;}await Draw();}catch(Exception e){error=e.Message;}StateHasChanged();}
+ async Task Refresh(){issues=doc.Validate();await Draw();}
+ async Task NewRoom(){if(doc.Dirty&&!await JS.InvokeAsync<bool>("confirm",Strings.Text061))return;await Run(()=>{doc.New(template,width,height);panX=panRow=0;entityIndex=-1;selectedEntityId=null;hasSelection=false;});}
+ Task Resize()=>Run(()=>doc.Resize(width,height,allowCrop));
+ Task Rename()=>Run(()=>doc.SetTemplate(template));
+ async Task OpenFile(InputFileChangeEventArgs e){try{string text=await FileText.Read(e.File);if(doc.Dirty&&!await JS.InvokeAsync<bool>("confirm",Strings.Text062))return;await Run(()=>{doc.Open(text);panX=panRow=0;entityIndex=-1;selectedEntityId=null;hasSelection=false;});}catch(Exception err){error=err.Message;}}
+ async Task OpenOriginal(){try{string text=await Http.GetStringAsync("data/rooms/"+original);if(doc.Dirty&&!await JS.InvokeAsync<bool>("confirm",Strings.Text063))return;await Run(()=>{doc.Open(text);panX=panRow=0;entityIndex=-1;selectedEntityId=null;hasSelection=false;});}catch(Exception e){error=e.Message;}}
+ async Task OpenMapRoom(string text){if(doc.Dirty&&!await JS.InvokeAsync<bool>("confirm",Strings.Text064))return;await Run(()=>{doc.Open(text);panX=panRow=0;entityIndex=-1;selectedEntityId=null;hasSelection=false;showMap=false;});}
+ async Task Download(){string name=new string(doc.Room.Template.Select(c=>char.IsLetterOrDigit(c)||c=='-'||c=='_'?c:'_').ToArray());await JS.InvokeVoidAsync("roomEditor.download",name+".room.json",doc.Save());status=Strings.Text065;}
+ async Task ChangeZoom(ChangeEventArgs e){zoom=int.Parse((string)e.Value);await Draw();}
+ Task Copy()=>Run(()=>{if(!hasSelection)throw new InvalidOperationException(Strings.Text066);doc.Copy(sx,sy,ex,ey);status=Strings.Text067;});
+ Task Mirror()=>Run(()=>{if(!hasSelection)throw new InvalidOperationException(Strings.Text068);if(layer=="objects"||layer=="decor")throw new InvalidOperationException(Strings.Text069);doc.MirrorLayer(layer,sx,sy,ex,ey);});
+ bool EntityValid()=>doc!=null && entityIndex>=0 && entityIndex<(entityLayer=="decor"?doc.Room.Decor.Count:doc.Room.Objects.Count);
+ void ChooseEntity(string kind,int index){entityLayer=kind;entityIndex=index;selectedEntityId=kind=="decor"?doc.Room.Decor[index].Id:doc.Room.Objects[index].Id;tool="move";ReadEntityFields();}
+ void ReconcileSelection(){if(selectedEntityId==null){entityIndex=-1;return;}entityIndex=entityLayer=="decor"?doc.Room.Decor.FindIndex(o=>o.Id==selectedEntityId):doc.Room.Objects.FindIndex(o=>o.Id==selectedEntityId);if(EntityValid())ReadEntityFields();else selectedEntityId=null;}
+ void ReadEntityFields(){var p=JsonValue.NewObject();if(entityLayer=="decor"){var o=doc.Room.Decor[entityIndex];entityX=o.X;entityY=o.Y;foreach(var e in o.Params)p.Set(e.Key,JsonValue.Of(e.Value));}else{var o=doc.Room.Objects[entityIndex];entityX=o.X;entityY=o.Y;foreach(var e in o.Params)p.Set(e.Key,JsonValue.Of(e.Value));}parameters=JsonText.Write(p);}
+ Task MoveEntity()=>Run(()=>doc.MoveEntity(entityLayer,entityIndex,entityX,entityY));
+ Task DeleteEntity()=>Run(()=>{doc.DeleteEntity(entityLayer,entityIndex);entityIndex=-1;selectedEntityId=null;});
+ async Task SaveDecorNumber(string key,string value){await Run(()=>doc.SetDecorNumber(entityIndex,key,value));if(EntityValid())ChooseEntity(entityLayer,entityIndex);}
+ Task SaveParams()=>Run(()=>doc.SetParameters(entityLayer,entityIndex,parameters));
+ Task SaveOptions()=>Run(()=>doc.SetOptions(options));
+ Task SaveConnectors()=>Run(()=>doc.SetConnectors(connectors));
+ Task AddLink()=>Run(()=>doc.Link(entityIndex,linkTarget));
+ [JSInvokable] public async Task Stroke(int[] pixels)
+ {
+  if(pixels.Length<2)return;
+  if((tool=="brush"||tool=="erase") && layer!="decor" && layer!="objects")
+  {
+   var points=new List<(int x,int y)>();for(int i=0;i+1<pixels.Length && i<8192;i+=2)points.Add((panX+(int)Math.Floor((double)pixels[i]/zoom),doc.Room.Height-1-panRow-(int)Math.Floor((double)pixels[i+1]/zoom)));
+   await Run(()=>doc.Stroke(layer,tool=="erase"?".":paint,points));
+  }
+  else await Gesture(pixels[0],pixels[1],pixels[^2],pixels[^1]);
+ }
+ [JSInvokable] public async Task Gesture(int x0,int y0,int x1,int y1)
+ {
+  // Pointer geometry only; all room edits remain in C#.
+  if(x0<0||y0<0||x1<0||y1<0)return;
+  int a=panX+x0/zoom,b=doc.Room.Height-1-panRow-y0/zoom,c=panX+x1/zoom,d=doc.Room.Height-1-panRow-y1/zoom;
+  if(a<0||b<0||c<0||d<0||a>=doc.Room.Width||c>=doc.Room.Width||b>=doc.Room.Height||d>=doc.Room.Height)return;
+  if(tool=="path-start"){routeX=a;routeY=b;navigationStatus=Strings.NavigationStart(a,b);StateHasChanged();return;}
+  if(tool=="select"){sx=a;sy=b;ex=c;ey=d;hasSelection=true;status=Strings.Selection(Math.Min(a,c),Math.Min(b,d),Math.Max(a,c),Math.Max(b,d));await Draw();StateHasChanged();return;}
+  if(tool=="pick" && layer!="decor" && layer!="objects"){paint=doc.Pick(layer,a,b);status=Strings.Selected+paint;StateHasChanged();return;}
+  if(tool=="move"){if(EntityValid())await Run(()=>doc.MoveEntity(entityLayer,entityIndex,a,b));else status=Strings.SelectEntity;return;}
+  if(tool=="paste"){await Run(()=>doc.Paste(a,b));return;}
+  if(layer=="decor"||layer=="objects"){await Run(()=>{string id=doc.AddEntity(layer,paint,a,b);ChooseEntity(layer,layer=="decor"?doc.Room.Decor.Count-1:doc.Room.Objects.Count-1);});return;}
+  await Run(()=>doc.Paint(layer,tool=="erase"?".":paint,a,b,c,d,tool=="erase"?"brush":tool));
+ }
+ [JSInvokable] public async Task Shortcut(string key)
+ {
+  if(showMap){if(mapEditor!=null)await mapEditor.Shortcut(key);return;}
+  if(key=="undo")await Run(doc.Undo);else if(key=="redo")await Run(doc.Redo);else if(key=="copy")await Copy();else if(key=="paste")tool="paste";else tool=key;
+  StateHasChanged();
+ }
+ void CancelNavigation(){navigationCancellation?.Cancel();}
+ async Task AnalyzeRoutes()
+ {
+  navigationCancellation=new();navigationStatus=Strings.NavigationWorking;navigation=null;
+  try{navigation=await Reachability.Analyze(doc.Room,doc.Definitions,movement,routeX,routeY,navigationCancellation.Token);navigationStatus=Strings.NavigationSummary(navigation.Reached.Count,navigation.Candidates.Count,navigation.Explored,navigation.Milliseconds,navigation.Truncated,navigation.StartX,navigation.StartY);await Draw();}catch(OperationCanceledException){navigationStatus=Strings.NavigationCancelled;}catch(Exception e){error=e.Message;}finally{navigationCancellation.Dispose();navigationCancellation=null;}
+ }
+ async Task Draw()
+ {
+  if(!initialized)return;
+  var cells=new List<object>();
+  foreach(string name in new[]{RoomLayers.Height,RoomLayers.Water})
+  {
+   if(!visible.Contains(name)||!doc.Room.Layers.TryGetValue(name,out var rows))continue;
+   for(int row=panRow;row<Math.Min(rows.Length,panRow+100);row++)for(int x=panX;x<Math.Min(rows[row].Length,panX+100);x++)if(rows[row][x]!='.')cells.Add(new{x,y=row,color=name==RoomLayers.Water?"#388aa288":"#c78e85",layer=name,value=rows[row][x].ToString()});
+  }
+  RoomRenderPlan plan=null;
+  if(lands!=null&&withoutPicture!=null){plan=RoomRenderPlan.Build(doc.Room,doc.Definitions,doc.Art,lands,withoutPicture,visible,panX,panRow,Math.Min(100,doc.Room.Width-panX),Math.Min(100,doc.Room.Height-panRow));renderIssues=plan.Issues;}
+  var routePoints=navigation?.Candidates.Select(p=>new{x=(p.X+.5)*zoom,y=(doc.Room.Height-p.Y)*zoom,found=navigation.Reached.Contains(p)}).ToArray();
+  var points=new List<object>();var links=new List<object>();
+  if(visible.Contains("objects"))foreach(var o in doc.Room.Objects){points.Add(new{x=(o.X+.5)*zoom,y=(doc.Room.Height-o.Y-.5)*zoom,label=o.Id??o.Type});foreach(var link in o.Links)if(link.TryGetValue("targ",out var target)){var t=doc.Room.Objects.FirstOrDefault(v=>v.Id==target);if(t!=null)links.Add(new{x0=(o.X+.5)*zoom,y0=(doc.Room.Height-o.Y-.5)*zoom,x1=(t.X+.5)*zoom,y1=(doc.Room.Height-t.Y-.5)*zoom});}}
+  await JS.InvokeVoidAsync("roomEditor.draw",new{width=doc.Room.Width,height=doc.Room.Height,zoom,panX,panRow,viewWidth=Math.Min(100,doc.Room.Width-panX),viewHeight=Math.Min(100,doc.Room.Height-panRow),cell=doc.Room.Cell,showGrid,showNames,objectMarkers=showNames||layer=="objects"||tool=="move",plan,cells,points,links,routePoints,selection=hasSelection?new{x=Math.Min(sx,ex),y=doc.Room.Height-1-Math.Max(sy,ey),w=Math.Abs(sx-ex)+1,h=Math.Abs(sy-ey)+1}:null});
+ }
+ public void Dispose(){navigationCancellation?.Cancel();reference?.Dispose();}
+}

@@ -1,0 +1,75 @@
+@using Remains.RoomEditor
+@using Remains.RoomFormat
+@inject HttpClient Http
+@inject IJSRuntime JS
+@implements IDisposable
+
+@if(map?.Layout==null){<div class="loading">@Strings.LoadingMap @error</div>}
+else
+{
+<main>
+<aside>
+ <section><h2>@Strings.Text070</h2><div class="row"><label>@Strings.Text008<input type="number" aria-label="@Strings.Text099" @bind="width"/></label><label>@Strings.Text071<input type="number" aria-label="@Strings.Text100" @bind="depth"/></label></div><button @onclick="NewMap">@Strings.Text072</button>
+ <label>@Strings.Text073<InputFile class="file-input" OnChange="Open" accept=".json"/></label><button @onclick="Download">@Strings.Text074</button>
+ <button disabled="@(!map.CanUndo)" @onclick="UndoMap">@Strings.Text024</button><button disabled="@(!map.CanRedo)" @onclick="RedoMap">@Strings.Text025</button></section>
+ <section><h2>@Strings.Text075</h2><label>@Strings.Text076<InputFile class="file-input" OnChange="AddRoomFile" accept=".json"/></label><button @onclick="UseCurrentRoom">@Strings.Text077</button></section>
+ <section><h2>@Strings.Room (@x,@y)</h2><select class="wide" aria-label="@Strings.Text101" @bind="template">@foreach(var name in map.Templates.Keys){<option value="@name">@name</option>}</select><label><input type="checkbox" @bind="mirror"/>@Strings.Text078</label><button @onclick="SetRoom">@Strings.Text079</button><button @onclick="EditRoom">@Strings.Text080</button>
+ <label>@Strings.Text081<select class="wide" @bind="exitPoint"><option value="">@Strings.Text082</option>@foreach(var o in map.Templates[map.Layout.Cell(x,y).Template].Objects.Where(o=>o.Id!=null&&o.Type=="remains:obj:player")){<option value="@o.Id">@o.Id · @o.Type.Split(':').Last()</option>}</select></label><button @onclick="SetExit">@Strings.Text083</button></section>
+ <section><h2>@Strings.Text084</h2><label><input type="checkbox" @bind="down"/>@Strings.Text085</label><label>@Strings.Text086<input aria-label="@Strings.Text102" type="number" @bind="slot"/></label><label>@Strings.Text008<input aria-label="@Strings.Text103" type="number" @bind="seamWidth"/></label><button @onclick="AddSeam">@Strings.Text087</button><p class="muted">@Strings.Text088</p></section>
+ <footer>@Strings.Text089</footer>
+</aside>
+<div class="workspace"><div class="toolbar"><h2>@Strings.Layout @map.Layout.Width × @map.Layout.Depth</h2><button @onclick="Preview">@Strings.Text090</button></div><div class="canvas-wrap">
+ <div class="map-grid" style="grid-template-columns:repeat(@map.Layout.Width,160px)">
+ @for(int cy=0;cy<map.Layout.Depth;cy++)for(int cx=0;cx<map.Layout.Width;cx++){int a=cx,b=cy;var c=map.Layout.Cell(a,b);<button class="map-cell @(x==a&&y==b?"selected":"")" @onclick="()=>Choose(a,b)"><strong>@a,@b @(c.Start?"↳":"") @(c.Role==FactoryCellRole.Exit?Strings.Text108:"")</strong><span>@c.Template</span><small>@(c.Mirror?Strings.Text109:Strings.Normal)</small></button>}
+ </div>
+ @if(preview!=null)
+ {
+  <h2 style="margin-top:20px">@Strings.Text091</h2>
+  <svg viewBox="0 0 @preview.Level.Width @preview.Level.Height" width="100%" style="max-width:1200px;background:#26313b;min-height:100px" role="img" aria-label="@Strings.Text104">
+   @foreach(var layer in new[]{RoomLayers.Back,RoomLayers.Solid,RoomLayers.Platform,RoomLayers.Stairs,RoomLayers.Ladder})
+   {if(preview.Level.Layers.TryGetValue(layer,out var rows)){for(int row=0;row<rows.Length;row++)for(int col=0;col<rows[row].Length;col++){if(rows[row][col]!='.'){<rect x="@col" y="@row" width="1" height="1" fill="@(layer==RoomLayers.Solid?"#bcc5cc":layer==RoomLayers.Back?"#475665":layer==RoomLayers.Ladder?"#deba71":"#9bd0b5")"/>}}}}
+  @if(navigation!=null){foreach(var p in navigation.Candidates){<rect x="@(p.X+.2)" y="@(preview.Level.Height-p.Y-.2)" width=".6" height=".2" fill="@(navigation.Reached.Contains(p)?"#75ed99":"#f0ba65")"/>}}
+  </svg>
+ }
+ </div><div class="status">@status</div></div>
+<aside>
+ @if(error!=null){<div class="error" role="alert">@error</div>}
+ <section><h2>@Strings.Text092</h2>@for(int i=0;i<map.Layout.Seams.Count;i++){int n=i;var s=map.Layout.Seams[n];<div class="row"><small>(@s.X,@s.Y) @(s.Down?"↓":"→") @Strings.Slot @s.Slot · @s.Width</small><button @onclick="()=>Run(()=>map.RemoveSeam(n))">×</button></div>}</section>
+ <section><h2>@Strings.Text093</h2><button @onclick="Validate">@Strings.Text041</button><ul class="warnings">@foreach(var issue in issues.Take(100)){<li>@issue</li>}</ul><p class="muted">@Strings.Text094</p><div class="row"><label>X<input aria-label="@Strings.MapStartX" type="number" @bind="routeX"/></label><label>Y<input aria-label="@Strings.MapStartY" type="number" @bind="routeY"/></label></div><button @onclick="Analyze" disabled="@(navCancel!=null)">@Strings.AnalyzeRoutes</button><button @onclick="()=>navCancel?.Cancel()" disabled="@(navCancel==null)">@Strings.Stop</button><p>@navStatus</p><p class="muted">@Strings.NavigationHint</p></section>
+ <div class="notice">@Strings.Text095</div>
+ <p class="muted">@Strings.Text096</p>
+</aside></main>
+}
+
+@code{
+ [Parameter] public EditorDocument RoomDocument {get;set;}
+ [Parameter] public MovementProfile Movement {get;set;}
+ [Parameter] public EventCallback<string>OpenRoom {get;set;}
+ MapDocument map;FactoryGrid preview;ReachabilityResult navigation;CancellationTokenSource navCancel;string navStatus;int routeX=1,routeY=1;int width=2,depth=2,x,y,slot,seamWidth=2;string template,error,status=Strings.Message1MapEditor,exitPoint="";bool mirror,down;List<string> issues=new();
+ protected override async Task OnInitializedAsync()
+ {
+  try{map=new();var names=await Http.GetFromJsonAsync<string[]>("data/rooms.json");foreach(string name in names)map.AddRoom(await Http.GetStringAsync("data/rooms/"+name));template=map.Templates.Keys.First();map.New(width,depth,template);string draft=null;try{draft=await JS.InvokeAsync<string>("roomEditor.loadMapDraft");}catch(Exception e){error=Strings.AutosaveError+e.Message;}if(draft!=null){try{map.OpenDraft(draft);}catch(Exception e){error=Strings.Text105+e.Message;}}Choose(0,0);issues=map.Validate(RoomDocument.Definitions);}catch(Exception e){error=e.Message;}
+ }
+ async Task AddRoomFile(InputFileChangeEventArgs e){try{string text=await FileText.Read(e.File);await Run(()=>map.AddRoom(text));}catch(Exception err){error=err.Message;}}
+ Task UseCurrentRoom()=>Run(()=>{map.AddRoom(RoomDocument.Save());template=RoomDocument.Room.Template;});
+ void Choose(int a,int b){x=a;y=b;var c=map.Layout.Cell(x,y);template=c.Template;mirror=c.Mirror;exitPoint=c.RolePoint??"";}
+ async Task Run(Action edit){navCancel?.Cancel();navigation=null;try{edit();preview=null;error=null;issues=map.Validate(RoomDocument.Definitions);try{await JS.InvokeVoidAsync("roomEditor.saveMapDraft",map.SaveDraft());}catch(Exception e){error=Strings.AutosaveError+e.Message;}}catch(Exception e){error=e.Message;}}
+ async Task NewMap(){if(!await JS.InvokeAsync<bool>("confirm",Strings.Text106))return;await Run(()=>{map.New(width,depth,template);Choose(0,0);});}
+ Task SetRoom()=>Run(()=>map.SetRoom(x,y,template,mirror));
+ Task SetExit()=>Run(()=>map.SetExit(x,y,exitPoint));
+ Task AddSeam()=>Run(()=>map.AddSeam(x,y,down,slot,seamWidth));
+ void Validate(){issues=map.Validate(RoomDocument.Definitions);}
+ async Task Analyze()
+ {
+  Preview();if(preview==null)return;navCancel=new();navStatus=Strings.NavigationWorking;
+  try{navigation=await Reachability.Analyze(preview.Level,RoomDocument.Definitions,Movement,routeX,routeY,navCancel.Token);navStatus=Strings.NavigationSummary(navigation.Reached.Count,navigation.Candidates.Count,navigation.Explored,navigation.Milliseconds,navigation.Truncated,navigation.StartX,navigation.StartY);}catch(OperationCanceledException){navStatus=Strings.NavigationCancelled;}catch(Exception e){error=e.Message;}finally{navCancel.Dispose();navCancel=null;}
+ }
+ void Preview(){try{string border=RoomDocument.Definitions.Items.Values.First(d=>d.Kind==RoomDefinitionKind.Solid).Id;preview=map.Build(RoomDocument.Definitions,border);status=Strings.BuiltGrid(preview.Level.Width,preview.Level.Height);error=null;}catch(Exception e){error=e.Message;}}
+ async Task Open(InputFileChangeEventArgs e){try{string text=await FileText.Read(e.File);if(!await JS.InvokeAsync<bool>("confirm",Strings.Text107))return;await Run(()=>{map.Open(text);Choose(0,0);});}catch(Exception err){error=err.Message;}}
+ Task Download()=>JS.InvokeVoidAsync("roomEditor.download","my-map.layout.json",map.Save()).AsTask();
+ Task UndoMap()=>Run(()=>{map.Undo();Choose(Math.Min(x,map.Layout.Width-1),Math.Min(y,map.Layout.Depth-1));});
+ Task RedoMap()=>Run(()=>{map.Redo();Choose(Math.Min(x,map.Layout.Width-1),Math.Min(y,map.Layout.Depth-1));});
+ public async Task Shortcut(string key){if(key=="undo")await UndoMap();else if(key=="redo")await RedoMap();StateHasChanged();}
+ public void Dispose(){navCancel?.Cancel();}
+ async Task EditRoom(){await OpenRoom.InvokeAsync(RoomSerializer.Write(map.Templates[map.Layout.Cell(x,y).Template]));}
+}
