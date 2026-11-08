@@ -67,7 +67,7 @@ namespace Remains.Runtime
         private float beginTime,preparationTime,firstFireTime,firstReloadTime;
         private int preparingPhase=-1,stableFrames,commandCalls,fireRequests,reloadRequests;
         private readonly Readiness readiness=new();
-        private bool readySent,begun,serverBegun,finished,manifestSent,manifestAck,pauseRequested;
+        private bool readySent,begun,serverBegun,finished,manifestSent,manifestAck;
         private int resumedServerPhase=-1;
         private Phase current;
         private WeaponReloadProbeStage? pendingStage;
@@ -248,6 +248,10 @@ namespace Remains.Runtime
                 {
                     Require(current!=null && current.token==null && message.weapon==current.weapon && message.weaponItem==current.item && message.selectionRevision==current.selection,"Start другого current phase.");
                     current.token=message.token;NetworkClient.Send(new WeaponReloadProbeStage {phase=phase,reload=message});
+                    // Freeze the actual reload as soon as its start exists. Waiting for35% progress assumes
+                    // that a network round trip plus two capture frames fits in the remaining reload time;
+                    // software rendering and PNG capture can exceed that budget without a gameplay failure.
+                    runtime.Session.Pause.SetManual(true);
                 }
             });
         }
@@ -262,14 +266,11 @@ namespace Remains.Runtime
             {readySent=true;NetworkClient.Send(new WeaponReloadProbeReady {actor=Actor.id,world=runtime.Session.World.worldId});}
             if(Source && begun && phase==0 && current==null && commandCalls==0 && Time.unscaledTime-beginTime>5)
             {PrepareShot(Item(Actor,"pistol"));Fail("Runtime не вызывает CommandSource для weapon-reload smoke: "+ReadinessDetail());return;}
-            if(Source && current?.token!=null && !pauseRequested && runtime.Combat.Reload.Active &&
-                WeaponReloadAnimation.Progress(WeaponCatalog.Get(current.weapon).reloadSeconds,runtime.Combat.Reload.Remaining,"native source")>=.35f)
-            {pauseRequested=true;runtime.Session.Pause.SetManual(true);}
             if(Source && current?.token!=null && resumePhase==phase && !runtime.Session.Pause.IsPaused("hub") && !runtime.Combat.Reload.Active)
             {
                 Require(ended.Contains(current.token) && current.shot!=null,"Нет confirmed shot/stop после actual reload.");var item=Item(Actor,current.weapon);
                 current.roundsAfter=item.weaponState.rounds;current.reserveAfter=InventoryJournal.Count(Actor,WeaponCatalog.Get(current.weapon).ammo);current.usesAfter=Actor.inventoryUses.Count;
-                ValidatePhase(current);phases.Add(current);current=null;pauseRequested=false;phase++;
+                ValidatePhase(current);phases.Add(current);current=null;phase++;
             }
             if(Source && phase==4 && !manifestSent)
             {
