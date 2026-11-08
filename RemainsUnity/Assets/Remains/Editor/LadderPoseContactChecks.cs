@@ -89,7 +89,13 @@ namespace Remains.Editor
             Directory.CreateDirectory(directory);File.WriteAllText(Path.Combine(directory,"descent.csv"),trace.ToString());
             Debug.Log("Контакт ног при спуске: PASS — четыре нижние ноги: прежние13поз/267кадров и44краевые позы/44кадра, отдельная от урона декларация, реальные PNG копыт3/102/298 и PonyVisual кадры, твёрдый пол, прежняя скорость/гравитация, проход балки, оба направления и30/60/144Гц. Trace: "+directory);
         }
-        private static void CheckVisibleFeet()
+        // Public-data-only declaration contract. Run() still requires the frozen source PNGs.
+        public static void RunDeclarationChecks()
+        {
+            Anatomy.Load();PonyVisual.Prepare();CheckVisibleFeet(false);
+            Debug.Log("LADDER_FOOT_DECLARATION_PASS: original frame counts, authored clips, four feet and independent damage regions.");
+        }
+        private static void CheckVisibleFeet(bool measureSourcePixels=true)
         {
             var catalog=Remains.Serialization.StateJson.FromJson<AnatomyCatalog>(GameAssets.Load<TextAsset>("Content/anatomy").text);
             var pony=Array.Find(catalog.anatomies,value=>value.id=="pony");
@@ -122,6 +128,7 @@ namespace Remains.Editor
                 }
             }
             Require(legacyPoses==legacyFrames.Count && edgeCount==44,"Проверяемый ресурс изменился: пересмотрите полноту декларации копыт");
+            if(!measureSourcePixels) return;
             CheckDrawnFoot("idle",0,0,"57/1/1","3",-.036454f);
             CheckDrawnFoot("climb",4,.1f,"57/1/1","298",-.509750f);
             CheckDrawnFoot("crouch",0,0,"frleg3/1/1","102",-.027330f);
