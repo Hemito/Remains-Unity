@@ -14,10 +14,12 @@ namespace Remains.Runtime
     {
         private const string Catcher="player:session-host", Thrower="player:session-client-1";
         private const float StalePose=999;
+        private const int StartPhase=1,ReadyPhase=2,FlightSeenPhase=3,HoldSeenPhase=4,MotionSeenPhase=5;
         private PrototypeRuntime runtime;
         private readonly Evidence evidence=new();
-        private float deadline,settledAt;
+        private float deadline,settledAt,readyAt=-1;
         private bool start,threw,captureRequested,release,finished,staleSeen;
+        private bool peerReady,peerFlightSeen,peerHoldSeen,peerMotionSeen;
         private bool Host=>runtime.Options.Role=="host";
         private bool Expire=>runtime.Options.Smoke.Contains("-expire-");
 
@@ -25,9 +27,24 @@ namespace Remains.Runtime
         {
             runtime=value;deadline=Time.unscaledTime+60;runtime.CommandSource=Command;
             runtime.Interactions.GrenadeUpdated+=grenade=>{if(grenade.x==StalePose) staleSeen=true;};
+            runtime.Session.ServerReady+=()=>runtime.Session.RegisterServerHandler<GrenadeProbePhase>((connection,message)=>
+            {
+                if(runtime.Session.ConnectedActor(connection)?.id!=Thrower)return;
+                if(message.phase==ReadyPhase) {peerReady=true;return;}
+                var grenade=runtime.Session.ServerWorld?.grenades.Find(value=>value.attacker==Thrower &&
+                    (evidence.id==null || value.id==evidence.id));
+                if(grenade==null)return;
+                if(message.phase==FlightSeenPhase && grenade.generation==1 && grenade.holder==null &&
+                    grenade.owner==runtime.Session.ServerWorld.Find(Thrower)?.owner)peerFlightSeen=true;
+                if(!peerFlightSeen || grenade.generation!=2 || grenade.holder!=Catcher ||
+                    grenade.owner!=runtime.Session.ServerWorld.Find(Catcher)?.owner)return;
+                if(message.phase==HoldSeenPhase)peerHoldSeen=true;
+                if(message.phase==MotionSeenPhase && peerHoldSeen && evidence.holdFuse-grenade.remaining>.4f &&
+                    Vector2.Distance(evidence.holdPosition,grenade.Position)>1)peerMotionSeen=true;
+            });
             runtime.Session.ClientReady+=()=>
             {
-                NetworkClient.RegisterHandler<GrenadeProbePhase>(_=>start=true);
+                NetworkClient.RegisterHandler<GrenadeProbePhase>(message=>{if(message.phase==StartPhase)start=true;});
                 NetworkClient.RegisterHandler<GrenadeProbeFinish>(_=>Finish(Validate(),"Сетевой сценарий завершён."));
             };
         }
@@ -46,11 +63,13 @@ namespace Remains.Runtime
             if(flight==null || flight.state.remaining<=0) return default;
             if(!captureRequested)
             {
-                if(flight.state.Velocity.sqrMagnitude<1 || flight.state.remaining<1.5f) return default;
+                if(!peerFlightSeen || flight.state.Velocity.sqrMagnitude<1 || flight.state.remaining<1.5f) return default;
                 captureRequested=true;evidence.airborneSpeed=flight.state.Velocity.magnitude;
                 return new PlayerCommand {telekinesis=true,hasAim=true,aim=flight.position};
             }
-            return new PlayerCommand {telekinesis=true,hasAim=true,aim=actor.Position+new Vector2(4.5f,1.2f)};
+            // Keep the real grenade at its captured position until the peer has recorded that live state.
+            // Its fuse continues normally; no state or completed evidence is sent in the phase message.
+            return new PlayerCommand {telekinesis=true,hasAim=true,aim=peerHoldSeen?actor.Position+new Vector2(4.5f,1.2f):flight.position};
         }
 
         private void Update()
@@ -60,13 +79,23 @@ namespace Remains.Runtime
             var world=Host?session.ServerWorld:session.World;
             if(Time.unscaledTime>deadline)
             {
-                Finish(false,$"Таймаут. Связь: {NetworkClient.isConnected}. Старт: {start}. Бросок: {threw}. Захват: {captureRequested}. Отпускание: {release}.");
+                Finish(false,$"Таймаут. Связь: {NetworkClient.isConnected}. Старт: {start}. Бросок: {threw}. Захват: {captureRequested}. Отпускание: {release}. Peer ready/flight/hold/motion: {peerReady}/{peerFlightSeen}/{peerHoldSeen}/{peerMotionSeen}.");
                 return;
             }
             if(world==null || session.World==null) return;
-            if(Host && !start && session.World.Find(Catcher)?.connected==true && session.World.Find(Thrower)?.connected==true)
+            if(!Host && !evidence.readySent)
             {
-                start=true;NetworkServer.SendToAll(new GrenadeProbePhase {phase=1});
+                // Finish entry preparation and give its asynchronous asset cleanup a quiet second before throwing.
+                // This consumes only the existing bounded startup budget; no grenade exists yet.
+                if(session.LocalActor==null || session.EntryPreparation.ClientPending || !runtime.LevelPresentationReady)readyAt=-1;
+                else if(readyAt<0)readyAt=Time.unscaledTime;
+                else if(Time.unscaledTime-readyAt>=1)
+                {evidence.readySent=true;session.SendToServer(new GrenadeProbePhase {phase=ReadyPhase});}
+            }
+            if(Host && !start && peerReady && runtime.LevelPresentationReady && !session.EntryPreparation.ClientPending &&
+                session.World.Find(Catcher)?.connected==true && session.World.Find(Thrower)?.connected==true)
+            {
+                start=true;NetworkServer.SendToAll(new GrenadeProbePhase {phase=StartPhase});
             }
             var grenade=world.grenades.Find(value=>value.attacker==Thrower);
             if(grenade!=null)
@@ -104,6 +133,8 @@ namespace Remains.Runtime
             {
                 evidence.originalOwner=grenade.owner;
                 evidence.originalGeneration=grenade.generation;
+                if(!Host && !evidence.flightSeenSent)
+                {evidence.flightSeenSent=true;runtime.Session.SendToServer(new GrenadeProbePhase {phase=FlightSeenPhase});}
             }
             if(grenade.holder==Catcher && grenade.owner==world.Find(Catcher)?.owner)
             {
@@ -130,10 +161,14 @@ namespace Remains.Runtime
                         NetworkClient.Send(new GrenadePoseMessage {id=grenade.id,generation=grenade.generation-1,
                             sequence=grenade.sequence+100,x=StalePose,y=StalePose,remaining=grenade.remaining});
                         evidence.stalePoseSent=true;
+                        evidence.holdSeenSent=true;runtime.Session.SendToServer(new GrenadeProbePhase {phase=HoldSeenPhase});
                     }
                 }
                 evidence.lastHeldPosition=grenade.Position;evidence.lastHeldFuse=grenade.remaining;
-                if(Host && !Expire && evidence.holdFuse-grenade.remaining>.6f &&
+                if(!Host && !evidence.motionSeenSent && evidence.holdFuse-grenade.remaining>.4f &&
+                    Vector2.Distance(evidence.holdPosition,grenade.Position)>1)
+                {evidence.motionSeenSent=true;runtime.Session.SendToServer(new GrenadeProbePhase {phase=MotionSeenPhase});}
+                if(Host && !Expire && peerMotionSeen && evidence.holdFuse-grenade.remaining>.6f &&
                     Vector2.Distance(evidence.holdPosition,grenade.Position)>1) release=true;
             }
             if(grenade.holder==null && evidence.holdGeneration>0 && grenade.generation>evidence.holdGeneration)
@@ -160,9 +195,11 @@ namespace Remains.Runtime
             evidence.visuals=runtime.Explosions.Shown;
             evidence.catcherReceipts=catcher.resolvedExplosions.Count(id=>id==evidence.id);
             evidence.throwerReceipts=thrower.resolvedExplosions.Count(id=>id==evidence.id);
-            return !staleSeen && evidence.detachedFlight && (!Host || evidence.sharedWorld==runtime.Session.SharedHostWorld && evidence.staleHoldReplaySent) &&
+            bool observed=Host?peerReady && peerFlightSeen && peerHoldSeen && peerMotionSeen:
+                evidence.readySent && evidence.flightSeenSent && evidence.holdSeenSent && evidence.motionSeenSent;
+            return observed && !staleSeen && evidence.detachedFlight && (!Host || evidence.sharedWorld==runtime.Session.SharedHostWorld && evidence.staleHoldReplaySent) &&
                 (Host?evidence.airborneSpeed>1:evidence.stalePoseSent) &&
-                evidence.holdGeneration==2 && (!Host || evidence.originalGeneration==1) &&
+                evidence.holdGeneration==2 && evidence.originalGeneration==1 &&
                 evidence.originalOwner!=evidence.heldOwner && evidence.holdFuse-evidence.lastHeldFuse>.4f &&
                 Vector2.Distance(evidence.holdPosition,evidence.lastHeldPosition)>1 &&
                 (Expire?evidence.releaseGeneration==0 && evidence.blastGeneration==evidence.holdGeneration:
@@ -178,6 +215,7 @@ namespace Remains.Runtime
         {
             if(finished) return;
             finished=true;evidence.success=success;evidence.detail=detail;evidence.expireWhileHeld=Expire;
+            evidence.peerReady=peerReady;evidence.peerFlightSeen=peerFlightSeen;evidence.peerHoldSeen=peerHoldSeen;evidence.peerMotionSeen=peerMotionSeen;
             File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(evidence,true));
             StartCoroutine(Exit(success));
         }
@@ -186,6 +224,7 @@ namespace Remains.Runtime
         [Serializable] private sealed class Evidence
         {
             public bool success,expireWhileHeld,stalePoseSent,staleHoldReplaySent,detachedFlight,sharedWorld;
+            public bool readySent,flightSeenSent,holdSeenSent,motionSeenSent,peerReady,peerFlightSeen,peerHoldSeen,peerMotionSeen;
             public string detail,id,originalOwner,heldOwner,releaseOwner;
             public int originalGeneration,holdGeneration,releaseGeneration,blastGeneration,blastCount,visuals,
                 catcherReceipts,throwerReceipts,catcherGrenades,throwerGrenades;
