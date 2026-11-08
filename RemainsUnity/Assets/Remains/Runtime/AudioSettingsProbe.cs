@@ -33,7 +33,8 @@ namespace Remains.Runtime
             NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".menu.png",hud.GetComponent<Canvas>());
             yield return UiPointerProbe.Click(panel.SaveRect);
             var saved=new AudioPreferences(Path.Combine(runtime.Options.SaveDirectory,"Settings","audio.json")).Current;
-            Require(Near(saved.master,.5f) && Near(saved.music,.5f) && Near(saved.effects,1),"Настройки не сохраняются отдельно от персонажа.");
+            Require(Near(saved.master,.5f) && Near(saved.music,.5f) && Near(saved.effects,1) && AudioDspBuffer.Supported(saved.dspBufferSize),
+                "Настройки громкости и выбранного DSP-буфера не сохраняются отдельно от персонажа.");
             runtime.Session.StartHost();
             while(runtime.Session.LocalActor==null && !finished) yield return null;
             if(finished) yield break;

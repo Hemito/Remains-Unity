@@ -289,6 +289,7 @@ namespace Remains.Runtime
             string settingsDirectory=Path.Combine(Options.SaveDirectory??ProjectStorage.RootDirectory,"Settings");
             AudioPreferences=new AudioPreferences(Path.Combine(settingsDirectory,"audio.json"));
             InputPreferences=new InputPreferences(Path.Combine(settingsDirectory,"controls.json"));
+            if(!AudioPreferences.ApplySavedBuffer(out string dspNotice))Debug.LogWarning(dspNotice);
             musicMixVolume=Music.Volume;AudioPreferences.Changed+=ApplyAudioPreferences;ApplyAudioPreferences();
             PonyVisual.Prepare();
             Session.Changed+=RefreshVisuals;
