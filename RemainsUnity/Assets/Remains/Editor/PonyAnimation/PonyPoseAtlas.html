@@ -120,6 +120,7 @@ input[type=number],input:not([type]){background:#3a4150;color:var(--text);border
 <label>Сеанс <select id="sessionList"><option>main</option></select></label>
 <span class="note" id="serverState"></span>
 <button id="workRecovery" hidden>Скачать несохранённую работу</button>
+<span id="offlineWork" hidden><button id="workDownload">Скачать всю работу</button><label>Загрузить работу <input type="file" id="workUpload" accept=".json,application/json"></label></span>
 </div>
 <div class="keys" id="keys"></div>
 <p class="note">Корпус: ползунок наклоняет вокруг выбранной точки, квадрат на пони сдвигает. «Копыта на полу стоят на месте» держит в мире копыта, стоящие на полу, и ноги подбираются из атласа под новый наклон. Тонкая правка: выберите часть — на ней три точки, тяните их; «Рисунок» меняет вариант (например, подогнутое копыто). «Добавить позу в атлас» делает изменённые цепочки новыми состояниями группы «Свои позы» — соседние положения начинают их учитывать. Ключи: поставьте кадр, соберите позу, «Поставить ключ»; между ключами концы цепочек и корпус движутся плавно, нога каждый кадр собирается из атласа. Позы, свои состояния и анимация хранятся в этом браузере; анимацию можно скачать и загрузить файлом.</p>
@@ -139,6 +140,8 @@ input[type=number],input:not([type]){background:#3a4150;color:var(--text);border
 </section>
 </main>
 <script id="data" type="application/json">/*DATA*/</script>
+<!-- Starter work for the standalone site (Tools/PoseAnimator/build-site.mjs); empty in the project build. -->
+<script id="starter" type="application/json">null</script>
 <script>
 const data=JSON.parse(document.getElementById('data').textContent);
 const $=id=>document.getElementById(id);
@@ -521,13 +524,24 @@ async function flushWork(){
  try{await saveInFlight;}finally{saveInFlight=null;}
  if(dirty)return flushWork();
 }
-$('workRecovery').onclick=()=>{const blob=new Blob([JSON.stringify({format:'pony-animator-recovery',version:1,sourceHash:data.sourceHash,work,marks,live:snapshot()},null,1)],{type:'application/json'});
- const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download='pony-work-recovery.json';link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);};
+function downloadWork(){const blob=new Blob([JSON.stringify({format:'pony-animator-recovery',version:1,sourceHash:data.sourceHash,work,marks,live:snapshot()},null,1)],{type:'application/json'});
+ const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download='pony-work-recovery.json';link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);}
+$('workRecovery').onclick=downloadWork;$('workDownload').onclick=downloadWork;
+// Without the server a whole work file (this page's own download) replaces the browser's work after a confirmation.
+$('workUpload').onchange=async()=>{const file=$('workUpload').files[0];if(!file)return;try{const d=JSON.parse(await file.text());
+  if(d.format!=='pony-animator-recovery' || !d.work)throw new Error('не файл работы аниматора: '+d.format);
+  if(d.sourceHash!==data.sourceHash)console.warn('Аниматор: работа сделана на другой версии рисунков пони',d.sourceHash);
+  if(!confirm('Заменить работу в этом браузере содержимым файла?'))return;
+  applyWork(d.work);if(d.marks)marks=d.marks;migrateWork();saveWork();saveMarks();drawPoseList();drawClips();goFrame(0);}
+ catch(e){alert('Работа не загружена: '+e.message);}finally{$('workUpload').value='';}};
 async function loadStores(){
  try{const r=await fetch('/api/work');if(r.ok){server=true;applyWork(await r.json());$('serverState').textContent=`Позы и анимации — в проекте (Tools/PoseAnimator). Сеанс «${session}».`;
    if(typeof workRevision!=='string'){saveConflict=true;showSaveError(new Error('Сервер старой версии: требуется перезапуск Tools/PoseAnimator. Работа доступна для просмотра и скачивания.'));}
  }}catch(e){}
- if(!server){try{const saved=JSON.parse(localStorage.getItem(workKey)||'null');applyWork(saved||work);}catch(e){applyWork(work);}$('serverState').textContent='Файл открыт напрямую: позы и анимации хранятся только в этом браузере.';}
+ if(!server){const starter=JSON.parse(document.getElementById('starter').textContent);let saved=null;try{saved=JSON.parse(localStorage.getItem(workKey)||'null');}catch(e){console.warn('Аниматор: работа в браузере не прочитана',e);}
+  if(!saved && starter)console.info('Аниматор: в браузере нет работы — загружены позы и анимации проекта');
+  applyWork(saved||starter||work);if(!saved && starter?.marks)marks=starter.marks;$('offlineWork').hidden=false;
+  $('serverState').textContent='Без сервера: позы и анимации хранятся в этом браузере. Сохраняйте их файлом — «Скачать всю работу» или «Скачать анимацию».';}
  storesReady=true;drawPoseList();drawClips();maybeStart();}
 // Live session: the current pose is shared with other pages and agents; a remote change is shown, not echoed back.
 function schedulePush(){if(!server||applyingRemote||timer)return;clearTimeout(pushTimer);

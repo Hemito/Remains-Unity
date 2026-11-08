@@ -43,7 +43,9 @@ namespace Remains.Editor
             {
                 var file=JObject.Parse(File.ReadAllText(Folder+import.File+".json"));
                 if((string)file["format"]!="pony-pose-atlas-clip" || (int)file["version"]!=1)throw new InvalidDataException("Не файл анимации аниматора поз: "+import.File+".");
-                if((string)file["sourceHash"]!=baseHash)throw new InvalidDataException($"Анимация {import.File} сделана по другой исходной анимации пони: {file["sourceHash"]}, current={baseHash}.");
+                // Baked frames are absolute node matrices: another pony.json only matters when a drawing they name is gone,
+                // which the donor search below reports by name.
+                if((string)file["sourceHash"]!=baseHash)Debug.LogWarning($"Анимация {import.File} сделана по другой исходной анимации пони: {file["sourceHash"]}, current={baseHash}. Импорт проверит, что все её рисунки есть в игре.");
                 var baked=(JArray)file["frames"];
                 var clip=new PonyClip {id=import.Id,fps=(float)file["fps"],nonLooping=import.NonLooping,frames=new PonyFrame[import.Frames.Length]};
                 var plans=new PonyAuthoredFrame[import.Frames.Length];
