@@ -29,7 +29,9 @@ namespace Remains.Editor
             using var library=new VectorArtLibrary(package,ExportedContentCatalog.Load(),1);
             covered=new HashSet<string>(library.Keys,StringComparer.Ordinal);
             if(covered.Count==0) throw new InvalidDataException("Пакет не покрывает ни одного ключа; разделение ресурсов остановлено.");
-            manifestHash=VectorArtPackage.Sha256(File.ReadAllBytes(VectorArtPackage.ManifestPath(VectorArtPackaging.Destination)));
+            // Git checkouts differ in line endings (CRLF on Windows, LF on Linux); the guard compares the text, not the checkout.
+            string manifest=File.ReadAllText(VectorArtPackage.ManifestPath(VectorArtPackaging.Destination)).Replace("\r\n","\n");
+            manifestHash=VectorArtPackage.Sha256(new System.Text.UTF8Encoding(false).GetBytes(manifest));
         }
         public static bool IsCovered(string key) {Prepare();return covered.Contains(key);}
         public static string SpritePath(string key)=>(IsCovered(key)?EditorFolder:ResourceFolder)+Name(key)+".asset";
