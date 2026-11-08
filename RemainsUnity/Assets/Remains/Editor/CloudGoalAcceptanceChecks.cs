@@ -61,6 +61,7 @@ namespace Remains.Editor
             Check("platform drop",PlatformDropChecks.Run);
             Check("host shared graph and authority",HostWorldChecks.Run);
             Check("shared ladder controller",RoomEditorLadderChecks.Run);
+            Check("empty room layer geometry",RoomEmptyLayerGeometryChecks.Run);
             string directory=Path.GetFullPath(Path.Combine(Application.dataPath,"../../Verification/cloud-goal"));Directory.CreateDirectory(directory);
             File.WriteAllText(Path.Combine(directory,"results.json"),JsonUtility.ToJson(report,true));
             Debug.Log("CLOUD_GOAL_SUMMARY total="+report.cases.Count+" failed="+failed);
