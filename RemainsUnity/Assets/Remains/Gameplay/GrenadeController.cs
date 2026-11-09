@@ -12,6 +12,7 @@ namespace Remains.Gameplay
         public GrenadeState state;
         public GrenadeMessage message;
         public bool requested;
+        public Func<Vector2,Vector2,bool> lightContact;
         public readonly ReplicationCadence progressCadence=new(.1);
         public Vector2 position=>state.Position;
     }
@@ -25,6 +26,7 @@ namespace Remains.Gameplay
         private readonly CoopSession session;
         private readonly InteractionAdapter adapter;
         private readonly SimulationGeometry geometry;
+        private readonly LightBallContacts lightContacts;
         private readonly Dictionary<string,Vector2> observedExplosions=new();
         private readonly SimulationTimer throwCooldown=new();
         private string localActorId;
@@ -39,6 +41,7 @@ namespace Remains.Gameplay
         {
             this.geometry=geometry;
             this.session=session;this.adapter=adapter;
+            lightContacts=new LightBallContacts(session);
             session.Changed+=Reconcile;
             adapter.GrenadeUpdated+=Accept;
             combat.LocalExplosionPosition=(id,generation)=>
@@ -67,6 +70,12 @@ namespace Remains.Gameplay
             {
                 flight=new GrenadeFlight {state=state.Copy(),
                     message=new GrenadeMessage {id=state.id,attacker=state.attacker,level=state.level}};
+                if(LightTestItems.IsContactProjectile(state.weapon))
+                {
+                    lightContacts.Prepare(state.level);
+                    var captured=flight;
+                    flight.lightContact=(from,to)=>lightContacts.Hit(captured.state,geometry.Get(captured.state.level),from,to);
+                }
                 flights.Add(flight);Created?.Invoke(flight);return;
             }
             if(state.generation<flight.state.generation) return;
@@ -87,17 +96,19 @@ namespace Remains.Gameplay
                 if(session.Pause.IsPaused(state.level)) continue;
                 if(state.remaining>0)
                 {
-                    float speed=GrenadeRules.Step(state,geometry.Get(state.level),dt);
+                    float speed=GrenadeRules.Step(state,geometry.Get(state.level),dt,
+                        state.owner==session.LocalOwner?flight.lightContact:null);
                     if(speed>0 && state.owner==session.LocalOwner) Impact?.Invoke(state,speed);
                 }
                 if(state.remaining<=0)
                 {
-                    observedExplosions[state.id+":"+state.generation]=state.Position;
+                    bool light=Remains.Content.WeaponCatalog.Get(state.weapon).IsThrowableLight;
+                    if(!light)observedExplosions[state.id+":"+state.generation]=state.Position;
                     if(state.owner==session.LocalOwner && !flight.requested)
                     {
                         flight.requested=true;
                         var attack=state.Attack();
-                        var hits=session.World.actors.Where(a=>!a.player && AttackScope.Includes(attack,a) && HitGeometry.Contacts(a,attack)).Select(a=>a.id).ToArray();
+                        var hits=light?null:session.World.actors.Where(a=>!a.player && AttackScope.Includes(attack,a) && HitGeometry.Contacts(a,attack)).Select(a=>a.id).ToArray();
                         adapter.SendGrenade(state,true,hits);
                     }
                 }

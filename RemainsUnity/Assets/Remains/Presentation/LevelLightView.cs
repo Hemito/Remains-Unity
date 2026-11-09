@@ -105,7 +105,7 @@ namespace Remains.Presentation
             hash.Add(worldFields?.GeometryRevision??0);
             if(masks!=null) foreach(var m in masks)
             {hash.Add(m.SourceId);hash.Add(m.Mask!=null?m.Mask.GetInstanceID():0);hash.Add(m.WorldBounds);hash.Add(m.Opacity);hash.Add(m.Revision);}
-            if(worldLights!=null)foreach(var e in worldLights){hash.Add(e.GeometrySignature());hash.Add(e.Gain);}
+            if(worldLights!=null)foreach(var e in worldLights)hash.Add(e.CompositionSignature());
             int next=hash.ToHashCode();
             if(!moved && flashCount==0 && !flashShown && hasSignature && next==signature){Publish();return;}
             Remains.Diagnostics.FrameHitchLog.Gpu("Свет: камера (тени и вспышки)");
@@ -145,7 +145,7 @@ namespace Remains.Presentation
                 {
                     if(e.Gain<=0 || !WorldArea.Overlaps(Rect.MinMaxRect(e.Bounds.xMin-e.Reach,e.Bounds.yMin-e.Reach,e.Bounds.xMax+e.Reach,e.Bounds.yMax+e.Reach)))continue;
                     var field=worldFields.Get(e);if(field==null)continue;
-                    DrawMask(masks,e.Id);AddWorldLight(field,e.Gain);
+                    DrawMask(masks,e.Id);AddWorldLight(field,e);
                 }
                 worldFields.End();
             }
@@ -255,7 +255,7 @@ namespace Remains.Presentation
             compute.Dispatch(kernel,(x1-x0+7)/8,(y1-y0+7)/8,1);
         }
 
-        private void AddWorldLight(WorldLightFields.Field field,float gain)
+        private void AddWorldLight(WorldLightFields.Field field,WorldLightEmission emission)
         {
             var world=WorldArea;var b=field.World;float sx=front.width/world.width,sy=front.height/world.height;
             int x0=Mathf.Clamp(Mathf.FloorToInt((b.xMin-world.xMin)*sx),0,front.width),y0=Mathf.Clamp(Mathf.FloorToInt((b.yMin-world.yMin)*sy),0,front.height);
@@ -263,7 +263,8 @@ namespace Remains.Presentation
             if(x1<=x0 || y1<=y0)return;int kernel=worldLightKernel;
             compute.SetTexture(kernel,"_Front",front);compute.SetTexture(kernel,"_Back",back);compute.SetTexture(kernel,"_Mask",mask);compute.SetTexture(kernel,"_FieldIn",field.Texture);
             compute.SetInts("_OutputSize",front.width,front.height);compute.SetInts("_Clip",x0,y0,x1,y1);
-            compute.SetVector("_OutputRect",new Vector4(world.x,world.y,world.width,world.height));compute.SetVector("_DynamicRect",new Vector4(b.x,b.y,b.width,b.height));compute.SetFloat("_DynamicGain",gain);
+            compute.SetVector("_OutputRect",new Vector4(world.x,world.y,world.width,world.height));compute.SetVector("_DynamicRect",new Vector4(b.x,b.y,b.width,b.height));compute.SetFloat("_DynamicGain",emission.Gain);
+            compute.SetVector("_DynamicCone",emission.Cone.ShaderValue);compute.SetVector("_DynamicPosition",new Vector4(emission.Position.x,emission.Position.y,0,0));
             compute.Dispatch(kernel,(x1-x0+7)/8,(y1-y0+7)/8,1);
         }
         private void CaptureFlashBaseline()

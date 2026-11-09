@@ -21,6 +21,7 @@ SamplerState sampler_linear_clamp;
 int2 _OutputSize;
 float4 _OutputRect,_WorldRect;
 float4 _DynamicRect;
+float4 _DynamicCone,_DynamicPosition;
 float _DynamicGain;
 int4 _Clip;                           // area-local x0, y0, x1, y1 (exclusive)
 
@@ -93,7 +94,16 @@ void AddWorldLight(uint3 id:SV_DispatchThreadID)
     int2 p=_Clip.xy+int2(id.xy);if(any(p>=_Clip.zw))return;
     float2 world=_OutputRect.xy+(float2(p)+.5)/_OutputSize*_OutputRect.zw;
     float2 uv=(world-_DynamicRect.xy)/_DynamicRect.zw;
-    float3 value=_FieldIn.SampleLevel(sampler_linear_clamp,uv,0).rgb*_DynamicGain;
+    float angularWeight=1;
+    if(dot(_DynamicCone.xy,_DynamicCone.xy)>.5)
+    {
+        float2 delta=world-_DynamicPosition.xy;
+        float distanceSquared=dot(delta,delta);
+        if(distanceSquared>.000001)
+            angularWeight=smoothstep(_DynamicCone.z,_DynamicCone.w,dot(_DynamicCone.xy,delta*rsqrt(distanceSquared)));
+    }
+    if(angularWeight<=0)return;
+    float3 value=_FieldIn.SampleLevel(sampler_linear_clamp,uv,0).rgb*(_DynamicGain*angularWeight);
     _Front[p]=float4(_Front[p].rgb+value,1);
     _Back[p]=float4(_Back[p].rgb+value*(1-saturate(_Mask[p].a)),1);
 }

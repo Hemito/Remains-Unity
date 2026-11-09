@@ -117,7 +117,7 @@ namespace Remains.Domain
         {
             foreach(var grenade in world.grenades) {GrenadeRotation.Prepare(grenade);grenade.owner=null;ReleaseHold(grenade);}
         }
-        public static float Step(GrenadeState state,RoomLayout room,float dt)
+        public static float Step(GrenadeState state,RoomLayout room,float dt,Func<Vector2,Vector2,bool> contact=null)
         {
             if(dt<=0 || state.remaining<=0) return 0;
             GrenadeRotation.Prepare(state);
@@ -131,7 +131,9 @@ namespace Remains.Domain
             {
                 double step=Math.Min(SimulationStep,state.remaining);
                 if(state.simulationRemainder+1e-7<step) break;
+                var previous=state.Position;
                 if(state.holder==null) impact=Mathf.Max(impact,Advance(state,room,(float)step,definition));
+                if(state.holder==null && contact!=null && contact(previous,state.Position))state.remaining=0;
                 state.simulationRemainder=Math.Max(0,state.simulationRemainder-step);
                 state.remaining=Mathf.Max(0,state.remaining-(float)step);
             }

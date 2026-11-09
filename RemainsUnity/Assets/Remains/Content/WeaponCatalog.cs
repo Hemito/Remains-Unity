@@ -38,7 +38,9 @@ namespace Remains.Content
         public bool explosive;
         public MineProfile mine;
         public float grenadeFuseSeconds,grenadeRestitution,grenadeGroundRetention,grenadeGravity;
-        public bool IsGrenade=>explosive && grenadeFuseSeconds>0;
+        [InspectorName("Светящийся метательный предмет (без взрыва)")] public ThrowableLightProfile throwableLight;
+        public bool IsThrowableLight=>throwableLight!=null && throwableLight.Configured;
+        public bool IsGrenade=>(explosive || IsThrowableLight) && grenadeFuseSeconds>0;
         public float grenadeMaxLaunchSpeed,grenadeFullEffortDistance,grenadeAimLift;
         public float grenadeSpinRate,grenadeAngularRetention;
         public float meleeContactStart,meleeContactEnd=1;

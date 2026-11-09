@@ -18,6 +18,8 @@ namespace Remains.Runtime
     public sealed class PrototypeRuntime : MonoBehaviour
     {
         private readonly HornLightSources hornLights=new();
+        private readonly FlashlightLightSources flashlights=new();
+        private readonly BouncingLightSources throwableLights=new();
         private readonly List<WorldLightEmission> worldLightEmissions=new();
         public CoopSession Session { get; private set; }
         public CombatController Combat { get; private set; }
@@ -227,6 +229,14 @@ namespace Remains.Runtime
                 if(fireVisuals!=null)foreach(var e in fireVisuals.Lights.Emissions)
                     if(!lightArea.HasValue || lightArea.Value.Overlaps(Rect.MinMaxRect(e.Bounds.xMin-e.Reach,e.Bounds.yMin-e.Reach,e.Bounds.xMax+e.Reach,e.Bounds.yMax+e.Reach)))worldLightEmissions.Add(e);
                 hornLights.Append(activeVisuals,worldLightEmissions,lightArea,Geometry.Get(shownLevel));
+                flashlights.Begin();
+                foreach(var pair in activeVisuals)
+                {
+                    var sourceActor=actorFrames.Find(pair.Key);
+                    if(sourceActor!=null) flashlights.Append(PresentActor(sourceActor),worldLightEmissions,lightArea);
+                }
+                flashlights.End();
+                throwableLights.Append(Grenades,shownLevel,worldLightEmissions,lightArea);
                 Explosions.AppendLights(worldLightEmissions,lightArea);
                 using(Remains.Diagnostics.FrameHitchLog.Section("Тени: персонажи")) actorShadows.Present(ActiveFactoryLighting,activeVisuals,interactionVisuals,emissions,interactionVisuals.MuzzleSourceIds,
                     lightArea,worldLightEmissions);
@@ -954,7 +964,7 @@ namespace Remains.Runtime
                 Session.FlushSaveWrites();
             }
             entryRoom?.Dispose();entryRoom=null;EntryPresentationPrepared=null;
-            actorShadows?.Dispose();actorShadows=null;hornLights.Clear();worldLightEmissions.Clear();
+            actorShadows?.Dispose();actorShadows=null;hornLights.Clear();flashlights.Clear();throwableLights.Clear();worldLightEmissions.Clear();
             ActiveLevelLighting?.Release();
             Pickup?.Dispose();MechanismInteraction?.Dispose();
             if(Platforms!=null) {Platforms.TopologyChanged-=ActorBodySupport.InvalidateRoom;Platforms.Dispose();}

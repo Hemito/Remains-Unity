@@ -68,6 +68,11 @@ namespace Remains.Presentation
                 !float.IsFinite(e.Bounds.x) || !float.IsFinite(e.Bounds.y) || !float.IsFinite(e.Bounds.width) || !float.IsFinite(e.Bounds.height) || e.Bounds.width<=0 || e.Bounds.height<=0 ||
                 !float.IsFinite(e.Radiance.r) || !float.IsFinite(e.Radiance.g) || !float.IsFinite(e.Radiance.b) || e.Radiance.r<0 || e.Radiance.g<0 || e.Radiance.b<0)
                 throw new ArgumentException("Некорректный динамический источник света: "+e.Id);
+            if(!float.IsFinite(e.Cone.Direction.x) || !float.IsFinite(e.Cone.Direction.y) ||
+                !float.IsFinite(e.Cone.InnerCos) || !float.IsFinite(e.Cone.OuterCos) ||
+                e.Cone.Directed && (Mathf.Abs(e.Cone.Direction.sqrMagnitude-1)>.001f || e.Cone.InnerCos<=e.Cone.OuterCos ||
+                    e.Cone.OuterCos<-1 || e.Cone.InnerCos>1))
+                throw new ArgumentException("Некорректный конус динамического света: "+e.Id);
             float total=0;foreach(var p in e.Samples){if(!float.IsFinite(p.x) || !float.IsFinite(p.y) || !float.IsFinite(p.z) || p.z<=0)throw new ArgumentException("Некорректная точка динамического света: "+e.Id);total+=p.z;}
             if(Mathf.Abs(total-1)>.001f)throw new ArgumentException($"Динамический свет {e.Id}: сумма весов={total} вместо1.");
         }

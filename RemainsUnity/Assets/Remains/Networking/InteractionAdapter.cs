@@ -177,10 +177,11 @@ namespace Remains.Networking
                 !double.IsFinite(message.simulationRemainder) || message.simulationRemainder<0 || message.simulationRemainder>=GrenadeRules.SimulationStep ||
                 !float.IsFinite(message.remaining) || message.remaining<0 || message.remaining>grenade.remaining+.001f)
             {Debug.LogWarning($"Некорректное состояние гранаты: id={message.id}, generation={message.generation}, remaining={message.remaining}.");return;}
+            bool light=WeaponCatalog.Get(grenade.weapon).IsThrowableLight;
             bool fire=message.detonate && WeaponCatalog.Get(grenade.weapon).IsFire;
             // Blast cover and fire droplets both need the level with its current doors (a level no one has loaded is read here).
             RoomLayout room=null;
-            if(message.detonate && roomForLevel!=null)
+            if(message.detonate && !light && roomForLevel!=null)
             {
                 room=roomForLevel(grenade.level);
                 if(room==null)
@@ -191,7 +192,12 @@ namespace Remains.Networking
                 }
             }
             Apply(grenade,message);
-            if(fire)
+            if(message.detonate && light)
+            {
+                if(!LightTestItems.Expire(session.ServerWorld,grenade))throw new InvalidOperationException("Не удалось завершить светящийся метательный предмет: "+grenade.id);
+                session.CommitWorld();
+            }
+            else if(fire)
             {
                 // A fire grenade or bottle splashes burning droplets instead of a blast (FireRules).
                 // No fire when a bottle burnt all its fuel in flight; the bottle is gone either way.

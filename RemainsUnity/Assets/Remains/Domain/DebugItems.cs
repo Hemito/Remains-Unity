@@ -20,7 +20,7 @@ namespace Remains.Domain
         public static readonly string[] Categories={Weapons,Grenades,Ammo,Wear,Other,Formal};
         public const int MaxCount=99;
         private const string GradeRole="item-image-grade-";
-        private static readonly string[] HandMade={"heal","grenade","spear","crowbar","pistol","energy"};
+        private static readonly string[] HandMade={"heal","grenade","spear","crowbar","pistol","energy",LightTestItems.Ball,LightTestItems.Stick,LightTestItems.Flashlight};
 
         public static List<DebugItem> Build()
         {
@@ -30,7 +30,7 @@ namespace Remains.Domain
             void Add(string id)
             {
                 if(!seen.Add(id)) return;
-                string category=WeaponCatalog.IsGrenade(id)?Grenades:WeaponCatalog.Contains(id)?Weapons:ammunition.Contains(id)?Ammo:
+                string category=id==LightTestItems.Flashlight?Other:WeaponCatalog.IsGrenade(id)?Grenades:WeaponCatalog.Contains(id)?Weapons:ammunition.Contains(id)?Ammo:
                     cosmetics.Contains(id)?Wear:id.StartsWith(ExportedWeaponItems.Prefix,StringComparison.Ordinal)?Formal:Other;
                 result.Add(new DebugItem(id,category));
             }

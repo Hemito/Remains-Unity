@@ -2,6 +2,29 @@ using UnityEngine;
 
 namespace Remains.Presentation
 {
+    // Angular shape is a composition property: aiming a stationary source does not rebuild its polar transport.
+    // The default value explicitly denotes an omnidirectional emitter.
+    public readonly struct LightEmissionCone
+    {
+        public readonly Vector2 Direction;
+        public readonly float InnerCos,OuterCos;
+        public bool Directed=>Direction.sqrMagnitude>.5f;
+        public Vector4 ShaderValue=>new(Direction.x,Direction.y,OuterCos,InnerCos);
+        public LightEmissionCone(Vector2 direction,float innerHalfAngleDegrees,float outerHalfAngleDegrees)
+        {
+            if(!float.IsFinite(direction.x) || !float.IsFinite(direction.y) || !float.IsFinite(direction.sqrMagnitude) || direction.sqrMagnitude<.000001f ||
+                !float.IsFinite(innerHalfAngleDegrees) || !float.IsFinite(outerHalfAngleDegrees) ||
+                innerHalfAngleDegrees<0 || outerHalfAngleDegrees<=innerHalfAngleDegrees || outerHalfAngleDegrees>=180)
+                throw new System.ArgumentException("Конус света: нужны конечное направление и углы 0 <= внутренний < внешний < 180 градусов.");
+            Direction=direction.normalized;InnerCos=Mathf.Cos(innerHalfAngleDegrees*Mathf.Deg2Rad);OuterCos=Mathf.Cos(outerHalfAngleDegrees*Mathf.Deg2Rad);
+        }
+        public float Weight(Vector2 offset)
+        {
+            if(!Directed || offset.sqrMagnitude<.000001f)return 1;
+            float t=Mathf.Clamp01((Vector2.Dot(Direction,offset.normalized)-OuterCos)/(InnerCos-OuterCos));
+            return t*t*(3-2*t);
+        }
+    }
     public static class LightEmissionGeometry
     {
         public static float AreaScale(Matrix4x4 transform)=>Mathf.Abs(transform.m00*transform.m11-transform.m01*transform.m10);
@@ -22,9 +45,11 @@ namespace Remains.Presentation
         public readonly Rect Bounds;
         public readonly Color Radiance;
         public readonly float Width,Reach,Gain;
-        public WorldLightEmission(string id,Vector4[] samples,Rect bounds,Color radiance,float width,float reach,float gain=1)
-        {Id=id;Samples=samples;Bounds=bounds;Radiance=radiance;Width=width;Reach=reach;Gain=gain;}
+        public readonly LightEmissionCone Cone;
+        public WorldLightEmission(string id,Vector4[] samples,Rect bounds,Color radiance,float width,float reach,float gain=1,LightEmissionCone cone=default)
+        {Id=id;Samples=samples;Bounds=bounds;Radiance=radiance;Width=width;Reach=reach;Gain=gain;Cone=cone;}
         public Vector2 Position=>Bounds.center;
+        public int CompositionSignature()=>System.HashCode.Combine(GeometrySignature(),Cone.Direction,Cone.InnerCos,Cone.OuterCos,Gain);
         public int GeometrySignature()
         {
             var hash=new System.HashCode();hash.Add(Id);hash.Add(Bounds);hash.Add(Radiance);hash.Add(Width);hash.Add(Reach);
