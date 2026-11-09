@@ -150,6 +150,15 @@ namespace Remains.Content
             if(category=="safe"&&U()<.05)throw new NotSupportedException("Исходное появление четырёх кровомух из сейфа пока не поддержано.");
             double prize=xml.Attribute("prize")!=null?state.lockLevel+(lockTip is 1 or 2?tier*2:state.lockLevel*2)+state.mineLevel*2:50;
             FactoryLootRules.Generate(category,difficulty,1,prize,U,request=>Emit(request),reason=>throw new NotSupportedException(reason));
+            // Separate stream: utility additions do not perturb original loot rolls or refill saved containers.
+            var utilityRandom=new Stream(world.worldId+"|"+world.seed+"|"+placement.Id+"|utility-lights-v1");
+            LightToolLootRules.Generate(category,utilityRandom.Next,(id,count)=>
+            {
+                if(!artwork.TryGet(id,out _))throw new NotSupportedException("Нет графики светового лута: "+id+", container="+placement.Id);
+                var item=SharedInventory.Create(id,count);
+                item.id="loot:"+Hash(world.worldId+"|"+placement.Id+"|utility-lights-v1|"+id);
+                state.items.Add(item);
+            });
             return state;
         }
         public static WeaponItemState InitialWeaponState(string definition)

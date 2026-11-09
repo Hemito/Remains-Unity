@@ -33,6 +33,17 @@ namespace Remains.Editor
                 Require(new InventoryArtwork().TryGet(id,out var sprite) && sprite!=null,"Нет иконки: "+id);
             }
             Require(new StandardItemActions().Action(SharedInventory.Create(LightTestItems.Flashlight,1))==StandardItemActions.Hold,"Фонарик должен быть обычным удерживаемым предметом.");
+            var starter=new ActorState{character="light-starter",weapon="pistol"};PlayerStarterInventory.Give(starter);
+            var starterLight=starter.inventory.Single(item=>item.definition==LightTestItems.Flashlight);
+            Require(starterLight.count==1 && ItemShortcuts.Get(starter,"5")==starterLight,"Новый персонаж не получил фонарик на клавишу 5.");
+            var filter=new InventoryItemFilter(WeaponCatalog.All);
+            Require(filter.Includes(starterLight,InventoryCategory.Weapons) && !filter.Includes(starterLight,InventoryCategory.Items),"Фонарик не попал в раздел оружия.");
+            var loot=new List<(string Id,int Count)>();
+            LightToolLootRules.Generate("instr",()=>0,(id,count)=>loot.Add((id,count)));
+            Require(loot.Count==2 && loot[0]==(LightTestItems.Stick,1) && loot[1]==(LightTestItems.Ball,1),"Не выданы световые припасы из инструментального лута.");
+            loot.Clear();LightToolLootRules.Generate("ammo",()=>.999,(id,count)=>loot.Add((id,count)));
+            Require(loot.Count==0,"Световые припасы выдаются независимо от вероятности.");
+            LightToolLootRules.Generate("empty",()=>throw new InvalidOperationException("Пустой контейнер не должен расходовать поток лута."),(id,count)=>loot.Add((id,count)));
             var room=new RoomLayout{id="test-light-bounce",left=-10,right=10,bottom=-2,top=10,
                 platforms=new[]{new RoomSurface{x=-10,y=-1,width=20,height=1}}};
             var state=new GrenadeState{id="light-test",weapon=ball.id,level=room.id,y=.3f,vy=-3,remaining=120};

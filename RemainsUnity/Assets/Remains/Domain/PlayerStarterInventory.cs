@@ -10,6 +10,8 @@ namespace Remains.Domain
                 throw new System.InvalidOperationException("Стартовое оснащение можно выдать только новому персонажу: "+actor.character);
             InventoryStacks.Add(actor,SharedInventory.Create("heal",5));
             InventoryStacks.Add(actor,SharedInventory.Create("grenade",5));
+            var flashlight=InventoryStacks.Add(actor,SharedInventory.Create(LightTestItems.Flashlight,1));
+            actor.weaponShortcuts.Add(new WeaponShortcut {slot="5",item=flashlight.id});
             string[] weapons={"spear","crowbar","pistol","energy"};
             for(int i=0;i<weapons.Length;i++)
             {

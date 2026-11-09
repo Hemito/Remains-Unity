@@ -18,9 +18,9 @@ namespace Remains.Presentation
         public bool Includes(ItemStack item,InventoryCategory category)=>category switch
         {
             InventoryCategory.All=>true,
-            InventoryCategory.Weapons=>WeaponInventory.IsEquippable(item),
+            InventoryCategory.Weapons=>WeaponInventory.IsEquippable(item) || LightTestItems.IsHandheldTool(item),
             InventoryCategory.Ammunition=>!WeaponInventory.IsEquippable(item) && ammunition.Contains(item.definition),
-            InventoryCategory.Items=>!WeaponInventory.IsEquippable(item) && !ammunition.Contains(item.definition) && !CosmeticEquipment.IsWearable(item),
+            InventoryCategory.Items=>!WeaponInventory.IsEquippable(item) && !LightTestItems.IsHandheldTool(item) && !ammunition.Contains(item.definition) && !CosmeticEquipment.IsWearable(item),
             InventoryCategory.Armor=>CosmeticEquipment.IsWearable(item),
             _=>throw new ArgumentOutOfRangeException(nameof(category),category,"Неизвестная категория инвентаря.")
         };
