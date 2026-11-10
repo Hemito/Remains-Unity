@@ -25,7 +25,7 @@ namespace Remains.Presentation
         public RectTransform SoundRect {get;}
         public RectTransform MenuSettingRect=>menuSetting.GetComponent<RectTransform>();
         public RectTransform InventorySettingRect=>inventorySetting.GetComponent<RectTransform>();
-        public PauseMenu(PauseMenuView view,CoopSession session,Func<bool> inventory,Action settings,Func<bool> otherMenus=null,Action controlSettings=null)
+        public PauseMenu(PauseMenuView view,CoopSession session,Func<bool> inventory,Action settings,Func<bool> otherMenus=null,Action controlSettings=null,Action languageSettings=null)
         {
             this.session=session;this.inventory=inventory;this.otherMenus=otherMenus??(()=>false);
             view.Validate();root=view.Panel;layer=view.transform;status=view.Status;controls=view.Controls;
@@ -35,7 +35,9 @@ namespace Remains.Presentation
             view.Resume.onClick.AddListener(()=>session.Pause.SetManual(false));
             menuSetting.onClick.AddListener(()=>session.Pause.SetSettings(!session.Pause.PauseOnMenu,session.Pause.PauseOnInventory));
             inventorySetting.onClick.AddListener(()=>session.Pause.SetSettings(session.Pause.PauseOnMenu,!session.Pause.PauseOnInventory));
-            if(controlSettings!=null) ControlSettingsPanel.AddEntry(view.Sound,controlSettings);
+            if(controlSettings!=null) ControlSettingsPanel.AddEntry(view.Sound,controlSettings,languageSettings);
+            foreach(var button in new[]{view.ManualPause,view.Resume,view.Close,view.MenuSetting,view.InventorySetting})
+                LocalizedUiText.BindTree(button.transform);
             view.Close.onClick.AddListener(Toggle);view.Sound.onClick.AddListener(()=>settings());
             root.SetActive(false);session.Changed+=Refresh;session.Pause.Changed+=Refresh;Refresh();
         }

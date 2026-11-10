@@ -28,12 +28,14 @@ namespace Remains.Presentation
             WorldCopyLabels.SelectedText(name,branch,revision,snapshot);
         public RectTransform SoundRect=>view.Settings.GetComponent<RectTransform>();
         public MainMenuPanel(Transform parent,Action host,Action join,Action worlds,Action settings,Action newGame,Action characters=null,
-            Action compareCopies=null,Action controls=null)
+            Action compareCopies=null,Action controls=null,Action language=null)
         {
             var prefab=GameAssets.Load<MainMenuView>("Presentation/MainMenu");
             if(prefab==null) throw new InvalidOperationException("Нет префаба главного меню Presentation/MainMenu.");
             prefab.Validate();view=UnityEngine.Object.Instantiate(prefab,parent,false);
-            if(controls!=null) ControlSettingsPanel.AddEntry(view.Settings,controls);
+            if(controls!=null) ControlSettingsPanel.AddEntry(view.Settings,controls,language);
+            foreach(var button in new[]{view.Host,view.CompareCopies,view.Worlds,view.Join,view.NewGame,view.Exit,view.Characters})
+                LocalizedUiText.BindTree(button.transform);
             view.Host.onClick.AddListener(()=>host());view.Join.onClick.AddListener(()=>join());
             view.Worlds.onClick.AddListener(()=>worlds());view.Settings.onClick.AddListener(()=>settings());
             view.NewGame.onClick.AddListener(()=>newGame());view.Exit.onClick.AddListener(()=>Application.Quit());
@@ -41,6 +43,8 @@ namespace Remains.Presentation
             if(characters!=null) view.Characters.onClick.AddListener(()=>characters());
             view.CompareCopies.interactable=compareCopies!=null;
             if(compareCopies!=null) view.CompareCopies.onClick.AddListener(()=>compareCopies());
+            foreach(var text in view.GetComponentsInChildren<Text>(true))
+                if(text!=view.World && text!=view.Notice)LocalizedUiText.Bind(text);
         }
     }
 }

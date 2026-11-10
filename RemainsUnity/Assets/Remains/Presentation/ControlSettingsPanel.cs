@@ -51,7 +51,7 @@ namespace Remains.Presentation
             CreateButton(ui,panel,"Стандартные",new Vector2(24,-537),new Vector2(187,35),Reset);
             CreateButton(ui,panel,"Отмена",new Vector2(442,-537),new Vector2(173,35),Cancel);
             CreateButton(ui,panel,"Сохранить",new Vector2(632,-537),new Vector2(174,35),Save);
-            root.SetActive(false);
+            LocalizedUiText.BindTree(root.transform);root.SetActive(false);
         }
 
         public void Open()
@@ -117,22 +117,33 @@ namespace Remains.Presentation
             return button;
         }
         // The existing audio row becomes two buttons, preserving its position and authored visual style.
-        internal static void AddEntry(Button audio,Action open)
+        internal static void AddEntry(Button audio,Action open,Action language=null)
         {
             var rect=(RectTransform)audio.transform;
             var controls=UnityEngine.Object.Instantiate(audio,rect.parent,false);
             var other=(RectTransform)controls.transform;
-            float width=(rect.sizeDelta.x-10)*.5f;
+            float width=language==null?(rect.sizeDelta.x-10)*.5f:(rect.sizeDelta.x-20)/3;
             rect.sizeDelta=new Vector2(width,rect.sizeDelta.y);other.sizeDelta=rect.sizeDelta;
             other.anchoredPosition=rect.anchoredPosition+Vector2.right*(width+10);
             controls.name="Настройки управления";
             foreach(var (button,text) in new[]{(audio,"Звук"),(controls,"Управление")})
             {
                 var label=button.GetComponentInChildren<Text>(true);label.text=text;
+                label.resizeTextForBestFit=true;label.resizeTextMinSize=10;label.resizeTextMaxSize=label.fontSize;
                 var child=label.rectTransform;child.anchorMin=Vector2.zero;child.anchorMax=Vector2.one;
                 child.offsetMin=new Vector2(5,2);child.offsetMax=new Vector2(-5,-2);
             }
             controls.onClick.AddListener(()=>open());
+            if(language!=null)
+            {
+                var languages=UnityEngine.Object.Instantiate(audio,rect.parent,false);
+                languages.name="Настройки языка";languages.onClick.RemoveAllListeners();
+                ((RectTransform)languages.transform).anchoredPosition=rect.anchoredPosition+Vector2.right*((width+10)*2);
+                languages.GetComponentInChildren<Text>(true).text="Язык";
+                languages.onClick.AddListener(()=>language());
+                LocalizedUiText.BindTree(languages.transform);
+            }
+            LocalizedUiText.BindTree(audio.transform);LocalizedUiText.BindTree(controls.transform);
         }
     }
 }

@@ -31,7 +31,7 @@ namespace Remains.Presentation
             view.Save.onClick.AddListener(Save);view.Cancel.onClick.AddListener(Cancel);
             BindCaption(master,view.MasterLabel);BindCaption(music,view.MusicLabel);BindCaption(effects,view.EffectsLabel);
             master.onValueChanged.AddListener(_=>Preview());music.onValueChanged.AddListener(_=>Preview());effects.onValueChanged.AddListener(_=>Preview());
-            root.SetActive(false);
+            LocalizedUiText.BindTree(root.transform);root.SetActive(false);
         }
         private static void BindCaption(Slider slider,Text label)
         {

@@ -73,6 +73,7 @@ namespace Remains.Presentation
             {
                 var choice=(InventoryCategory)i;
                 categories[i].onClick.AddListener(()=>{category=choice;firstVisibleRow=0;Refresh(container);pageSound?.Invoke();});
+                LocalizedUiText.BindTree(categories[i].transform);
             }
             rows=view.Rows;icons=view.Icons;weapons=view.WeaponIds;weaponButtons=view.Weapons;ids=new string[rows.Length];
             rowLabels=new Text[rows.Length];rowFontSizes=new int[rows.Length];rowText=new string[rows.Length];

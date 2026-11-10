@@ -16,6 +16,8 @@ namespace Remains.Content
         public const string Resource="Content/item-text";
         public const string OriginalResource="Content/original-item-text";
         private static ItemTextCatalog loaded;
+        private bool localized;
+        private readonly HashSet<string> explicitOverrides=new(StringComparer.Ordinal);
         private readonly Dictionary<string,ItemTextDefinition> entries=new(StringComparer.Ordinal);
         private readonly HashSet<string> missing=new(StringComparer.Ordinal);
         private readonly Action<string> warning;
@@ -38,6 +40,7 @@ namespace Remains.Content
             var original=GameAssets.Load<TextAsset>(OriginalResource);
             if(original==null)throw new InvalidOperationException("Нет исходных русских названий предметов: "+OriginalResource);
             result.ImportMissing(original.text);
+            result.localized=true;
             return loaded=result;
         }
         // Validate the complete incoming layer before changing this catalog. Explicit Unity/mod labels win.
@@ -55,16 +58,17 @@ namespace Remains.Content
                 throw new InvalidOperationException("Неполные русские тексты предмета: id="+entry?.id);
             if(!replace && entries.ContainsKey(entry.id)) throw new InvalidOperationException("Повтор русских текстов предмета: id="+entry.id);
             entries[entry.id]=new ItemTextDefinition {id=entry.id,name=entry.name,description=entry.description};
+            if(localized)explicitOverrides.Add(entry.id);
         }
         public string Name(string id,string context)
         {
-            if(id!=null && entries.TryGetValue(id,out var entry)) return entry.name;
+            if(id!=null && entries.TryGetValue(id,out var entry)) return !localized?entry.name:explicitOverrides.Contains(id)?GameLocalization.TranslateRussian(entry.name,context):GameLocalization.ItemName(id,entry.name,context);
             if(ExportedContentCatalog.Load().TryItem(id,out var source)&&!string.IsNullOrWhiteSpace(source.displayName))return source.displayName;
             Warn(id,context,"название");return "["+(id??"<null>")+"]";
         }
         public string Description(string id,string context)
         {
-            if(id!=null && entries.TryGetValue(id,out var entry)) return entry.description;
+            if(id!=null && entries.TryGetValue(id,out var entry)) return localized?GameLocalization.TranslateRussian(entry.description,context+" description="+id):entry.description;
             if(ExportedContentCatalog.Load().TryItem(id,out var source))
                 return (string.IsNullOrWhiteSpace(source.description)?"":source.description+"\n")+
                     "Подключено как обычный предмет. Специальное действие пока не реализовано.";

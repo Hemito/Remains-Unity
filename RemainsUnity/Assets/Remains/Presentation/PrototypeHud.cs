@@ -99,9 +99,10 @@ namespace Remains.Presentation
         public RectTransform RoomLoadingRect=>roomLoading.Rect;
         public AudioSettingsPanel AudioSettings {get;private set;}
         public ControlSettingsPanel ControlSettings {get;private set;}
+        public LanguageSettingsPanel LanguageSettings {get;private set;}
         public RectTransform MainMenuSoundRect=>mainMenu.SoundRect;
         public bool BlocksGameplayInput=>RoomPresentationPending || inventory.activeSelf || PauseMenu.IsOpen ||
-            AudioSettings.IsOpen || ControlSettings.IsOpen || WorldMap.IsOpen || debugItems?.IsOpen==true;
+            AudioSettings.IsOpen || ControlSettings.IsOpen || LanguageSettings.IsOpen || WorldMap.IsOpen || debugItems?.IsOpen==true;
         public bool InventoryOpen=>inventory.activeSelf;
         public bool BlocksPointerGameplay(Vector2 screenPosition)=>BlocksGameplayInput || containerPanel.PointerBlocked(screenPosition);
         public void CloseContainerForSprint(bool sprint,Vector2 movement)
@@ -159,6 +160,7 @@ namespace Remains.Presentation
         {
             if(disposed) throw new ObjectDisposedException(nameof(PrototypeHud),"Завершённый HUD нельзя инициализировать повторно.");
             session = value;
+            GameLocalization.Initialize();
             inputPreferences=input??new InputPreferences(null);
             itemText=ItemTextCatalog.Load();
             font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
@@ -175,6 +177,7 @@ namespace Remains.Presentation
             inventoryAudio=gameObject.AddComponent<InventoryAudio>();inventoryAudio.Initialize(audioPreferences);
             AudioSettings=new AudioSettingsPanel(transform,audioPreferences);
             ControlSettings=new ControlSettingsPanel(transform,elements,inputPreferences);
+            LanguageSettings=new LanguageSettingsPanel(transform,elements,()=>PauseMenu?.PublishIntent());
             var events = new GameObject("События интерфейса"); events.AddComponent<EventSystem>(); events.AddComponent<InputSystemUIInputModule>();
             var sessionHud=SessionHudView.Create(transform);status=sessionHud.Status;
             inventoryButtonLabel=sessionHud.Inventory.GetComponentInChildren<Text>();
@@ -204,7 +207,7 @@ namespace Remains.Presentation
                 {
                     if(SelectCharacter?.Invoke(character.text)!=true) return;
                     PrepareConnection(_=>{session.ConfigureHostStartup(SessionStartupIntent.ChooseCopies());HostRequested?.Invoke();});
-                },controls:ControlSettings.Open);
+                },controls:ControlSettings.Open,language:LanguageSettings.Open);
             lobby=mainMenu.Controls;selectedWorld=mainMenu.World;worldPickerButton=mainMenu.Worlds;hostButton=mainMenu.Host;
             selectedWorldPanel=mainMenu.Root.AddComponent<SelectedWorldPanel>();selectedWorldPanel.Initialize(selectedWorld,hostButton,()=>!newGameOperation.Busy && !session.CharacterSelectionLocked);
             newGameOperation=mainMenu.Root.AddComponent<BackgroundSaveOperation>();
@@ -239,7 +242,8 @@ namespace Remains.Presentation
             NetworkLobby=new WorldLobbyPanel(transform,session,Refresh);
             CharacterContent=new CharacterContentPanel(transform,elements,session);
             PauseMenu=new PauseMenu(pauseView,session,()=>inventory.activeSelf || ContainerOpen,()=>AudioSettings.Open(),
-                ()=>WorldMap.IsOpen || debugItems?.IsOpen==true,ControlSettings.Open);
+                ()=>WorldMap.IsOpen || debugItems?.IsOpen==true || LanguageSettings.IsOpen,ControlSettings.Open,LanguageSettings.Open);
+            GameLocalization.Changed+=RefreshLanguage;
             debugItems=new DebugItemsPanel(DebugItemsView.Create(transform),session,inventoryArtwork,ItemName,()=>PauseMenu.PublishIntent());
             WorldMap.StateChanged+=PauseMenu.PublishIntent;
             sessionHud.Inventory.onClick.AddListener(ToggleInventory);
@@ -248,6 +252,8 @@ namespace Remains.Presentation
             inputPreferences.Changed+=RefreshBindingLabels;
             RefreshBindingLabels();
             Refresh();
+            LocalizationFonts.ApplyTree(transform);
+            LanguageSettings.RefreshFonts();
         }
 
         private void RefreshBindingLabels()
@@ -320,6 +326,7 @@ namespace Remains.Presentation
 
         public void ToggleMenu()
         {
+            if(LanguageSettings.IsOpen) {LanguageSettings.Close();return;}
             if(ControlSettings.IsOpen) {ControlSettings.Cancel();return;}
             if(Characters!=null) {Characters.Close();return;}
             if(debugItems?.IsOpen==true) {debugItems.Close();return;}
@@ -329,19 +336,19 @@ namespace Remains.Presentation
             if(ContainerOpen) {CloseContainer();return;}
             PauseMenu.Toggle();
         }
-        public void ToggleInventory() {if(RoomPresentationPending || AudioSettings.IsOpen || ControlSettings.IsOpen || PauseMenu.IsOpen || debugItems?.IsOpen==true) return;if(WorldMap.IsOpen) WorldMap.Close();inventoryAudio.Toggle();inventory.SetActive(!inventory.activeSelf);if(inventory.activeSelf) inventory.transform.SetAsLastSibling();Refresh();PauseMenu.PublishIntent();}
+        public void ToggleInventory() {if(RoomPresentationPending || AudioSettings.IsOpen || ControlSettings.IsOpen || LanguageSettings.IsOpen || PauseMenu.IsOpen || debugItems?.IsOpen==true) return;if(WorldMap.IsOpen) WorldMap.Close();inventoryAudio.Toggle();inventory.SetActive(!inventory.activeSelf);if(inventory.activeSelf) inventory.transform.SetAsLastSibling();Refresh();PauseMenu.PublishIntent();}
         public void OpenContainer() {if(!ContainerOpen) ToggleContainer();}
         public void ToggleContainer()
         {
             if(ContainerOpen) {CloseContainer();return;}
-            if(RoomPresentationPending || AudioSettings.IsOpen || ControlSettings.IsOpen || PauseMenu.IsOpen || session.Travel.Pending || session.LocalActor is not {down:false}) return;
+            if(RoomPresentationPending || AudioSettings.IsOpen || ControlSettings.IsOpen || LanguageSettings.IsOpen || PauseMenu.IsOpen || session.Travel.Pending || session.LocalActor is not {down:false}) return;
             var target=CurrentInteraction;
             if(target.kind!=InteractionKind.Container) {ShowMessage("Курсор не выбрал доступный контейнер.");return;}
             OpenContainer(target.id);
         }
         public void OpenContainer(string id)
         {
-            if(RoomPresentationPending || AudioSettings.IsOpen || ControlSettings.IsOpen || PauseMenu.IsOpen || session.Travel.Pending || session.LocalActor is not {down:false}) return;
+            if(RoomPresentationPending || AudioSettings.IsOpen || ControlSettings.IsOpen || LanguageSettings.IsOpen || PauseMenu.IsOpen || session.Travel.Pending || session.LocalActor is not {down:false}) return;
             var source=InventorySource.Resolve(session.World,id);
                 if(source?.IsLooseItem==true) {ShowMessage($"Свободная вещь подбирается по {inputPreferences.Current.Label(PlayerBinding.Interact)} целиком.");return;}
             if(!ContainerAccess.Accessible(session.LocalActor,source,session.Rules.Loot,session.Rules.Deposit))
@@ -483,9 +490,10 @@ namespace Remains.Presentation
             else if(session.LocalActor==null && focused && inputPreferences.Current.Pressed(keyboard,PlayerBinding.Menu))
             {
                 if(Characters!=null) ToggleMenu();
+                else if(LanguageSettings.IsOpen) LanguageSettings.Close();
                 else if(AudioSettings.IsOpen) AudioSettings.Cancel();
             }
-            if(debugItems!=null && debugItems.WatchWord(keyboard,PauseMenu.IsOpen && focused && !ControlSettings.ConsumesKeyboard)) {PauseMenu.Toggle();debugItems.Open();}
+            if(debugItems!=null && debugItems.WatchWord(keyboard,PauseMenu.IsOpen && focused && !ControlSettings.ConsumesKeyboard && !LanguageSettings.IsOpen)) {PauseMenu.Toggle();debugItems.Open();}
             WorldMap.Refresh();
             RefreshInteractionHint();
             RefreshGameplayHud(session.LocalActor);
@@ -503,6 +511,8 @@ namespace Remains.Presentation
             if(disposed) return;
             disposed=true;enabled=false;
             NetworkLobby?.Dispose();
+            LanguageSettings?.Dispose();GameLocalization.Changed-=RefreshLanguage;
+            foreach(var label in GetComponentsInChildren<LocalizedUiText>(true))label.Release();
             containerHint?.Dispose();
             if(inputPreferences!=null) inputPreferences.Changed-=RefreshBindingLabels;
             if(session is not null)
@@ -510,7 +520,9 @@ namespace Remains.Presentation
             if(WorldMap!=null && PauseMenu!=null) WorldMap.StateChanged-=PauseMenu.PublishIntent;
         }
         private void OnDestroy()=>Dispose();
-        private void LateUpdate() {using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("PrototypeHud.LateUpdate");containerPanel?.Step(RoomPresentationPending || InventoryOpen || PauseMenu.IsOpen || AudioSettings.IsOpen || ControlSettings.IsOpen || WorldMap.IsOpen);}
+        private void LateUpdate() {using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("PrototypeHud.LateUpdate");containerPanel?.Step(RoomPresentationPending || InventoryOpen || PauseMenu.IsOpen || AudioSettings.IsOpen || ControlSettings.IsOpen || LanguageSettings.IsOpen || WorldMap.IsOpen);}
+        private void RefreshLanguage()
+        {if(disposed)return;LocalizationFonts.ApplyTree(transform);LanguageSettings.RefreshFonts();RefreshBindingLabels();Refresh();}
         private static void ApplyOriginalImage(Image image,string key,bool filled)
         {
             var texture=GameAssets.Load<Texture2D>("Original/Hud/"+key);
