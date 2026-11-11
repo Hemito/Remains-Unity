@@ -16,7 +16,7 @@ namespace Remains.Presentation
         [InspectorName("Следующая страница")] public Button Next;
         [InspectorName("Закрыть")] public Button Close;
         public void ShowChoice(int row,string worldName,string branchId,long revision,string relation,bool selected)
-            =>ShowChoice(row,worldName,WorldLobbyView.IdentityLabel(branchId,new[]{branchId}),"нет данных",revision,relation,selected);
+            =>ShowChoice(row,worldName,WorldLobbyView.IdentityLabel(branchId,new[]{branchId}),Remains.Content.GameLocalization.UiText("source.WorldPickerView.db4dbb4b9f6aabbd", "нет данных", "RemainsUnity/Assets/Remains/Presentation/WorldPickerView.cs"),revision,relation,selected);
         public void ShowChoice(int row,string worldName,string branchLabel,string snapshotLabel,long revision,string relation,bool selected)
         {
             var text=Choices[row].GetComponentInChildren<Text>();

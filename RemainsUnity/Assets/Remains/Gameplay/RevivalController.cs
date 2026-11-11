@@ -35,7 +35,7 @@ namespace Remains.Gameplay
         {
             if(pending!=null)
             {
-                if(Time.unscaledTime>deadline) {pending=null;progress.Reset();session.ShowNotice("Нет подтверждения лечения. Проверьте соединение.");}
+                if(Time.unscaledTime>deadline) {pending=null;progress.Reset();session.ShowNotice(Remains.Content.GameLocalization.UiText("source.RevivalController.2dfe4c2b751def4b", "Нет подтверждения лечения. Проверьте соединение.", "RemainsUnity/Assets/Remains/Gameplay/RevivalController.cs"));}
                 return;
             }
             var healer=session.LocalActor;

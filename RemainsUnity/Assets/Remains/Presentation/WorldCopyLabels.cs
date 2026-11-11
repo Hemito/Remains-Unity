@@ -26,13 +26,13 @@ namespace Remains.Presentation
         public string Snapshot(string id)=>Read(snapshots,id,"снимок");
         private static string Read(Dictionary<string,string> labels,string id,string kind)
         {
-            if(string.IsNullOrEmpty(id)) return "нет данных";
+            if(string.IsNullOrEmpty(id)) return Remains.Content.GameLocalization.UiText("source.WorldCopyLabels.db4dbb4b9f6aabbd", "нет данных", "RemainsUnity/Assets/Remains/Presentation/WorldCopyLabels.cs");
             if(labels.TryGetValue(id,out string label)) return label;
             throw new InvalidOperationException($"Подписи копий мира: {kind} {id} отсутствует в прочитанном каталоге.");
         }
         public static string ChoiceText(string name,string branch,string snapshot,long revision,string relation,bool selected)=>
-            $"{name}\nВетвь {branch} · снимок {snapshot}\nСостояние №{revision} · {(selected?"Выбрана для запуска":relation)}";
+            Remains.Content.GameLocalization.Format("source.WorldCopyLabels.a5713227261c08ec", $"{name}\nВетвь {branch} · снимок {snapshot}\nСостояние №{revision} · {(selected?Remains.Content.GameLocalization.UiText("source.WorldCopyLabels.5b0bbe7cc14b0946", "Выбрана для запуска", "RemainsUnity/Assets/Remains/Presentation/WorldCopyLabels.cs"):relation)}", "RemainsUnity/Assets/Remains/Presentation/WorldCopyLabels.cs");
         public static string SelectedText(string name,string branch,long revision,string snapshot)=>
-            $"Выбран: {name}\nВетвь {WorldLobbyView.IdentityLabel(branch,new[]{branch})} · состояние №{revision}\nСнимок {(string.IsNullOrEmpty(snapshot)?"нет данных":snapshot)}";
+            Remains.Content.GameLocalization.Format("source.WorldCopyLabels.7f718e4a3a940bb5", $"Выбран: {name}\nВетвь {WorldLobbyView.IdentityLabel(branch,new[]{branch})} · состояние №{revision}\nСнимок {(string.IsNullOrEmpty(snapshot)?Remains.Content.GameLocalization.UiText("source.WorldCopyLabels.db4dbb4b9f6aabbd", "нет данных", "RemainsUnity/Assets/Remains/Presentation/WorldCopyLabels.cs"):snapshot)}", "RemainsUnity/Assets/Remains/Presentation/WorldCopyLabels.cs");
     }
 }

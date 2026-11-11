@@ -8,13 +8,16 @@ namespace Remains.Presentation
     public static class ContentComparisonView
     {
         public static (RectTransform confirm,RectTransform cancel) Draw(Transform root,
-            IReadOnlyList<ContentDifference> rows,string title,int page,Action<int> turnPage,Action<bool> decide,string leftTitle="В сохранении",string rightTitle="Сейчас",string confirmTitle="Попробовать загрузить с этим набором")
+            IReadOnlyList<ContentDifference> rows,string title,int page,Action<int> turnPage,Action<bool> decide,string leftTitle=null,string rightTitle=null,string confirmTitle=null)
         {
+            leftTitle??=GameLocalization.UiText("ui.content.saved", "В сохранении", "ContentComparisonView");
+            rightTitle??=GameLocalization.UiText("ui.content.current", "Сейчас", "ContentComparisonView");
+            confirmTitle??=GameLocalization.UiText("ui.content.tryLoad", "Попробовать загрузить с этим набором", "ContentComparisonView");
             var prefab=GameAssets.Load<ContentComparisonLayout>("Presentation/ContentComparison");
             if(prefab==null) throw new InvalidOperationException("Нет префаба Presentation/ContentComparison.");
             prefab.Validate();var view=UnityEngine.Object.Instantiate(prefab,root,false);
             int capacity=view.Ids.Length;int pages=Math.Max(1,(rows.Count+capacity-1)/capacity);page=Math.Clamp(page,0,pages-1);
-            view.Title.text=title+"\nИсходная копия сохранится; моды не устанавливаются и не переставляются автоматически.";
+            view.Title.text=title+Remains.Content.GameLocalization.UiText("source.ContentComparisonView.43a27e501cc5d161", "\nИсходная копия сохранится; моды не устанавливаются и не переставляются автоматически.", "RemainsUnity/Assets/Remains/Presentation/ContentComparisonView.cs");
             view.LeftTitle.text=leftTitle;view.RightTitle.text=rightTitle;
             for(int i=0;i<capacity;i++)
             {

@@ -19,9 +19,9 @@ namespace Remains.Presentation
             void Apply(Action action)
             {
                 if(operation.Busy) return;
-                SetBusy(true);status.text="Сохранение изменений…";
+                SetBusy(true);status.text=Remains.Content.GameLocalization.UiText("source.WorldManagementPanel.f74ff8db4c9634f9", "Сохранение изменений…", "RemainsUnity/Assets/Remains/Presentation/WorldManagementPanel.cs");
                 operation.Run(_=>{action();return true;},_=>{UnityEngine.Object.Destroy(overlay);changed();},error=>
-                {SetBusy(false);status.text="Не удалось изменить сохранение: "+error.Message;Debug.LogError("Управление миром "+worldId+": "+error);});
+                {SetBusy(false);status.text=Remains.Content.GameLocalization.UiText("source.WorldManagementPanel.bb86cc73f729aa46", "Не удалось изменить сохранение: ", "RemainsUnity/Assets/Remains/Presentation/WorldManagementPanel.cs")+error.Message;Debug.LogError("Управление миром "+worldId+": "+error);});
             }
             view.Rename.onClick.AddListener(()=>{string proposed=name.text;Apply(()=>library.Rename(worldId,proposed));});
             bool confirm=false;Button delete=view.Delete;
@@ -30,8 +30,8 @@ namespace Remains.Presentation
                 if(!confirm)
                 {
                     string shortId=worldId.Substring(0,Math.Min(8,worldId.Length));
-                    confirm=true;status.text=$"Удалить «{savedName}» (мир {shortId}) и все его локальные ветви?\nКопия останется в DeletedWorlds. Персонаж сохранится.";
-                    delete.GetComponentInChildren<Text>().text="Да, удалить мир";return;
+                    confirm=true;status.text=Remains.Content.GameLocalization.Format("source.WorldManagementPanel.faadea3e949cebd2", $"Удалить «{savedName}» (мир {shortId}) и все его локальные ветви?\nКопия останется в DeletedWorlds. Персонаж сохранится.", "RemainsUnity/Assets/Remains/Presentation/WorldManagementPanel.cs");
+                    delete.GetComponentInChildren<Text>().text=Remains.Content.GameLocalization.UiText("source.WorldManagementPanel.50d91fe43b525c76", "Да, удалить мир", "RemainsUnity/Assets/Remains/Presentation/WorldManagementPanel.cs");return;
                 }
                 Apply(()=>library.Delete(worldId));
             });

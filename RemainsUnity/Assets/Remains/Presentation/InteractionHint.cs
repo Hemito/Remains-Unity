@@ -74,8 +74,8 @@ namespace Remains.Presentation
                 if(content!=next || next==Content.MassContainer && displayedMass!=mass || next==Content.SecuredContainer && displayedTitle!=security)
                 {
                     content=next;displayedMass=mass;displayedTitle=security;
-                    SetText(security??(source.IsLooseItem?(pickupPending?"Подбор выбранной вещи подтверждается…":$"{interactKey} · Подобрать предмет"):
-                        source.Body!=null?$"{interactKey} · Обыскать тело":mass.HasValue?$"{interactKey} · Контейнер · {mass:0.#} кг":$"{interactKey} · Контейнер · Закреплён"),security!=null?Color.yellow:normalColor);
+                    SetText(security??(source.IsLooseItem?(pickupPending?Remains.Content.GameLocalization.UiText("source.InteractionHint.da9b272370b0c345", "Подбор выбранной вещи подтверждается…", "RemainsUnity/Assets/Remains/Presentation/InteractionHint.cs"):Remains.Content.GameLocalization.Format("source.InteractionHint.36fbec6653bd2c71", $"{interactKey} · Подобрать предмет", "RemainsUnity/Assets/Remains/Presentation/InteractionHint.cs")):
+                        source.Body!=null?Remains.Content.GameLocalization.Format("source.InteractionHint.945e2c328e173d46", $"{interactKey} · Обыскать тело", "RemainsUnity/Assets/Remains/Presentation/InteractionHint.cs"):mass.HasValue?Remains.Content.GameLocalization.Format("source.InteractionHint.d47a57acf5b27684", $"{interactKey} · Контейнер · {mass:0.#} кг", "RemainsUnity/Assets/Remains/Presentation/InteractionHint.cs"):Remains.Content.GameLocalization.Format("source.InteractionHint.2b0024641f631fe5", $"{interactKey} · Контейнер · Закреплён", "RemainsUnity/Assets/Remains/Presentation/InteractionHint.cs")),security!=null?Color.yellow:normalColor);
                 }
                 var bounds=source.Bounds;targetTop=new Vector2(bounds.center.x,bounds.yMax+.25f);
             }
@@ -93,7 +93,7 @@ namespace Remains.Presentation
             if(ally!=null)
             {
                 var bounds=InventorySource.BodyBounds(ally);
-                if(content!=Content.Revival) {content=Content.Revival;SetText($"Удерживайте {interactKey} · Поднять союзника",normalColor);}
+                if(content!=Content.Revival) {content=Content.Revival;SetText(Remains.Content.GameLocalization.Format("source.InteractionHint.8fea2193a5ffee78", $"Удерживайте {interactKey} · Поднять союзника", "RemainsUnity/Assets/Remains/Presentation/InteractionHint.cs"),normalColor);}
                 targetTop=new Vector2(bounds.center.x,bounds.yMax+.25f);
             }
         }
@@ -114,7 +114,7 @@ namespace Remains.Presentation
             if(door!=null)
             {
                 var next=door.open?Content.DoorOpen:Content.DoorClosed;
-                if(content!=next) {content=next;SetText($"{interactKey} · {(door.open?"Закрыть дверь":"Открыть дверь")}",Color.yellow);}
+                if(content!=next) {content=next;SetText($"{interactKey} · {(door.open?Remains.Content.GameLocalization.UiText("source.InteractionHint.bd261b1ef70cfeeb", "Закрыть дверь", "RemainsUnity/Assets/Remains/Presentation/InteractionHint.cs"):Remains.Content.GameLocalization.UiText("source.InteractionHint.cf1625995f4753e0", "Открыть дверь", "RemainsUnity/Assets/Remains/Presentation/InteractionHint.cs"))}",Color.yellow);}
                 targetTop=new Vector2(door.x+door.width*.5f,door.y+door.height+.25f);
             }
         }
@@ -131,9 +131,9 @@ namespace Remains.Presentation
                 if(content!=next || percent!=displayedPercent)
                 {
                     content=next;displayedPercent=percent;
-                    SetText(pending?"Подтверждение взаимодействия…":button.repairState==MechanismRepairStates.Ready?
-                        $"{interactKey} · Запустить платформу":button.repairState==MechanismRepairStates.NeedsRepair?
-                        progress>0?$"{interactKey} (удерживать) · Ремонт: {progress:P0}":$"{interactKey} (удерживать) · Починить кнопку":"Ремонт кнопки пока недоступен",Color.yellow);
+                    SetText(pending?Remains.Content.GameLocalization.UiText("source.InteractionHint.a2fbffed94fdebc9", "Подтверждение взаимодействия…", "RemainsUnity/Assets/Remains/Presentation/InteractionHint.cs"):button.repairState==MechanismRepairStates.Ready?
+                        Remains.Content.GameLocalization.Format("source.InteractionHint.f3a609440565dc2a", $"{interactKey} · Запустить платформу", "RemainsUnity/Assets/Remains/Presentation/InteractionHint.cs"):button.repairState==MechanismRepairStates.NeedsRepair?
+                        progress>0?Remains.Content.GameLocalization.Format("source.InteractionHint.694f50b2b78d68b2", $"{interactKey} (удерживать) · Ремонт: {progress:P0}", "RemainsUnity/Assets/Remains/Presentation/InteractionHint.cs"):Remains.Content.GameLocalization.Format("source.InteractionHint.900f2ad710f18ffd", $"{interactKey} (удерживать) · Починить кнопку", "RemainsUnity/Assets/Remains/Presentation/InteractionHint.cs"):Remains.Content.GameLocalization.UiText("source.InteractionHint.5e59a8930244e3d0", "Ремонт кнопки пока недоступен", "RemainsUnity/Assets/Remains/Presentation/InteractionHint.cs"),Color.yellow);
                 }
                 targetTop=new Vector2(bounds.center.x,bounds.yMax+.25f);
             }
@@ -144,7 +144,7 @@ namespace Remains.Presentation
             if(!hasTarget || !allowed) UpdateOutline();
             if(!hasTarget) return;
             var next=pending?Content.MinePending:Content.Mine;
-            if(content!=next) {content=next;SetText(pending?"Обезвреживание подтверждается…":$"{interactKey} · Обезвредить мину",Color.yellow);}
+            if(content!=next) {content=next;SetText(pending?Remains.Content.GameLocalization.UiText("source.InteractionHint.c47942fd4ba124db", "Обезвреживание подтверждается…", "RemainsUnity/Assets/Remains/Presentation/InteractionHint.cs"):Remains.Content.GameLocalization.Format("source.InteractionHint.7c767c84daf2aac4", $"{interactKey} · Обезвредить мину", "RemainsUnity/Assets/Remains/Presentation/InteractionHint.cs"),Color.yellow);}
             targetTop=new Vector2(bounds.center.x,bounds.yMax+.25f);
         }
         // A trap or charge: its action and name ("Обезвредить капкан", "Взвести капкан"); null when it is gone.
@@ -156,7 +156,7 @@ namespace Remains.Presentation
             if(!hasTarget || !allowed) UpdateOutline();
             if(!hasTarget) return;
             content=pending?Content.MinePending:Content.Hazard;
-            SetText(pending?"Действие подтверждается…":$"{interactKey} · {action}",Color.yellow);
+            SetText(pending?Remains.Content.GameLocalization.UiText("source.InteractionHint.e37bb80f4a94ee7c", "Действие подтверждается…", "RemainsUnity/Assets/Remains/Presentation/InteractionHint.cs"):$"{interactKey} · {action}",Color.yellow);
             targetTop=new Vector2(bounds.center.x,bounds.yMax+.25f);
         }
         private void SetText(string value,Color color)

@@ -68,7 +68,7 @@ namespace Remains.Presentation
                 if(entry.row.activeSelf!=show) entry.row.SetActive(show);
                 if(show) shown++;
             }
-            view.Status.text=$"Показано {shown} из {entries.Count} · ЛКМ — 1 · Shift+ЛКМ — {ShiftCount}";
+            view.Status.text=Remains.Content.GameLocalization.Format("source.DebugItemsPanel.ecda614c12acc97b", $"Показано {shown} из {entries.Count} · ЛКМ — 1 · Shift+ЛКМ — {ShiftCount}", "RemainsUnity/Assets/Remains/Presentation/DebugItemsPanel.cs");
         }
         private void Grant(string id)=>session.RequestDebugGrant(id,Keyboard.current?.shiftKey.isPressed==true?ShiftCount:1);
     }

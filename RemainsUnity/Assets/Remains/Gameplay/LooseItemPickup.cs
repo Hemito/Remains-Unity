@@ -19,10 +19,10 @@ namespace Remains.Gameplay
         {this.session=session;session.ClaimPrepared+=claim.Prepared;}
         public bool Request(InteractionTarget target)
         {
-            if(Pending) {session.ShowNotice("Подбор выбранной вещи ещё подтверждается…");return false;}
+            if(Pending) {session.ShowNotice(Remains.Content.GameLocalization.UiText("source.LooseItemPickup.3119c3f574ed20d8", "Подбор выбранной вещи ещё подтверждается…", "RemainsUnity/Assets/Remains/Gameplay/LooseItemPickup.cs"));return false;}
             var actor=session.LocalActor;var source=InventorySource.Resolve(session.World,target.id);
             if(target.kind!=InteractionKind.Pickup || source?.IsLooseItem!=true)
-            {session.ShowNotice("Свободная вещь больше недоступна.");return false;}
+            {session.ShowNotice(Remains.Content.GameLocalization.UiText("source.LooseItemPickup.cc8d4e72c3ff8878", "Свободная вещь больше недоступна.", "RemainsUnity/Assets/Remains/Gameplay/LooseItemPickup.cs"));return false;}
             if(actor==null || session.Travel.Pending || session.Pause.IsPaused(actor.level)) return false;
             string reason=ContainerAccess.Rejection(actor,source,session.Rules.Loot);
             if(reason!=null) {session.ShowNotice(reason);return false;}
@@ -31,11 +31,11 @@ namespace Remains.Gameplay
             {
                 bool reserved=session.World.pendingGrants.Exists(grant=>grant.containerId==source.id) ||
                     session.World.pendingDeposits.Exists(deposit=>deposit.containerId==source.id);
-                if(reserved) session.ShowNotice("Вещь уже ожидает подтверждения общей операции.");
+                if(reserved) session.ShowNotice(Remains.Content.GameLocalization.UiText("source.LooseItemPickup.c903b60f420be2bf", "Вещь уже ожидает подтверждения общей операции.", "RemainsUnity/Assets/Remains/Gameplay/LooseItemPickup.cs"));
                 else
                 {
                     UnityEngine.Debug.LogWarning($"Нельзя подобрать свободную вещь: source={source.id}, actor={actor.id}, count={source.items.Count}; ожидалась одна стопка.");
-                    session.ShowNotice("Данные свободной вещи повреждены. Подбор отменён.");
+                    session.ShowNotice(Remains.Content.GameLocalization.UiText("source.LooseItemPickup.3fb9c909f13dad1c", "Данные свободной вещи повреждены. Подбор отменён.", "RemainsUnity/Assets/Remains/Gameplay/LooseItemPickup.cs"));
                 }
                 return false;
             }
@@ -44,7 +44,7 @@ namespace Remains.Gameplay
             string transaction=session.RequestTrackedClaim(source.id,item.id,0);
             if(transaction==null || !claim.Capture(transaction,actor,source.id,item.id,session.World.worldId)) return false;
             requestedDefinition=item.definition;
-            session.ShowNotice("Подбор подтверждается…");return true;
+            session.ShowNotice(Remains.Content.GameLocalization.UiText("source.LooseItemPickup.86834ee1c83cebbd", "Подбор подтверждается…", "RemainsUnity/Assets/Remains/Gameplay/LooseItemPickup.cs"));return true;
         }
         public void Step()=>Step(Mirror.NetworkClient.isConnected);
         // Explicit connection state also lets isolated verification use the real gate/event.

@@ -40,7 +40,7 @@ namespace Remains.Presentation
         }
         private void Reload(bool showSelected=false)
         {
-            catalog=null;Loading("Чтение списка миров…");
+            catalog=null;Loading(Remains.Content.GameLocalization.UiText("source.WorldPickerPanel.58f4ad70bc6479eb", "Чтение списка миров…", "RemainsUnity/Assets/Remains/Presentation/WorldPickerPanel.cs"));
             operation.Run(token=>(store.Catalog.Read(token),new WorldLibrary(store).Names()),result=>
             {
                 catalog=result.Item1;names=result.Item2;
@@ -54,7 +54,7 @@ namespace Remains.Presentation
                 foreach(string warning in catalog.warnings) Debug.LogWarning(warning);
                 Render();
             },error=>
-            {Loading("Не удалось прочитать список миров. Подробности — в журнале игры.");Debug.LogError("Список миров "+store.WorldDirectoryPath+": "+error);});
+            {Loading(Remains.Content.GameLocalization.UiText("source.WorldPickerPanel.b240a25f974e864d", "Не удалось прочитать список миров. Подробности — в журнале игры.", "RemainsUnity/Assets/Remains/Presentation/WorldPickerPanel.cs"));Debug.LogError("Список миров "+store.WorldDirectoryPath+": "+error);});
         }
         private void Render()
         {
@@ -68,15 +68,15 @@ namespace Remains.Presentation
                 choice.gameObject.SetActive(visible);manage.gameObject.SetActive(visible);
                 if(!visible) continue;
                 var entry=catalog.entries[index];var summary=entry.summary;
-                string relation=catalog.selected==null?"Сохранённая копия":WorldHistory.Description(summary.CompareTo(catalog.selected));
+                string relation=catalog.selected==null?Remains.Content.GameLocalization.UiText("source.WorldPickerPanel.212cbcfc7cf1ad8b", "Сохранённая копия", "RemainsUnity/Assets/Remains/Presentation/WorldPickerPanel.cs"):WorldHistory.Description(summary.CompareTo(catalog.selected));
                 view.ShowChoice(row,WorldLibrary.DisplayName(names,summary.worldId),labels.Branch(summary.branchId),labels.Snapshot(summary.snapshot),
                     summary.revision,relation,catalog.selected?.snapshot==summary.snapshot);
                 choice.interactable=true;manage.interactable=true;choices[summary.snapshot]=choice.GetComponent<RectTransform>();
                 choice.onClick.AddListener(()=>Select(entry));
                 manage.onClick.AddListener(()=>WorldManagementPanel.Open(transform.parent,store,summary.worldId,()=>{Reload();changed();},WorldLibrary.DisplayName(names,summary.worldId)));
             }
-            view.Empty.text="Сохранённых миров нет.";view.Empty.gameObject.SetActive(catalog.entries.Count==0);
-            view.Warning.text="Список собран с предупреждениями. Подробности — в журнале игры.";
+            view.Empty.text=Remains.Content.GameLocalization.UiText("source.WorldPickerPanel.224363493cb1ffa8", "Сохранённых миров нет.", "RemainsUnity/Assets/Remains/Presentation/WorldPickerPanel.cs");view.Empty.gameObject.SetActive(catalog.entries.Count==0);
+            view.Warning.text=Remains.Content.GameLocalization.UiText("source.WorldPickerPanel.c8a73d19ca9d18f6", "Список собран с предупреждениями. Подробности — в журнале игры.", "RemainsUnity/Assets/Remains/Presentation/WorldPickerPanel.cs");
             view.Warning.gameObject.SetActive(catalog.warnings.Count>0);
             view.Page.text=$"{page+1} / {pages}";view.Previous.interactable=page>0;view.Next.interactable=page+1<pages;
             view.Close.interactable=true;
@@ -84,11 +84,11 @@ namespace Remains.Presentation
         private void Select(WorldCatalogEntry entry)
         {
             if(operation.Busy) return;
-            Loading("Проверка и выбор сохранения…");view.Close.interactable=false;
+            Loading(Remains.Content.GameLocalization.UiText("source.WorldPickerPanel.8a7bf6ec3eea7fac", "Проверка и выбор сохранения…", "RemainsUnity/Assets/Remains/Presentation/WorldPickerPanel.cs"));view.Close.interactable=false;
             operation.Run(_=>{var copy=entry.Load(store.WorldDirectoryPath);store.SelectContinuation(copy);return copy.Id;},_=>
             {changed();notice("");Destroy(gameObject);},error=>
             {
-                notice("Не удалось выбрать мир: сохранение недоступно или повреждено.\nПодробности — в журнале игры. Можно выбрать другой мир.");
+                notice(Remains.Content.GameLocalization.UiText("source.WorldPickerPanel.85a46d11a786a9c3", "Не удалось выбрать мир: сохранение недоступно или повреждено.\nПодробности — в журнале игры. Можно выбрать другой мир.", "RemainsUnity/Assets/Remains/Presentation/WorldPickerPanel.cs"));
                 Debug.LogError($"Выбор мира {entry.summary.worldId}, снимок {entry.summary.snapshot}: {error}");Destroy(gameObject);
             });
         }

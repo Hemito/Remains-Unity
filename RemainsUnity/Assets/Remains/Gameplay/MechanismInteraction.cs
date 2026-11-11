@@ -26,7 +26,7 @@ namespace Remains.Gameplay
             var world=session.World;
             if(ReferenceEquals(world,boundWorld) && !session.LastChange.Any(WorldChangeKind.Skeleton)) return;
             boundWorld=world;
-            if(world==null) {Points=Array.Empty<MechanismInteractionPoint>();Cancel("Ремонт отменён: сессия завершена.");return;}
+            if(world==null) {Points=Array.Empty<MechanismInteractionPoint>();Cancel(Remains.Content.GameLocalization.UiText("source.MechanismInteraction.2267e70446be075f", "Ремонт отменён: сессия завершена.", "RemainsUnity/Assets/Remains/Gameplay/MechanismInteraction.cs"));return;}
             var points=new List<MechanismInteractionPoint>();
             foreach(var button in world.mechanismButtons)
             {
@@ -43,9 +43,9 @@ namespace Remains.Gameplay
             var actor=session.LocalActor;
             if(!allowed || actor==null || target.kind!=InteractionKind.Mechanism ||
                 repair.Active && target.id!=repairingButton)
-            {Cancel("Ремонт отменён: цель или доступ к взаимодействию изменились.");return;}
+            {Cancel(Remains.Content.GameLocalization.UiText("source.MechanismInteraction.46768d3ab91dfd5b", "Ремонт отменён: цель или доступ к взаимодействию изменились.", "RemainsUnity/Assets/Remains/Gameplay/MechanismInteraction.cs"));return;}
             var button=session.World.mechanismButtons.Find(b=>b.id==target.id);
-            if(button==null || button.removed) {Cancel("Ремонт отменён: кнопка больше недоступна.");return;}
+            if(button==null || button.removed) {Cancel(Remains.Content.GameLocalization.UiText("source.MechanismInteraction.4c8cd0d4507a6084", "Ремонт отменён: кнопка больше недоступна.", "RemainsUnity/Assets/Remains/Gameplay/MechanismInteraction.cs"));return;}
             bool paused=session.Pause.IsPaused(button.level);
             if(pressed && !repair.Active && !Pending && !paused)
             {

@@ -111,7 +111,7 @@ namespace Remains.Gameplay
             if(!melee && ShotObstacles.FirstContact(geometry.Get(attacker.level),WeaponPose.RangedAnchor(attacker),origin).HasValue)
             {
                 if(Time.unscaledTime>=nextResourceNotice)
-                {nextResourceNotice=Time.unscaledTime+1;session.ShowNotice("Ствол перекрыт препятствием.");}
+                {nextResourceNotice=Time.unscaledTime+1;session.ShowNotice(Remains.Content.GameLocalization.UiText("source.CombatController.3b7198e5acb0b567", "Ствол перекрыт препятствием.", "RemainsUnity/Assets/Remains/Gameplay/CombatController.cs"));}
                 return false;
             }
             if(!WeaponAmmunition.CanSpendShot(attacker,definition,out string unavailable))

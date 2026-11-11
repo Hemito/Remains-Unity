@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "id": "example:ui",
+  "version": "1.0",
+  "dependencies": [],
+  "locales": [{ "code": "fr", "nativeName": "Français" }],
+  "strings": [
+    { "table": "Remains.UI", "key": "unity/language", "locale": "en", "value": "Interface language", "replace": true, "replaces": "base" },
+    { "table": "example:ui.Messages", "key": "greeting", "locale": "ru", "value": "Привет из мода перевода!", "replace": false, "replaces": null },
+    { "table": "example:ui.Messages", "key": "greeting", "locale": "fr", "value": "Bonjour du module de traduction !", "replace": false, "replaces": null }
+  ]
+}

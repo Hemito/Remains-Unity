@@ -23,7 +23,7 @@ namespace Remains.Presentation
         }
         public async void Refresh(SaveStore store)
         {
-            int request=++generation;Busy=true;host.interactable=false;description.text="Чтение выбранного мира…";
+            int request=++generation;Busy=true;host.interactable=false;description.text=Remains.Content.GameLocalization.UiText("source.SelectedWorldPanel.9fe00ab38889731b", "Чтение выбранного мира…", "RemainsUnity/Assets/Remains/Presentation/SelectedWorldPanel.cs");
             try
             {
                 var result=await Task.Run(()=>
@@ -35,16 +35,16 @@ namespace Remains.Presentation
                 });
                 if(this==null || request!=generation) return;
                 host.interactable=canStart?.Invoke()??true;
-                host.GetComponentInChildren<Text>().text=result.Item1==null?"Начать в новом мире":"Продолжить выбранный мир";
-                description.text=result.Item1==null?"Сохранённый мир не выбран.\n«Миры и сохранения»: выбор, имя и удаление.":
+                host.GetComponentInChildren<Text>().text=result.Item1==null?Remains.Content.GameLocalization.UiText("source.SelectedWorldPanel.7e33e928010bd887", "Начать в новом мире", "RemainsUnity/Assets/Remains/Presentation/SelectedWorldPanel.cs"):Remains.Content.GameLocalization.UiText("source.SelectedWorldPanel.70674b38b7c69c95", "Продолжить выбранный мир", "RemainsUnity/Assets/Remains/Presentation/SelectedWorldPanel.cs");
+                description.text=result.Item1==null?Remains.Content.GameLocalization.UiText("source.SelectedWorldPanel.8d3550878b807556", "Сохранённый мир не выбран.\n«Миры и сохранения»: выбор, имя и удаление.", "RemainsUnity/Assets/Remains/Presentation/SelectedWorldPanel.cs"):
                     MainMenuPanel.DescribeWorld(result.Item2,result.Item1.branchId??"",result.Item1.revision,result.Item1.snapshot);
-                if(result.Item3) description.text+="\nВ библиотеке есть предупреждения; подробности — в списке миров и журнале.";
+                if(result.Item3) description.text+=Remains.Content.GameLocalization.UiText("source.SelectedWorldPanel.6af915edfe833488", "\nВ библиотеке есть предупреждения; подробности — в списке миров и журнале.", "RemainsUnity/Assets/Remains/Presentation/SelectedWorldPanel.cs");
             }
             catch(Exception error)
             {
                 if(this==null || request!=generation) return;
                 host.interactable=false;
-                description.text="Выбранное сохранение повреждено или имеет неподдерживаемый формат.\nОткройте «Миры и сохранения» и выберите другую копию.";
+                description.text=Remains.Content.GameLocalization.UiText("source.SelectedWorldPanel.3d4c20bd32c33055", "Выбранное сохранение повреждено или имеет неподдерживаемый формат.\nОткройте «Миры и сохранения» и выберите другую копию.", "RemainsUnity/Assets/Remains/Presentation/SelectedWorldPanel.cs");
                 Debug.LogWarning($"Не удалось прочитать выбранный мир {store.WorldDirectoryPath}: {error}");
             }
             finally {if(this!=null && request==generation) Busy=false;}

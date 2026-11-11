@@ -49,13 +49,13 @@ namespace Remains.Presentation
             catch(Exception failure){Debug.LogWarning("Не удалось прочитать текущий DSP-буфер. "+failure.Message);}
             pendingBuffer=AudioDspBuffer.Supported(current)?current:before.dspBufferSize!=0?before.dspBufferSize:512;
             SelectBuffer(pendingBuffer);
-            error.text="Громкость слышна сразу. DSP-буфер применяется по «Сохранить» с кратким перезапуском звука. Только на этом ПК.";
+            error.text=Remains.Content.GameLocalization.UiText("source.AudioSettingsPanel.8b5ada5145b3190a", "Громкость слышна сразу. DSP-буфер применяется по «Сохранить» с кратким перезапуском звука. Только на этом ПК.", "RemainsUnity/Assets/Remains/Presentation/AudioSettingsPanel.cs");
             root.SetActive(true);root.transform.SetAsLastSibling();
         }
         private void SelectBuffer(int samples)
         {
             pendingBuffer=samples;
-            bufferLabel.text=$"DSP-буфер: {samples} сэмплов · 256 — меньше задержка, 1024 — больше устойчивость";
+            bufferLabel.text=Remains.Content.GameLocalization.Format("source.AudioSettingsPanel.89ef7417317e9bc2", $"DSP-буфер: {samples} сэмплов · 256 — меньше задержка, 1024 — больше устойчивость", "RemainsUnity/Assets/Remains/Presentation/AudioSettingsPanel.cs");
             OriginalButtonStyle.SetSelected(buffer256,samples==256);OriginalButtonStyle.SetSelected(buffer512,samples==512);OriginalButtonStyle.SetSelected(buffer1024,samples==1024);
         }
         private void Preview()
@@ -67,7 +67,7 @@ namespace Remains.Presentation
                 if(preferences.TrySaveBuffer(pendingBuffer,out string reason))root.SetActive(false);
                 else {error.text=reason;Debug.LogWarning(error.text);}
             }
-            catch(Exception failure) {error.text="Не удалось сохранить настройки. "+failure.Message;Debug.LogError(error.text);}
+            catch(Exception failure) {error.text=Remains.Content.GameLocalization.UiText("source.AudioSettingsPanel.3421a68104d9cd2f", "Не удалось сохранить настройки. ", "RemainsUnity/Assets/Remains/Presentation/AudioSettingsPanel.cs")+failure.Message;Debug.LogError(error.text);}
         }
         public void Cancel() {if(!IsOpen) return;preferences.Preview(before);root.SetActive(false);}
     }

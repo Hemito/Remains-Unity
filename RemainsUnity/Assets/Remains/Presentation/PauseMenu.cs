@@ -53,18 +53,18 @@ namespace Remains.Presentation
             string left=keys.Label(PlayerBinding.Left),right=keys.Label(PlayerBinding.Right),up=keys.Label(PlayerBinding.Up),
                 down=keys.Label(PlayerBinding.Down),sprint=keys.Label(PlayerBinding.Sprint),interact=keys.Label(PlayerBinding.Interact),
                 strike=keys.Label(PlayerBinding.Strike);
-            controls.text=$"{left}/{right} — ходьба · {sprint} — бег\n"+
-                $"{up}/{down} — лестница · {down}/{up} — присесть/встать\n"+
-                $"{down} дважды — спуск сквозь настил\n"+
-                $"{keys.Label(PlayerBinding.Jump)} — прыжок (держать — выше)\n"+
-                "Мышь — прицел · ЛКМ — атака/бросок\n"+
-                $"{keys.Label(PlayerBinding.Telekinesis)} держать — телекинез\n"+
-                $"{interact} — открыть/подобрать · держать — помощь/ремонт\n"+
-                $"{keys.Label(PlayerBinding.Reload)} — перезарядка · {keys.Label(PlayerBinding.Heal)} — аптечка\n"+
-                $"{keys.Label(PlayerBinding.Grenade)} — граната · {strike} / {sprint}+{strike} — удар/пинок\n"+
-                $"{keys.Label(PlayerBinding.Inventory)} — инвентарь и быстрые ячейки\n"+
-                $"{sprint}+ЛКМ — стопка обычной вещи\n"+
-                (keys.Label(PlayerBinding.Menu)=="Esc"?"Esc — меню / закрыть окно":$"{keys.Label(PlayerBinding.Menu)} — меню · Esc — закрыть окно");
+            controls.text=Remains.Content.GameLocalization.Format("source.PauseMenu.10309f4b595c1eb9", $"{left}/{right} — ходьба · {sprint} — бег\n", "RemainsUnity/Assets/Remains/Presentation/PauseMenu.cs")+
+                Remains.Content.GameLocalization.Format("source.PauseMenu.53eca11017d25265", $"{up}/{down} — лестница · {down}/{up} — присесть/встать\n", "RemainsUnity/Assets/Remains/Presentation/PauseMenu.cs")+
+                Remains.Content.GameLocalization.Format("source.PauseMenu.d7433a4c4029aba9", $"{down} дважды — спуск сквозь настил\n", "RemainsUnity/Assets/Remains/Presentation/PauseMenu.cs")+
+                Remains.Content.GameLocalization.Format("source.PauseMenu.16f0bac21e0bb469", $"{keys.Label(PlayerBinding.Jump)} — прыжок (держать — выше)\n", "RemainsUnity/Assets/Remains/Presentation/PauseMenu.cs")+
+                Remains.Content.GameLocalization.UiText("source.PauseMenu.eade222b283e834a", "Мышь — прицел · ЛКМ — атака/бросок\n", "RemainsUnity/Assets/Remains/Presentation/PauseMenu.cs")+
+                Remains.Content.GameLocalization.Format("source.PauseMenu.308c1d7da7703825", $"{keys.Label(PlayerBinding.Telekinesis)} держать — телекинез\n", "RemainsUnity/Assets/Remains/Presentation/PauseMenu.cs")+
+                Remains.Content.GameLocalization.Format("source.PauseMenu.1d295be9a370dc95", $"{interact} — открыть/подобрать · держать — помощь/ремонт\n", "RemainsUnity/Assets/Remains/Presentation/PauseMenu.cs")+
+                Remains.Content.GameLocalization.Format("source.PauseMenu.c8b618633d89eb3d", $"{keys.Label(PlayerBinding.Reload)} — перезарядка · {keys.Label(PlayerBinding.Heal)} — аптечка\n", "RemainsUnity/Assets/Remains/Presentation/PauseMenu.cs")+
+                Remains.Content.GameLocalization.Format("source.PauseMenu.4250496aed1ef60b", $"{keys.Label(PlayerBinding.Grenade)} — граната · {strike} / {sprint}+{strike} — удар/пинок\n", "RemainsUnity/Assets/Remains/Presentation/PauseMenu.cs")+
+                Remains.Content.GameLocalization.Format("source.PauseMenu.5ceaacafaf414929", $"{keys.Label(PlayerBinding.Inventory)} — инвентарь и быстрые ячейки\n", "RemainsUnity/Assets/Remains/Presentation/PauseMenu.cs")+
+                Remains.Content.GameLocalization.Format("source.PauseMenu.0b94c491dcee3bf9", $"{sprint}+ЛКМ — стопка обычной вещи\n", "RemainsUnity/Assets/Remains/Presentation/PauseMenu.cs")+
+                (keys.Label(PlayerBinding.Menu)=="Esc"?Remains.Content.GameLocalization.UiText("source.PauseMenu.20310506f222f9d4", "Esc — меню / закрыть окно", "RemainsUnity/Assets/Remains/Presentation/PauseMenu.cs"):Remains.Content.GameLocalization.Format("source.PauseMenu.3cc5c3039864df99", $"{keys.Label(PlayerBinding.Menu)} — меню · Esc — закрыть окно", "RemainsUnity/Assets/Remains/Presentation/PauseMenu.cs"));
             Refresh();
         }
         private void Refresh()
@@ -72,10 +72,10 @@ namespace Remains.Presentation
             var actor=session.LocalActor;
             string version=actor==null?null:$"{actor.id}:{actor.generation}:{actor.lifecycleSequence}";
             if(version!=actorVersion) {actorVersion=version;root.SetActive(false);}
-            status.text=actor!=null && session.Pause.IsPaused(actor.level)?$"Уровень остановлен · {keys.Label(PlayerBinding.Menu)} — меню":"";
+            status.text=actor!=null && session.Pause.IsPaused(actor.level)?Remains.Content.GameLocalization.Format("source.PauseMenu.ddf92dd0970ec899", $"Уровень остановлен · {keys.Label(PlayerBinding.Menu)} — меню", "RemainsUnity/Assets/Remains/Presentation/PauseMenu.cs"):"";
             menuSetting.gameObject.SetActive(NetworkServer.active);inventorySetting.gameObject.SetActive(NetworkServer.active);
-            menuSetting.GetComponentInChildren<Text>().text="Хост: пауза при меню — "+(session.Pause.PauseOnMenu?"включена":"выключена");
-            inventorySetting.GetComponentInChildren<Text>().text="Хост: пауза при инвентаре — "+(session.Pause.PauseOnInventory?"включена":"выключена");
+            menuSetting.GetComponentInChildren<Text>().text=Remains.Content.GameLocalization.UiText("source.PauseMenu.b823dc8f124f4877", "Хост: пауза при меню — ", "RemainsUnity/Assets/Remains/Presentation/PauseMenu.cs")+(session.Pause.PauseOnMenu?Remains.Content.GameLocalization.UiText("source.PauseMenu.a861092dcf475840", "включена", "RemainsUnity/Assets/Remains/Presentation/PauseMenu.cs"):Remains.Content.GameLocalization.UiText("source.PauseMenu.36735a542b8bcfab", "выключена", "RemainsUnity/Assets/Remains/Presentation/PauseMenu.cs"));
+            inventorySetting.GetComponentInChildren<Text>().text=Remains.Content.GameLocalization.UiText("source.PauseMenu.6843e35cb2bc4322", "Хост: пауза при инвентаре — ", "RemainsUnity/Assets/Remains/Presentation/PauseMenu.cs")+(session.Pause.PauseOnInventory?Remains.Content.GameLocalization.UiText("source.PauseMenu.a861092dcf475840", "включена", "RemainsUnity/Assets/Remains/Presentation/PauseMenu.cs"):Remains.Content.GameLocalization.UiText("source.PauseMenu.36735a542b8bcfab", "выключена", "RemainsUnity/Assets/Remains/Presentation/PauseMenu.cs"));
         }
     }
 }

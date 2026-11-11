@@ -51,14 +51,14 @@ namespace Remains.Gameplay
                     if(rejection==null && rules is ITelekinesisSightRule sight)
                         rejection=sight.SightRejection(actor,nearest,geometry.Get(actor.level));
                     if(rejection!=null) session.ShowNotice(rejection);
-                    else if(nearest.held && nearest.owner!=actor.owner) session.ShowNotice("Объект уже удерживает другой игрок.");
+                    else if(nearest.held && nearest.owner!=actor.owner) session.ShowNotice(Remains.Content.GameLocalization.UiText("source.TelekinesisController.f86bc0cc93d8b548", "Объект уже удерживает другой игрок.", "RemainsUnity/Assets/Remains/Gameplay/TelekinesisController.cs"));
                     else {selected=nearest.id;adapter.GrabProp(selected,false);}
                 }
             }
             if(held && selected!=null)
             {
                 var current=WorldProps.Find(session.World,selected);
-                string rejection=current==null?"Удерживаемый объект больше не существует.":rules.Rejection(actor,current,true);
+                string rejection=current==null?Remains.Content.GameLocalization.UiText("source.TelekinesisController.414ef6f9f34062c4", "Удерживаемый объект больше не существует.", "RemainsUnity/Assets/Remains/Gameplay/TelekinesisController.cs"):rules.Rejection(actor,current,true);
                 if(rejection!=null)
                 {
                     adapter.GrabProp(selected,true);selected=null;

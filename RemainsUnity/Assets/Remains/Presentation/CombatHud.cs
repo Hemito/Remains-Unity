@@ -79,14 +79,14 @@ namespace Remains.Presentation
             if(actor.weaponInventoryVersion==0 && missing.Add("legacy:"+actor.id))
                 Debug.LogWarning($"HUD показывает диагностические определения старого инвентаря: actor={actor.id}, inventoryVersion={actor.weaponInventoryVersion}. Для игры требуется миграция экземпляров.");
             int grenadeCount=GrenadeItems.Count(actor);   // every hand grenade; G throws GrenadeItems.Next
-            grenades.text=$"{keys.Label(PlayerBinding.Grenade)} · Гранаты: {grenadeCount}";
+            grenades.text=Remains.Content.GameLocalization.Format("source.CombatHud.b5ea2c71dd5c9ae3", $"{keys.Label(PlayerBinding.Grenade)} · Гранаты: {grenadeCount}", "RemainsUnity/Assets/Remains/Presentation/CombatHud.cs");
             var grenadeColor=grenadeCount>0 && !actor.down?new Color(.65f,1,.75f):new Color(.4f,.5f,.44f);
             grenades.color=grenadeColor;grenadeIcon.color=grenadeCount>0 && !actor.down?Color.white:new Color(.5f,.5f,.5f);
-            name.text=actor.down?"Без сознания · нужна помощь":actor.character;
+            name.text=actor.down?Remains.Content.GameLocalization.UiText("source.CombatHud.50b52b0dc904b3c0", "Без сознания · нужна помощь", "RemainsUnity/Assets/Remains/Presentation/CombatHud.cs"):actor.character;
             RefreshBar(health,actor.health/100);RefreshBar(mana,actor.mana/100);
             // Radiation lowers the limit of the health (maxhp − rad): shown with the dose taken.
-            healthText.text=actor.radiation>=.5f?$"{Mathf.CeilToInt(actor.health)}/{Mathf.FloorToInt(PlayerRadiation.HealthLimit(actor))}  рад {Mathf.RoundToInt(actor.radiation)}":
-                $"{Mathf.CeilToInt(actor.health)}/{PlayerRadiation.MaximumHealth:0}";manaText.text=$"Мана  {actor.mana:0} / 100";
+            healthText.text=actor.radiation>=.5f?Remains.Content.GameLocalization.Format("source.CombatHud.f619a6052a394b87", $"{Mathf.CeilToInt(actor.health)}/{Mathf.FloorToInt(PlayerRadiation.HealthLimit(actor))}  рад {Mathf.RoundToInt(actor.radiation)}", "RemainsUnity/Assets/Remains/Presentation/CombatHud.cs"):
+                $"{Mathf.CeilToInt(actor.health)}/{PlayerRadiation.MaximumHealth:0}";manaText.text=Remains.Content.GameLocalization.Format("source.CombatHud.dedf58aba43f0366", $"Мана  {actor.mana:0} / 100", "RemainsUnity/Assets/Remains/Presentation/CombatHud.cs");
             bool ordinaryHeld=HeldItemSelection.HasSelection(actor);
             var heldItem=HeldItemSelection.Selected(actor);
             string activeItem=ordinaryHeld?heldItem?.id:WeaponInventory.Selected(actor)?.id;

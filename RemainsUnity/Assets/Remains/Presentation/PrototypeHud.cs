@@ -89,7 +89,7 @@ namespace Remains.Presentation
         public SessionModPanel SessionMods {get;private set;}
         public PauseMenu PauseMenu {get;private set;}
         // The name of a place to lie on: its room is the host runtime's, not the HUD's.
-        public System.Func<ActorState,string,string> BedLabel=(actor,id)=>"кровать";
+        public System.Func<ActorState,string,string> BedLabel=(actor,id)=>Remains.Content.GameLocalization.UiText("ui.bed.default", "кровать", "PrototypeHud");
         private DebugItemsPanel debugItems;
         private RoomLoadingView roomLoading;
         private Transform pauseMenuLayer;
@@ -199,10 +199,10 @@ namespace Remains.Presentation
                     if(SelectCharacter?.Invoke(character.text)!=true) return;
                     if(newGameOperation.Busy) return;
                     session.BeginJoinSelection();
-                    var store=session.Saves;mainMenu.SetActionsBusy(true);selectedWorldPanel.SetPending("Подготовка нового мира…");ShowMessage("Подготовка нового мира…");
+                    var store=session.Saves;mainMenu.SetActionsBusy(true);selectedWorldPanel.SetPending(Remains.Content.GameLocalization.UiText("source.PrototypeHud.e314c97693889a30", "Подготовка нового мира…", "RemainsUnity/Assets/Remains/Presentation/PrototypeHud.cs"));ShowMessage(Remains.Content.GameLocalization.UiText("source.PrototypeHud.e314c97693889a30", "Подготовка нового мира…", "RemainsUnity/Assets/Remains/Presentation/PrototypeHud.cs"));
                     newGameOperation.Run(_=>{store.RecoverPendingPair();new WorldLibrary(store).PrepareNewGame();return true;},_=>
                     {mainMenu.SetActionsBusy(false);RefreshSelectedWorld();ShowMessage("");session.ConfigureHostStartup(SessionStartupIntent.NewWorld());HostRequested?.Invoke();},error=>
-                    {session.CancelJoinSelection();mainMenu.SetActionsBusy(false);RefreshSelectedWorld();ShowMessage("Не удалось создать новую игру: "+error.Message);Debug.LogError(error);});
+                    {session.CancelJoinSelection();mainMenu.SetActionsBusy(false);RefreshSelectedWorld();ShowMessage(Remains.Content.GameLocalization.UiText("source.PrototypeHud.2e4fa696a06810bf", "Не удалось создать новую игру: ", "RemainsUnity/Assets/Remains/Presentation/PrototypeHud.cs")+error.Message);Debug.LogError(error);});
                 },ShowCharacterLibrary,()=>
                 {
                     if(SelectCharacter?.Invoke(character.text)!=true) return;
@@ -259,8 +259,8 @@ namespace Remains.Presentation
         private void RefreshBindingLabels()
         {
             var keys=inputPreferences.Current;
-            inventoryButtonLabel.text=$"Инвентарь · {keys.Label(PlayerBinding.Inventory)}";
-            menuButtonLabel.text=$"Меню · {keys.Label(PlayerBinding.Menu)}";
+            inventoryButtonLabel.text=Remains.Content.GameLocalization.Format("source.PrototypeHud.779d71e44a18fa09", $"Инвентарь · {keys.Label(PlayerBinding.Inventory)}", "RemainsUnity/Assets/Remains/Presentation/PrototypeHud.cs");
+            menuButtonLabel.text=Remains.Content.GameLocalization.Format("source.PrototypeHud.b92e70e1a33f251e", $"Меню · {keys.Label(PlayerBinding.Menu)}", "RemainsUnity/Assets/Remains/Presentation/PrototypeHud.cs");
             containerHint.SetInteractKey(keys.Label(PlayerBinding.Interact));
             combatHud.SetBindings(keys);
             personalItems.SetBindings(keys);
@@ -304,17 +304,17 @@ namespace Remains.Presentation
             if(newGameOperation.Busy || Mirror.NetworkClient.active || Mirror.NetworkServer.active) return;
             session.BeginJoinSelection();
             var store=session.Saves;mainMenu.SetActionsBusy(true);
-            selectedWorldPanel.SetPending("Подготовка общей библиотеки миров…");
+            selectedWorldPanel.SetPending(Remains.Content.GameLocalization.UiText("source.PrototypeHud.d8a91258784388d3", "Подготовка общей библиотеки миров…", "RemainsUnity/Assets/Remains/Presentation/PrototypeHud.cs"));
             newGameOperation.Run(_=>{store.RecoverPendingPair();store.EnsureWorldLibrary();return readSelected?store.SelectedSnapshot():null;},copy=>
             {mainMenu.SetActionsBusy(false);RefreshSelectedWorld();start(copy);},error=>
             {
                 session.CancelJoinSelection();mainMenu.SetActionsBusy(false);RefreshSelectedWorld();
-                ShowMessage("Не удалось подготовить библиотеку миров: "+error.Message);Debug.LogError(error);
+                ShowMessage(Remains.Content.GameLocalization.UiText("source.PrototypeHud.89857995e1e2da6d", "Не удалось подготовить библиотеку миров: ", "RemainsUnity/Assets/Remains/Presentation/PrototypeHud.cs")+error.Message);Debug.LogError(error);
             });
         }
         public void ShowCharacterLibrary()
         {
-            if(characterLibrary==null) {ShowMessage("Библиотека персонажей ещё не подключена.");return;}
+            if(characterLibrary==null) {ShowMessage(Remains.Content.GameLocalization.UiText("source.PrototypeHud.09a5bf0a5796f508", "Библиотека персонажей ещё не подключена.", "RemainsUnity/Assets/Remains/Presentation/PrototypeHud.cs"));return;}
             if(Characters!=null || session.LocalActor!=null || newGameOperation.Busy || session.CharacterSelectionLocked) return;
             mainMenu.SetActionsBusy(true);
             Characters=CharacterLibraryPanel.Open(transform,characterLibrary,inventoryArtwork,session.CharacterId,name=>
@@ -343,16 +343,16 @@ namespace Remains.Presentation
             if(ContainerOpen) {CloseContainer();return;}
             if(RoomPresentationPending || AudioSettings.IsOpen || ControlSettings.IsOpen || LanguageSettings.IsOpen || PauseMenu.IsOpen || session.Travel.Pending || session.LocalActor is not {down:false}) return;
             var target=CurrentInteraction;
-            if(target.kind!=InteractionKind.Container) {ShowMessage("Курсор не выбрал доступный контейнер.");return;}
+            if(target.kind!=InteractionKind.Container) {ShowMessage(Remains.Content.GameLocalization.UiText("source.PrototypeHud.f1e34fb3c0a5a28c", "Курсор не выбрал доступный контейнер.", "RemainsUnity/Assets/Remains/Presentation/PrototypeHud.cs"));return;}
             OpenContainer(target.id);
         }
         public void OpenContainer(string id)
         {
             if(RoomPresentationPending || AudioSettings.IsOpen || ControlSettings.IsOpen || LanguageSettings.IsOpen || PauseMenu.IsOpen || session.Travel.Pending || session.LocalActor is not {down:false}) return;
             var source=InventorySource.Resolve(session.World,id);
-                if(source?.IsLooseItem==true) {ShowMessage($"Свободная вещь подбирается по {inputPreferences.Current.Label(PlayerBinding.Interact)} целиком.");return;}
+                if(source?.IsLooseItem==true) {ShowMessage(Remains.Content.GameLocalization.Format("source.PrototypeHud.fcc4e69f0e39d36e", $"Свободная вещь подбирается по {inputPreferences.Current.Label(PlayerBinding.Interact)} целиком.", "RemainsUnity/Assets/Remains/Presentation/PrototypeHud.cs"));return;}
             if(!ContainerAccess.Accessible(session.LocalActor,source,session.Rules.Loot,session.Rules.Deposit))
-            {ShowMessage("Контейнер больше недоступен.");return;}
+            {ShowMessage(Remains.Content.GameLocalization.UiText("source.PrototypeHud.5ed361a0a987f983", "Контейнер больше недоступен.", "RemainsUnity/Assets/Remains/Presentation/PrototypeHud.cs"));return;}
             if(!containerPanel.Open(source.id)) return;
             inventoryAudio.Toggle();ContainerOpened?.Invoke(source);Refresh();PauseMenu.PublishIntent();
         }
@@ -389,18 +389,18 @@ namespace Remains.Presentation
             LayoutNotice();
             friendlyDecision.gameObject.SetActive(gameplayVisible && Mirror.NetworkServer.active);
             if (actor == null)
-            {statusLevel=null;statusPlayers=-1;containerHint.Refresh(null,false);lobby.SetActive(!session.Lobby.ClientWaiting);RefreshSelectedWorld(false);inventory.SetActive(false);friendlyFire.gameObject.SetActive(false);leave.gameObject.SetActive(false);status.text="Подключение не установлено";return;}
+            {statusLevel=null;statusPlayers=-1;containerHint.Refresh(null,false);lobby.SetActive(!session.Lobby.ClientWaiting);RefreshSelectedWorld(false);inventory.SetActive(false);friendlyFire.gameObject.SetActive(false);leave.gameObject.SetActive(false);status.text=Remains.Content.GameLocalization.UiText("source.PrototypeHud.6cc7f7410c83b39b", "Подключение не установлено", "RemainsUnity/Assets/Remains/Presentation/PrototypeHud.cs");return;}
             worldDescriptionDirty=true;
             lobby.SetActive(false);
             leave.gameObject.SetActive(actor!=null);friendlyFire.gameObject.SetActive(gameplayVisible && Mirror.NetworkServer.active);
             if(displayedFriendlyFire!=session.World.friendlyFire)
-            {displayedFriendlyFire=session.World.friendlyFire;friendlyFireText.text="Дружественный огонь: "+(session.World.friendlyFire?"включён":"выключен");}
+            {displayedFriendlyFire=session.World.friendlyFire;friendlyFireText.text=Remains.Content.GameLocalization.UiText("source.PrototypeHud.e87da19d2218986d", "Дружественный огонь: ", "RemainsUnity/Assets/Remains/Presentation/PrototypeHud.cs")+(session.World.friendlyFire?Remains.Content.GameLocalization.UiText("source.PrototypeHud.35cfe273a48c034a", "включён", "RemainsUnity/Assets/Remains/Presentation/PrototypeHud.cs"):Remains.Content.GameLocalization.UiText("source.PrototypeHud.2d2d65e8e86a39f0", "выключен", "RemainsUnity/Assets/Remains/Presentation/PrototypeHud.cs"));}
             friendlyDecision.interactable=session.World.friendlyFire;
             if(displayedFriendlyDecision!=session.World.friendlyFireDecision)
-            {displayedFriendlyDecision=session.World.friendlyFireDecision;friendlyDecisionText.text="Прямое попадание:\nрешает "+(session.World.friendlyFireDecision==FriendlyFireDecision.Attacker?"атакующий":"пострадавший");}
+            {displayedFriendlyDecision=session.World.friendlyFireDecision;friendlyDecisionText.text=Remains.Content.GameLocalization.UiText("source.PrototypeHud.fbc726de644a4fa6", "Прямое попадание:\nрешает ", "RemainsUnity/Assets/Remains/Presentation/PrototypeHud.cs")+(session.World.friendlyFireDecision==FriendlyFireDecision.Attacker?Remains.Content.GameLocalization.UiText("source.PrototypeHud.513af71abdd5e829", "атакующий", "RemainsUnity/Assets/Remains/Presentation/PrototypeHud.cs"):Remains.Content.GameLocalization.UiText("source.PrototypeHud.bbd47bafb78f37e6", "пострадавший", "RemainsUnity/Assets/Remains/Presentation/PrototypeHud.cs"));}
             int players=0;foreach(var member in session.World.actors) if(member.player && member.connected) players++;
             if(statusLevel!=actor.level || statusPlayers!=players)
-            {statusLevel=actor.level;statusPlayers=players;status.text=$"{(actor.level=="hub"?"Хаб":"Завод 0")} · игроков: {players}";}
+            {statusLevel=actor.level;statusPlayers=players;status.text=Remains.Content.GameLocalization.Format("source.PrototypeHud.f2c1783cc15c49a3", $"{(actor.level=="hub"?Remains.Content.GameLocalization.UiText("source.PrototypeHud.70b8b44383ce58d2", "Хаб", "RemainsUnity/Assets/Remains/Presentation/PrototypeHud.cs"):Remains.Content.GameLocalization.UiText("source.PrototypeHud.370a5e5ed684c358", "Завод 0", "RemainsUnity/Assets/Remains/Presentation/PrototypeHud.cs"))} · игроков: {players}", "RemainsUnity/Assets/Remains/Presentation/PrototypeHud.cs");}
 
             containerPanel.Refresh();
             RefreshPersonalInventory();
@@ -464,7 +464,7 @@ namespace Remains.Presentation
                     interaction.bounds,show,actor,session.Hazards.Pending);
             }
             else if(interaction.kind==InteractionKind.Bed)
-                containerHint.RefreshAction("лечь на "+BedLabel(actor,interaction.id),interaction.bounds,show,actor,false);
+                containerHint.RefreshAction(Remains.Content.GameLocalization.UiText("source.PrototypeHud.6b25c9eb2bd785b0", "лечь на ", "RemainsUnity/Assets/Remains/Presentation/PrototypeHud.cs")+BedLabel(actor,interaction.id),interaction.bounds,show,actor,false);
             else containerHint.RefreshSource(interaction.kind is InteractionKind.Container or InteractionKind.Pickup?
                 InventorySource.Resolve(session.World,interaction.id):null,show,actor,PickupPending?.Invoke()==true,session.Rules.Loot);
             containerHint.Highlight(interaction,show);
@@ -500,8 +500,8 @@ namespace Remains.Presentation
             message.transform.parent.gameObject.SetActive(session.LocalActor!=null && !RoomPresentationPending && Time.unscaledTime<noticeUntil && !string.IsNullOrEmpty(message.text));
             if(revival==null) return;
             float progress=RevivalProgress?.Invoke() ?? 0;
-            revival.text=RevivalPending?.Invoke()==true?"Ожидаем подтверждения поднятия…":
-                progress>0?$"Поднимаем союзника: {progress:P0} · удерживайте {inputPreferences.Current.Label(PlayerBinding.Interact)}":"";
+            revival.text=RevivalPending?.Invoke()==true?Remains.Content.GameLocalization.UiText("source.PrototypeHud.f72bd7697d967d86", "Ожидаем подтверждения поднятия…", "RemainsUnity/Assets/Remains/Presentation/PrototypeHud.cs"):
+                progress>0?Remains.Content.GameLocalization.Format("source.PrototypeHud.bc0075ceb0c0b8d6", $"Поднимаем союзника: {progress:P0} · удерживайте {inputPreferences.Current.Label(PlayerBinding.Interact)}", "RemainsUnity/Assets/Remains/Presentation/PrototypeHud.cs"):"";
             revival.transform.parent.gameObject.SetActive(!RoomPresentationPending && !string.IsNullOrEmpty(revival.text));
         }
         // Runtime destruction and detached Editor owners share one teardown path.

@@ -19,7 +19,13 @@ namespace Remains.Presentation
             var textObject=new GameObject("Журнал",typeof(RectTransform));textObject.transform.SetParent(panel.transform,false);
             var textRect=textObject.GetComponent<RectTransform>();textRect.anchorMin=Vector2.zero;textRect.anchorMax=Vector2.one;textRect.offsetMin=new Vector2(20,20);textRect.offsetMax=new Vector2(-20,-20);
             var text=textObject.AddComponent<Text>();text.font=Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");text.fontSize=18;
-            text.color=new Color(1,0.6f,0.5f);text.text="Главное меню\n\nНе удалось загрузить проект или моды. Исправьте указанную ошибку и перезапустите игру. Сохранения не изменены.\n\n"+failure;
+            const string russian="Главное меню\n\nНе удалось загрузить проект или моды. Исправьте указанную ошибку и перезапустите игру. Сохранения не изменены.\n\n";
+            text.color=new Color(1,0.6f,0.5f);
+            // This view must also work when localization itself failed during startup.
+            if(Remains.Content.GameLocalization.IsReady)
+                text.text=Remains.Content.GameLocalization.UiText("source.StartupFailure.b1bec06ad5eeeabe",russian,"StartupFailure")+failure;
+            else
+            {Debug.LogWarning("Экран ошибки показан по-русски: Unity Localization не подготовлена.");text.text=russian+failure;}
         }
     }
 }

@@ -44,7 +44,7 @@ namespace Remains.Presentation
             view.Hex.onEndEdit.AddListener(text=>
             {
                 if(int.TryParse(text,NumberStyles.HexNumber,CultureInfo.InvariantCulture,out int color) && text.Length==6 && color>=0 && color<=0xFFFFFF) SetColor(color);
-                else {view.Status.text="Цвет: шесть цифр RGB, например 2382BA.";Refresh();}
+                else {view.Status.text=Remains.Content.GameLocalization.UiText("source.CharacterEditorPanel.569be71d4db83677", "Цвет: шесть цифр RGB, например 2382BA.", "RemainsUnity/Assets/Remains/Presentation/CharacterEditorPanel.cs");Refresh();}
             });
             view.SecondaryEnabled.onValueChanged.AddListener(value=>{preview.appearance.secondaryHairEnabled=value;Refresh();});
             view.Reset.onClick.AddListener(()=>{preview.appearance=new CharacterAppearance {version=CharacterAppearance.CurrentVersion};slot=1;view.Status.text="";Refresh();});
@@ -75,10 +75,10 @@ namespace Remains.Presentation
         private void Refresh()
         {
             view.Portrait.Show(preview,artwork);
-            view.HeadLabel.text="Форма головы\n"+PonyHeadCatalog.Get(preview.appearance.headStyleId).label;
-            view.HairLabel.text=$"Причёска {preview.appearance.hairStyle} / {PonyAnimationData.Library.hairStyles}";
-            view.EyeLabel.text=$"Глаза {preview.appearance.eyeStyle} / {PonyAnimationData.Library.eyeStyles}";
-            string[] names={"Шерсть","Грива","Второй цвет гривы","Глаза","Магия"};view.ColorLabel.text=names[slot];
+            view.HeadLabel.text=Remains.Content.GameLocalization.UiText("source.CharacterEditorPanel.9bafd1899fb4ca8d", "Форма головы\n", "RemainsUnity/Assets/Remains/Presentation/CharacterEditorPanel.cs")+PonyHeadCatalog.Get(preview.appearance.headStyleId).label;
+            view.HairLabel.text=Remains.Content.GameLocalization.Format("source.CharacterEditorPanel.a8d0a2611cf63b8a", $"Причёска {preview.appearance.hairStyle} / {PonyAnimationData.Library.hairStyles}", "RemainsUnity/Assets/Remains/Presentation/CharacterEditorPanel.cs");
+            view.EyeLabel.text=Remains.Content.GameLocalization.Format("source.CharacterEditorPanel.f59ae91b970d0d90", $"Глаза {preview.appearance.eyeStyle} / {PonyAnimationData.Library.eyeStyles}", "RemainsUnity/Assets/Remains/Presentation/CharacterEditorPanel.cs");
+            string[] names={Remains.Content.GameLocalization.UiText("source.CharacterEditorPanel.a195613dd396f885", "Шерсть", "RemainsUnity/Assets/Remains/Presentation/CharacterEditorPanel.cs"),Remains.Content.GameLocalization.UiText("source.CharacterEditorPanel.148b7f0158f5d678", "Грива", "RemainsUnity/Assets/Remains/Presentation/CharacterEditorPanel.cs"),Remains.Content.GameLocalization.UiText("source.CharacterEditorPanel.4f0a2f8cd516c50d", "Второй цвет гривы", "RemainsUnity/Assets/Remains/Presentation/CharacterEditorPanel.cs"),Remains.Content.GameLocalization.UiText("source.CharacterEditorPanel.21993a6953734cc4", "Глаза", "RemainsUnity/Assets/Remains/Presentation/CharacterEditorPanel.cs"),Remains.Content.GameLocalization.UiText("source.CharacterEditorPanel.9aa7f8a76001e0cb", "Магия", "RemainsUnity/Assets/Remains/Presentation/CharacterEditorPanel.cs")};view.ColorLabel.text=names[slot];
             int[] colors={preview.appearance.fur,preview.appearance.hair,preview.appearance.secondaryHair,preview.appearance.eyes,preview.appearance.magic};
             for(int i=0;i<5;i++) {view.ColorSamples[i].color=PonyAppearance.FromRgb(colors[i]);OriginalButtonStyle.SetSelected(view.Colors[i],i==slot);}
             bool second=preview.appearance.secondaryHairEnabled;view.SecondaryEnabled.SetIsOnWithoutNotify(second);
@@ -100,9 +100,9 @@ namespace Remains.Presentation
                 PlayerStarterInventory.Give(actor);actor.weaponContent=WeaponCatalog.ManifestCopy();
             }
             catch(Exception error) {view.Status.text=error.Message;return;}
-            SetBusy(true);view.Status.text="Создание персонажа…";
+            SetBusy(true);view.Status.text=Remains.Content.GameLocalization.UiText("source.CharacterEditorPanel.3d3aa64ef43c08f9", "Создание персонажа…", "RemainsUnity/Assets/Remains/Presentation/CharacterEditorPanel.cs");
             operation.Run(_=>library.Create(actor),entry=>{created(entry);Destroy(gameObject);},error=>
-            {SetBusy(false);view.Status.text="Не удалось создать персонажа: "+error.Message;Debug.LogWarning("Создание персонажа "+actor.character+": "+error.Message,this);});
+            {SetBusy(false);view.Status.text=Remains.Content.GameLocalization.UiText("source.CharacterEditorPanel.562ae464d426868c", "Не удалось создать персонажа: ", "RemainsUnity/Assets/Remains/Presentation/CharacterEditorPanel.cs")+error.Message;Debug.LogWarning("Создание персонажа "+actor.character+": "+error.Message,this);});
         }
         private void SetBusy(bool busy)
         {

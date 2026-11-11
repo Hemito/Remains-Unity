@@ -68,7 +68,7 @@ namespace Remains.Content
         }
         public string Description(string id,string context)
         {
-            if(id!=null && entries.TryGetValue(id,out var entry)) return localized?GameLocalization.TranslateRussian(entry.description,context+" description="+id):entry.description;
+            if(id!=null && entries.TryGetValue(id,out var entry)) return localized?GameLocalization.ItemDescription(id,entry.description,context):entry.description;
             if(ExportedContentCatalog.Load().TryItem(id,out var source))
                 return (string.IsNullOrWhiteSpace(source.description)?"":source.description+"\n")+
                     "Подключено как обычный предмет. Специальное действие пока не реализовано.";

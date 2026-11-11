@@ -58,7 +58,7 @@ namespace Remains.Gameplay
                 {
                     // Release also covers a successful capture whose reply is still in transit.
                     adapter.RequestGrenadeHold(selected,requestedGeneration+1,true);
-                    if(key) session.ShowNotice("Захват гранаты не подтверждён.");
+                    if(key) session.ShowNotice(Remains.Content.GameLocalization.UiText("source.GrenadeTelekinesis.6170ab3347e77d13", "Захват гранаты не подтверждён.", "RemainsUnity/Assets/Remains/Gameplay/GrenadeTelekinesis.cs"));
                     selected=null;
                 }
                 return 0;

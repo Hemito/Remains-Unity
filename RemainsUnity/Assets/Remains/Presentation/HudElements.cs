@@ -22,6 +22,11 @@ namespace Remains.Presentation
             label.color = new Color(0.65f,1,0.75f); label.raycastTarget=false;
             return label;
         }
+        public Text Label(Transform parent,Func<string> content,Vector2 position,Vector2 size)
+        {
+            var label=Label(parent,content(),position,size);
+            LocalizedUiText.Bind(label,content);return label;
+        }
         public Text BackedLabel(Transform parent,string content,Vector2 position,Vector2 size)
         {
             var panel=Panel(parent,"Подложка текста",position+new Vector2(-6,6),size+new Vector2(12,12));
@@ -36,6 +41,11 @@ namespace Remains.Presentation
             var label=Label(obj.transform,content,new Vector2(5,-5),size-new Vector2(10,10));
             label.alignment=TextAnchor.MiddleCenter;
             return button;
+        }
+        public Button Button(Transform parent,Func<string> content,Vector2 position,Vector2 size,Action action)
+        {
+            var button=Button(parent,content(),position,size,action);
+            LocalizedUiText.Bind(button.GetComponentInChildren<Text>(true),content);return button;
         }
         public InputField Input(Transform parent,Vector2 position)
         {

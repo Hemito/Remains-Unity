@@ -12,7 +12,7 @@ namespace Remains.Presentation
         private readonly Dictionary<string,Button> choices=new(StringComparer.Ordinal);
         private readonly Action stateChanged;
         public bool IsOpen=>root.activeSelf;
-        public RectTransform ChoiceRect(string code)=>choices[code].GetComponent<RectTransform>();
+        public RectTransform ChoiceRect(string code)=>choices[GameLocalization.NormalizeCode(code)].GetComponent<RectTransform>();
         public LanguageSettingsPanel(Transform parent,HudElements ui,Action stateChanged=null)
         {
             GameLocalization.Initialize();this.stateChanged=stateChanged;
@@ -21,7 +21,7 @@ namespace Remains.Presentation
             root.GetComponent<Image>().color=new Color(0,0,0,.65f);
             var panel=ui.Panel(root.transform,"Язык интерфейса",Vector2.zero,new Vector2(520,450));
             var rect=(RectTransform)panel.transform;rect.anchorMin=rect.anchorMax=rect.pivot=new Vector2(.5f,.5f);
-            var title=ui.Label(panel.transform,"Язык интерфейса",new Vector2(22,-18),new Vector2(476,36));title.fontSize=25;
+            var title=ui.Label(panel.transform,()=>Remains.Content.GameLocalization.UiText("source.LanguageSettingsPanel.9089a73112cc819e", "Язык интерфейса", "RemainsUnity/Assets/Remains/Presentation/LanguageSettingsPanel.cs"),new Vector2(22,-18),new Vector2(476,36));title.fontSize=25;
             LocalizedUiText.Bind(title);
             int index=0;
             foreach(var language in GameLocalization.Languages)
@@ -33,7 +33,7 @@ namespace Remains.Presentation
             }
             float bottom=86+Mathf.Ceil(index/2f)*44;
             rect.sizeDelta=new Vector2(520,bottom+72);
-            var close=ui.Button(panel.transform,"Закрыть",new Vector2(22,-bottom),new Vector2(476,36),Close);
+            var close=ui.Button(panel.transform,()=>Remains.Content.GameLocalization.UiText("source.LanguageSettingsPanel.a7a4033657e89fc9", "Закрыть", "RemainsUnity/Assets/Remains/Presentation/LanguageSettingsPanel.cs"),new Vector2(22,-bottom),new Vector2(476,36),Close);
             LocalizedUiText.Bind(close.GetComponentInChildren<Text>(true));
             root.SetActive(false);GameLocalization.Changed+=Refresh;
         }

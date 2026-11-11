@@ -36,7 +36,7 @@ namespace Remains.Presentation
             rect.offsetMin=new Vector2(32,-24);rect.offsetMax=new Vector2(-32,24);
             view.caption=label.GetComponent<Text>();
             view.caption.font=font;view.caption.fontSize=20;
-            view.caption.text="Загрузка локации…";view.caption.color=new Color(.65f,1,.75f,1);
+            view.caption.text=Remains.Content.GameLocalization.UiText("source.RoomLoadingView.aeba456daed007f4", "Загрузка локации…", "RemainsUnity/Assets/Remains/Presentation/RoomLoadingView.cs");view.caption.color=new Color(.65f,1,.75f,1);
             view.caption.alignment=TextAnchor.MiddleCenter;view.caption.raycastTarget=false;
             view.caption.resizeTextForBestFit=false;
             view.Validate();root.SetActive(false);return view;

@@ -56,7 +56,7 @@ namespace Remains.Gameplay
             {
                 // Waiting for the host to confirm the grab; another holder or no answer ends the attempt.
                 waiting+=dt;
-                if(!key || mine.holder!=null || waiting>ConfirmSeconds) {if(mine.holder==null && key) session.ShowNotice("Захват мины не подтверждён.");held=null;}
+                if(!key || mine.holder!=null || waiting>ConfirmSeconds) {if(mine.holder==null && key) session.ShowNotice(Remains.Content.GameLocalization.UiText("source.MineTelekinesis.84b22fd7f64fedcc", "Захват мины не подтверждён.", "RemainsUnity/Assets/Remains/Gameplay/MineTelekinesis.cs"));held=null;}
                 return 0;
             }
             var profile=MineRules.Profile(mine);var room=geometry.Get(mine.level);

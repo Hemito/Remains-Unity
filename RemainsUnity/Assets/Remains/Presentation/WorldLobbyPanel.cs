@@ -48,14 +48,14 @@ namespace Remains.Presentation
             if(content) {RenderContent();return;}
             if(!lobby.ClientChoosingCopies)
             {
-                view.ShowWaiting(lobby.ClientContentPending?"Хост сравнивает содержимое выбранного мира. Дождитесь его решения.":
-                    "Подготовка выбранного мира. Другие копии не заменяют выбранное продолжение.",lobby.ClientError);
+                view.ShowWaiting(lobby.ClientContentPending?Remains.Content.GameLocalization.UiText("source.WorldLobbyPanel.570a95f92d9814e2", "Хост сравнивает содержимое выбранного мира. Дождитесь его решения.", "RemainsUnity/Assets/Remains/Presentation/WorldLobbyPanel.cs"):
+                    Remains.Content.GameLocalization.UiText("source.WorldLobbyPanel.f59fe2b172b20679", "Подготовка выбранного мира. Другие копии не заменяют выбранное продолжение.", "RemainsUnity/Assets/Remains/Presentation/WorldLobbyPanel.cs"),lobby.ClientError);
                 view.Disconnect.onClick.AddListener(()=>{if(NetworkServer.active) session.StopHost();else session.StopClient();});
                 return;
             }
             CopyPickerVisible=true;
-            string instruction=NetworkServer.active?"Выберите целую копию и начните игру.":"Хост выбирает целую копию. Дождитесь начала игры.";
-            view.Instruction.text=$"Участников: {lobby.ClientPlayers}. {instruction}\nДругие ветви сохранятся; объединения прогресса нет.";
+            string instruction=NetworkServer.active?Remains.Content.GameLocalization.UiText("source.WorldLobbyPanel.6ceb2be8dc4705a5", "Выберите целую копию и начните игру.", "RemainsUnity/Assets/Remains/Presentation/WorldLobbyPanel.cs"):Remains.Content.GameLocalization.UiText("source.WorldLobbyPanel.af8c2a40648c3b9b", "Хост выбирает целую копию. Дождитесь начала игры.", "RemainsUnity/Assets/Remains/Presentation/WorldLobbyPanel.cs");
+            view.Instruction.text=Remains.Content.GameLocalization.Format("source.WorldLobbyPanel.1f455b6899b0d4a2", $"Участников: {lobby.ClientPlayers}. {instruction}\nДругие ветви сохранятся; объединения прогресса нет.", "RemainsUnity/Assets/Remains/Presentation/WorldLobbyPanel.cs");
             var selected=lobby.Copies.Find(c=>c.key==lobby.ClientSelected);
             var branches=lobby.Copies.Select(copy=>copy.summary.branchId).ToArray();
             var snapshots=lobby.Copies.Select(copy=>copy.summary.snapshot).ToArray();
@@ -66,7 +66,7 @@ namespace Remains.Presentation
                 bool visible=page*capacity+index<lobby.Copies.Count;view.Choices[index].gameObject.SetActive(visible);
                 if(!visible) continue;
                 var copy=lobby.Copies[page*capacity+index];
-                var relation=selected==null?"Выберите копию для сравнения":
+                var relation=selected==null?Remains.Content.GameLocalization.UiText("source.WorldLobbyPanel.e7a450515357d011", "Выберите копию для сравнения", "RemainsUnity/Assets/Remains/Presentation/WorldLobbyPanel.cs"):
                     WorldLobbyView.RelationText(copy.summary.CompareTo(selected.summary),copy.key==lobby.ClientSelected);
                 var button=view.Choices[index];button.onClick.AddListener(()=>session.Lobby.Select(copy.key));
                 view.ShowChoice(index,new WorldLibrary(session.Saves).Name(copy.summary.worldId),copy.holder,copy.summary.revision,
@@ -79,8 +79,8 @@ namespace Remains.Presentation
             view.Next.onClick.AddListener(()=>{page++;Render();});view.Next.interactable=page+1<pages;
             view.NewWorld.onClick.AddListener(()=>session.Lobby.Select(""));view.NewWorld.interactable=NetworkServer.active && !lobby.ClientBusy;
             OriginalButtonStyle.SetSelected(view.NewWorld,lobby.ClientSelected=="");
-            view.Status.text=lobby.ClientBusy?"Получение и проверка выбранного сохранения…":lobby.ClientError??"";
-            var start=view.StartGame;start.GetComponentInChildren<Text>().text=lobby.ClientSelected==""?"Начать в новом мире":"Начать с выбранной копией";
+            view.Status.text=lobby.ClientBusy?Remains.Content.GameLocalization.UiText("source.WorldLobbyPanel.65488965b341548d", "Получение и проверка выбранного сохранения…", "RemainsUnity/Assets/Remains/Presentation/WorldLobbyPanel.cs"):lobby.ClientError??"";
+            var start=view.StartGame;start.GetComponentInChildren<Text>().text=lobby.ClientSelected==""?Remains.Content.GameLocalization.UiText("source.WorldLobbyPanel.7e33e928010bd887", "Начать в новом мире", "RemainsUnity/Assets/Remains/Presentation/WorldLobbyPanel.cs"):Remains.Content.GameLocalization.UiText("source.WorldLobbyPanel.bd8f79f748bce132", "Начать с выбранной копией", "RemainsUnity/Assets/Remains/Presentation/WorldLobbyPanel.cs");
             start.onClick.AddListener(()=>session.Lobby.StartSelected());
             start.interactable=NetworkServer.active && !lobby.ClientBusy && (lobby.ClientSelected=="" || selected!=null);
             StartButtonRect=start.GetComponent<RectTransform>();
@@ -90,9 +90,9 @@ namespace Remains.Presentation
         {
             var selected=session.Lobby.Copies.Find(copy=>copy.key==session.Lobby.ClientSelected);
             string id=session.Lobby.Startup.ChoosesCopies?selected?.summary.worldId:session.Lobby.Startup.Selected?.WorldId;
-            string name=id==null?"Выбранный мир":new WorldLibrary(session.Saves).Name(id);
+            string name=id==null?Remains.Content.GameLocalization.UiText("source.WorldLobbyPanel.748d7d19c40fceff", "Выбранный мир", "RemainsUnity/Assets/Remains/Presentation/WorldLobbyPanel.cs"):new WorldLibrary(session.Saves).Name(id);
             (ContentConfirmRect,ContentCancelRect)=ContentComparisonView.Draw(root.transform,session.Lobby.ContentDifferences,
-                $"{name}: версия игры или набор модов изменились.",contentPage,
+                Remains.Content.GameLocalization.Format("source.WorldLobbyPanel.5b330688ff357304", $"{name}: версия игры или набор модов изменились.", "RemainsUnity/Assets/Remains/Presentation/WorldLobbyPanel.cs"),contentPage,
                 next=>{contentPage=next;Render();},accept=>session.Lobby.ConfirmContent(accept));
         }
     }

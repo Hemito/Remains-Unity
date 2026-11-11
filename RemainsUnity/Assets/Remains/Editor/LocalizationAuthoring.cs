@@ -16,7 +16,7 @@ namespace Remains.Editor
 {
     public static class LocalizationAuthoring
     {
-        public const string AssetPath="Assets/Remains/Resources/Content/localization.json";
+        public const string AssetPath="Assets/Remains/Editor/LocalizationSources.json";
         [MenuItem("Remains/Локализация/Импортировать все языки из DLC…")]
         public static void ImportMenu()
         {string folder=EditorUtility.OpenFolderPanel("Папка DLC с lang.xml","","");if(!string.IsNullOrEmpty(folder))Import(folder);}
@@ -77,6 +77,7 @@ namespace Remains.Editor
             var manifest=new LocalizationManifest{schema=1,sourceLanguage="ru",languages=packs.Select(p=>new LocalizationLanguage{code=p.code,nativeName=p.nativeName,sourceSha256=p.sourceSha256,entries=Array.Empty<LocalizationEntry>(),items=Array.Empty<ItemTextDefinition>()}).ToArray()};
             string json=JsonConvert.SerializeObject(manifest,Formatting.Indented);GameLocalization.Parse(json);
             File.WriteAllText(AssetPath,json,new UTF8Encoding(false));AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
+            UnityLocalizationAuthoring.Import(packs.ToArray());
             string report=Path.GetFullPath(Path.Combine(Application.dataPath,"../../.reference/localization"));Directory.CreateDirectory(report);
             File.WriteAllText(Path.Combine(report,"import.json"),new JObject{["sources"]=provenance,["coverage"]=coverage}.ToString());
             Debug.Log("Пакетная локализация импортирована: языков="+packs.Count+", ключей="+packs.Sum(x=>x.entries.Length)+". Отчёт .reference/localization/import.json.");

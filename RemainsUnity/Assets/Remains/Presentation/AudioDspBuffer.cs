@@ -29,7 +29,7 @@ namespace Remains.Presentation
             {
                 // A false/throwing reset can still stop sources, as can the later recovery reset.
                 try {resume?.Invoke();}
-                catch(Exception error) {warning("Не удалось возобновить циклический звук. "+error.Message);}
+                catch(Exception error) {warning(Remains.Content.GameLocalization.UiText("source.AudioDspBuffer.a8aa4adce4acaf15", "Не удалось возобновить циклический звук. ", "RemainsUnity/Assets/Remains/Presentation/AudioDspBuffer.cs")+error.Message);}
             }
         }
     }
@@ -43,9 +43,9 @@ namespace Remains.Presentation
         public bool TryApply(int samples,out AudioConfiguration previous,out bool changed,out string reason)
         {
             previous=default;changed=false;reason=null;
-            if(!Supported(samples)){reason="Размер DSP-буфера должен быть 256, 512 или 1024 сэмпла.";return false;}
+            if(!Supported(samples)){reason=Remains.Content.GameLocalization.UiText("source.AudioDspBuffer.c3e35f15a9b57902", "Размер DSP-буфера должен быть 256, 512 или 1024 сэмпла.", "RemainsUnity/Assets/Remains/Presentation/AudioDspBuffer.cs");return false;}
             try {previous=device.Read();}
-            catch(Exception error){reason="Не удалось прочитать конфигурацию аудиоустройства. "+error.Message;return false;}
+            catch(Exception error){reason=Remains.Content.GameLocalization.UiText("source.AudioDspBuffer.dc6dacbdc716857d", "Не удалось прочитать конфигурацию аудиоустройства. ", "RemainsUnity/Assets/Remains/Presentation/AudioDspBuffer.cs")+error.Message;return false;}
             if(previous.dspBufferSize==samples)return true;
             var requested=previous;requested.dspBufferSize=samples;
             string failure;
@@ -55,13 +55,13 @@ namespace Remains.Presentation
                 {
                     var actual=device.Read();
                     if(Same(actual,requested)){changed=true;return true;}
-                    failure="Аудиоустройство не применило выбранный буфер без изменения остальных параметров.";
+                    failure=Remains.Content.GameLocalization.UiText("source.AudioDspBuffer.d9937f3b84cc5cf3", "Аудиоустройство не применило выбранный буфер без изменения остальных параметров.", "RemainsUnity/Assets/Remains/Presentation/AudioDspBuffer.cs");
                 }
-                else failure="Аудиоустройство отклонило изменение DSP-буфера.";
+                else failure=Remains.Content.GameLocalization.UiText("source.AudioDspBuffer.56082123140acc72", "Аудиоустройство отклонило изменение DSP-буфера.", "RemainsUnity/Assets/Remains/Presentation/AudioDspBuffer.cs");
             }
-            catch(Exception error){failure="Не удалось перезапустить звук. "+error.Message;}
+            catch(Exception error){failure=Remains.Content.GameLocalization.UiText("source.AudioDspBuffer.13033f36feff988d", "Не удалось перезапустить звук. ", "RemainsUnity/Assets/Remains/Presentation/AudioDspBuffer.cs")+error.Message;}
             bool restored=TryRestore(previous,out string rollback);
-            reason=failure+(restored?" Прежняя конфигурация сохранена.":" "+rollback);
+            reason=failure+(restored?Remains.Content.GameLocalization.UiText("source.AudioDspBuffer.82143a5370026e9e", " Прежняя конфигурация сохранена.", "RemainsUnity/Assets/Remains/Presentation/AudioDspBuffer.cs"):" "+rollback);
             return false;
         }
         public bool TryRestore(AudioConfiguration previous,out string reason)
@@ -70,8 +70,8 @@ namespace Remains.Presentation
             try {if(Same(device.Read(),previous))return true;}
             catch(Exception) { /* The captured configuration is still usable for one recovery attempt. */ }
             try {if(device.Reset(previous) && Same(device.Read(),previous))return true;}
-            catch(Exception error){reason="Не удалось восстановить конфигурацию звука. "+error.Message;return false;}
-            reason="Не удалось восстановить прежнюю конфигурацию звука. Проверьте устройство или перезапустите игру.";
+            catch(Exception error){reason=Remains.Content.GameLocalization.UiText("source.AudioDspBuffer.f8668f9072179544", "Не удалось восстановить конфигурацию звука. ", "RemainsUnity/Assets/Remains/Presentation/AudioDspBuffer.cs")+error.Message;return false;}
+            reason=Remains.Content.GameLocalization.UiText("source.AudioDspBuffer.c1d56d73e352ec7a", "Не удалось восстановить прежнюю конфигурацию звука. Проверьте устройство или перезапустите игру.", "RemainsUnity/Assets/Remains/Presentation/AudioDspBuffer.cs");
             return false;
         }
         private static bool Same(AudioConfiguration a,AudioConfiguration b)=>a.dspBufferSize==b.dspBufferSize &&

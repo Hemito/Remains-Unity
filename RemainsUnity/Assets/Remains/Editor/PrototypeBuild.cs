@@ -16,7 +16,7 @@ namespace Remains.Editor
         // A player without the Development flag (no dev console or profiler hooks): the build that is packaged for other machines.
         public static void BuildRelease()
             =>BuildTo("Builds/Release/Remains.exe",development:false);
-        public static void BuildTo(string outputPath,bool development=true)
+        public static void BuildTo(string outputPath,bool development=true,bool runContractChecks=true)
         {
             foreach(string guid in AssetDatabase.FindAssets("t:Texture2D",new[]{"Assets/Remains/Resources/Original/Pony","Assets/Remains/Resources/Original/Room","Assets/Remains/Resources/Original/Shots","Assets/Remains/Resources/Original/Menu","Assets/Remains/Resources/Original/Hud","Assets/Remains/Resources/Original/Inventory","Assets/Remains/Resources/Original/Training","Assets/Remains/Resources/Original/Props","Assets/Remains/Resources/Original/Raider"}))
             {
@@ -57,7 +57,8 @@ namespace Remains.Editor
             }
             // The contract checks compare resources with their research sources (Tools/Research), which only the full
             // working repository has; the public game copy builds without them, with a warning.
-            if(Directory.Exists(Path.GetFullPath(Path.Combine(Application.dataPath,"../../Tools/Research")))) ContractChecks.Run();
+            if(!runContractChecks)Debug.LogWarning("Сборка: общие ContractChecks явно пропущены. Проверки конкретного этапа выполняет вызывающий инструмент; это не новый PASS общего набора.");
+            else if(Directory.Exists(Path.GetFullPath(Path.Combine(Application.dataPath,"../../Tools/Research")))) ContractChecks.Run();
             else Debug.LogWarning("Сборка: нет Tools/Research (публичная копия без исследовательских материалов); общие проверки контрактов ContractChecks пропущены, сборка ими не проверена.");
             var inventoryShell=GameAssets.Load<Texture2D>("Original/Inventory/shell");
             if(inventoryShell==null || inventoryShell.width!=2097 || inventoryShell.height!=1080)

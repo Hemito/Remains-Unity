@@ -165,14 +165,14 @@ namespace Remains.Presentation
                 string quantityText=item?.weaponState==null?$" × {item?.count}":WeaponCatalog.Get(item.definition).magazineSize>0?
                     $" · {item.weaponState.rounds}/{WeaponCatalog.Get(item.definition).magazineSize}":"";
                 SetRowLabel(i,item?.id==selected && item!=null?"› ":"",item==null?"":itemName(item.definition),item==null?"":quantityText+
-                    (CosmeticEquipment.IsEquipped(actor,item.id)?" · надето":"")+(available<item.count?$" (доступно {available})":""),item?.id);
+                    (CosmeticEquipment.IsEquipped(actor,item.id)?Remains.Content.GameLocalization.UiText("source.PersonalInventoryPanel.a6abe77607ca99cf", " · надето", "RemainsUnity/Assets/Remains/Presentation/PersonalInventoryPanel.cs"):"")+(available<item.count?Remains.Content.GameLocalization.Format("source.PersonalInventoryPanel.23a4454e13c00fc1", $" (доступно {available})", "RemainsUnity/Assets/Remains/Presentation/PersonalInventoryPanel.cs"):""),item?.id);
                 rows[i].interactable=item!=null;
                 OriginalButtonStyle.SetSelected(rows[i],item!=null && item.id==selected);
             }
             int availableChosen=chosen==null?0:InventoryAvailability.Count(actor,chosen);
             artwork.Set(detailIcon,chosen?.definition);
             int amount=quantity()==0?availableChosen:quantity();
-            string rejection=container==null?"Рядом нет доступного контейнера.":
+            string rejection=container==null?Remains.Content.GameLocalization.UiText("source.PersonalInventoryPanel.63b546a7df5d2c8f", "Рядом нет доступного контейнера.", "RemainsUnity/Assets/Remains/Presentation/PersonalInventoryPanel.cs"):
                 session.Rules.Deposit.AccessRejection(new LootAccessContext(actor,container));
             if(rejection==null && chosen!=null && amount>0) rejection=session.Rules.Deposit.Rejection(new DepositContext(actor,container,chosen,amount));
             bool paused=actor!=null && session.Pause.IsPaused(actor.level);
@@ -190,14 +190,14 @@ namespace Remains.Presentation
             }
             var availability=chosen==null?default:Actions().GetAvailability(chosen.id,toggleEquipped:true);
             use.interactable=availability.Enabled;
-            use.GetComponentInChildren<Text>().text=availability.Caption??"Использовать";
+            use.GetComponentInChildren<Text>().text=availability.Caption??Remains.Content.GameLocalization.UiText("source.PersonalInventoryPanel.2c3624a41884a7c0", "Использовать", "RemainsUnity/Assets/Remains/Presentation/PersonalInventoryPanel.cs");
             foreach(var button in new[]{use,deposit,previous,next})
                 button.GetComponentInChildren<Text>().color=button.interactable?new Color(.65f,1,.75f):new Color(.3f,.4f,.34f);
-            description.SetText(chosen==null?(count==0?"В этой категории пока нет предметов.":"Выберите предмет в списке."):$"{itemName(chosen.definition)}\nВ наличии: {chosen.count}\nДоступно: {availableChosen}\n\n"+(weaponSelected?WeaponDescription(actor,chosen):(Remains.Domain.MineRules.PlacedWeapon(chosen.definition)!=null?$"Мина: выберите, чтобы держать телекинезом. ЛКМ или {keys.Label(PlayerBinding.Grenade)} — отпустить\n\n":"")+
+            description.SetText(chosen==null?(count==0?Remains.Content.GameLocalization.UiText("source.PersonalInventoryPanel.23635c01e24c578a", "В этой категории пока нет предметов.", "RemainsUnity/Assets/Remains/Presentation/PersonalInventoryPanel.cs"):Remains.Content.GameLocalization.UiText("source.PersonalInventoryPanel.4f52a82c66323c54", "Выберите предмет в списке.", "RemainsUnity/Assets/Remains/Presentation/PersonalInventoryPanel.cs")):Remains.Content.GameLocalization.Format("source.PersonalInventoryPanel.81b1a4476c523547", $"{itemName(chosen.definition)}\nВ наличии: {chosen.count}\nДоступно: {availableChosen}\n\n", "RemainsUnity/Assets/Remains/Presentation/PersonalInventoryPanel.cs")+(weaponSelected?WeaponDescription(actor,chosen):(Remains.Domain.MineRules.PlacedWeapon(chosen.definition)!=null?Remains.Content.GameLocalization.Format("source.PersonalInventoryPanel.d8b9a22d810305a6", $"Мина: выберите, чтобы держать телекинезом. ЛКМ или {keys.Label(PlayerBinding.Grenade)} — отпустить\n\n", "RemainsUnity/Assets/Remains/Presentation/PersonalInventoryPanel.cs"):"")+
                 itemText.Description(chosen.definition,"PersonalInventoryPanel: actor="+actor.id+", item="+chosen.id)+ArmorProtectionDescription.For(chosen.definition)),actor?.id,chosen?.id,!weaponSelected);
-            actionStatus.text=session.Deposits.Pending?"Ожидаем подтверждения передачи…":chosen==null?"":
+            actionStatus.text=session.Deposits.Pending?Remains.Content.GameLocalization.UiText("source.PersonalInventoryPanel.eb621b0e1b01469a", "Ожидаем подтверждения передачи…", "RemainsUnity/Assets/Remains/Presentation/PersonalInventoryPanel.cs"):chosen==null?"":
                 availability.Rejection??(container==null?"":rejection??"");
-            deposit.GetComponentInChildren<Text>().text=quantity()==0?"Положить всю стопку →":"Положить 1 предмет →";
+            deposit.GetComponentInChildren<Text>().text=quantity()==0?Remains.Content.GameLocalization.UiText("source.PersonalInventoryPanel.159752b94355b811", "Положить всю стопку →", "RemainsUnity/Assets/Remains/Presentation/PersonalInventoryPanel.cs"):Remains.Content.GameLocalization.UiText("source.PersonalInventoryPanel.4373729eb0bafee9", "Положить 1 предмет →", "RemainsUnity/Assets/Remains/Presentation/PersonalInventoryPanel.cs");
         }
         // Fit only changed row text/layout. Refresh itself never repeats font generation
         // for an unchanged row; quantity and equipped status remain visible if a mod name is shortened.
@@ -246,13 +246,13 @@ namespace Remains.Presentation
         private string WeaponDescription(ActorState actor,ItemStack item)
         {
             var definition=WeaponCatalog.Get(item.definition);
-            string resource=WeaponCatalog.IsGrenade(item.definition)?$"В стопке: {item.count} · ЛКМ — бросить\n":definition.magazineSize>0?$"В магазине: {item.weaponState.rounds}/{definition.magazineSize}\n":
-                definition.meleeMotion is {Length:>0}?"Ближний бой\n":"";
+            string resource=WeaponCatalog.IsGrenade(item.definition)?Remains.Content.GameLocalization.Format("source.PersonalInventoryPanel.9bee75cb92184bc9", $"В стопке: {item.count} · ЛКМ — бросить\n", "RemainsUnity/Assets/Remains/Presentation/PersonalInventoryPanel.cs"):definition.magazineSize>0?Remains.Content.GameLocalization.Format("source.PersonalInventoryPanel.87c26a8603a3dc99", $"В магазине: {item.weaponState.rounds}/{definition.magazineSize}\n", "RemainsUnity/Assets/Remains/Presentation/PersonalInventoryPanel.cs"):
+                definition.meleeMotion is {Length:>0}?Remains.Content.GameLocalization.UiText("source.PersonalInventoryPanel.e0d367842b23fd7e", "Ближний бой\n", "RemainsUnity/Assets/Remains/Presentation/PersonalInventoryPanel.cs"):"";
             float damage=session.Rules.Damage.Calculate(item.definition,0);
             if(!float.IsFinite(damage) || damage<0)
                 throw new InvalidOperationException($"Некорректный урон в описании оружия {item.definition}: {damage}.");
-            return $"Урон без движения: {damage:0.##}\nТип урона: {DamageTypes.Name(definition.damageType)}\nИнтервал атак: {definition.cooldown:0.##} с\n"+
-                resource+$"Выбор: {(!HeldItemSelection.HasSelection(actor) && actor.equippedWeaponItem==item.id?"в копытах":"в инвентаре")}";
+            return Remains.Content.GameLocalization.Format("source.PersonalInventoryPanel.e1e4a78334833074", $"Урон без движения: {damage:0.##}\nТип урона: {DamageTypes.Name(definition.damageType)}\nИнтервал атак: {definition.cooldown:0.##} с\n", "RemainsUnity/Assets/Remains/Presentation/PersonalInventoryPanel.cs")+
+                resource+Remains.Content.GameLocalization.Format("source.PersonalInventoryPanel.25780ed7a4264f96", $"Выбор: {(!HeldItemSelection.HasSelection(actor) && actor.equippedWeaponItem==item.id?Remains.Content.GameLocalization.UiText("source.PersonalInventoryPanel.11d62cb340edf8ca", "в копытах", "RemainsUnity/Assets/Remains/Presentation/PersonalInventoryPanel.cs"):Remains.Content.GameLocalization.UiText("source.PersonalInventoryPanel.085a6c05c8f4afda", "в инвентаре", "RemainsUnity/Assets/Remains/Presentation/PersonalInventoryPanel.cs"))}", "RemainsUnity/Assets/Remains/Presentation/PersonalInventoryPanel.cs");
         }
 
     }

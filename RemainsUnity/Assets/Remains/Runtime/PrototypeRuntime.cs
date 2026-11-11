@@ -116,10 +116,17 @@ namespace Remains.Runtime
         private string hitchLevel;private int hitchProps=-1;   // FrameHitchLog context: rebuilt only on change
         public bool ReleasingUnusedAssets {get;private set;}
 
-        private void Awake()
+        private async void Awake()
         {
             Remains.Diagnostics.FrameHitchLog.Install();
-            try { Initialize(); }
+            enabled=false;
+            if(LocalizationProbe.IsRequested)return;
+            try
+            {
+                await Remains.Content.GameLocalization.PrepareAsync();
+                if(this==null || disposed)return;
+                enabled=true;Initialize();
+            }
             catch(System.Exception failure)
             {
                 enabled=false;
@@ -336,9 +343,9 @@ namespace Remains.Runtime
                 hud.SelectCharacter=name=>
                 {
                     if(Session.CharacterSelectionLocked && name!=Session.CharacterId)
-                    {hud.ShowMessage("Персонаж уже выбран для подключения. Сначала выйдите из сессии.");return false;}
+                    {hud.ShowMessage(Remains.Content.GameLocalization.UiText("source.PrototypeRuntime.bcd19764c0327f25", "Персонаж уже выбран для подключения. Сначала выйдите из сессии.", "RemainsUnity/Assets/Remains/Runtime/PrototypeRuntime.cs"));return false;}
                     if(!CharacterName.IsProfileName(name))
-                    {if(Options.Smoke==null) hud.ShowCharacterLibrary();else hud.ShowMessage("Имя персонажа: от 1 до 32 букв, цифр, пробелов, дефисов или подчёркиваний.");return false;}
+                    {if(Options.Smoke==null) hud.ShowCharacterLibrary();else hud.ShowMessage(Remains.Content.GameLocalization.UiText("source.PrototypeRuntime.aa66132387ca5155", "Имя персонажа: от 1 до 32 букв, цифр, пробелов, дефисов или подчёркиваний.", "RemainsUnity/Assets/Remains/Runtime/PrototypeRuntime.cs"));return false;}
                     if((Options.Smoke==null || characterProbe) && !File.Exists(Path.Combine(characterLibrary.ProfilePath(name),"character.json")))
                     {hud.ShowCharacterLibrary();return false;}
                     if(menuSelection) saveLibraries?.RememberCharacter(name);
@@ -456,7 +463,7 @@ namespace Remains.Runtime
                 if(preparation.IsFaulted)
                 {
                     Debug.LogError("Не удалось подготовить общую библиотеку миров: "+preparation.Exception);
-                    Session.ShowNotice("Не удалось подготовить библиотеку миров. Подключение не начато; подробности — в журнале игры.");
+                    Session.ShowNotice(Remains.Content.GameLocalization.UiText("source.PrototypeRuntime.6c5ba557eb51f008", "Не удалось подготовить библиотеку миров. Подключение не начато; подробности — в журнале игры.", "RemainsUnity/Assets/Remains/Runtime/PrototypeRuntime.cs"));
                     yield break;
                 }
             }
@@ -912,13 +919,13 @@ namespace Remains.Runtime
         private void RoomPreparationFailed(IRoomLighting source,System.Exception error)
         {
             if(roomFailurePending || source!=ActiveLevelLighting && source!=entryRoom?.Light) return;
-            automaticStartCancelled=true;roomFailurePending=true;StartCoroutine(EndFailedSession(source,error,"Не удалось загрузить локацию. Сессия остановлена; подробности — в журнале ошибки."));
+            automaticStartCancelled=true;roomFailurePending=true;StartCoroutine(EndFailedSession(source,error,Remains.Content.GameLocalization.UiText("source.PrototypeRuntime.dfd9f8a9eb5df78a", "Не удалось загрузить локацию. Сессия остановлена; подробности — в журнале ошибки.", "RemainsUnity/Assets/Remains/Runtime/PrototypeRuntime.cs")));
         }
         private void GameplayPreparationFailed(System.Exception error)
         {
             if(roomFailurePending) return;
             automaticStartCancelled=true;roomFailurePending=true;
-            StartCoroutine(EndFailedSession(ActiveLevelLighting,error,"Ошибка игрового правила. Сессия остановлена; подробности — в журнале ошибки."));
+            StartCoroutine(EndFailedSession(ActiveLevelLighting,error,Remains.Content.GameLocalization.UiText("source.PrototypeRuntime.b4a5d9df4a8dd8aa", "Ошибка игрового правила. Сессия остановлена; подробности — в журнале ошибки.", "RemainsUnity/Assets/Remains/Runtime/PrototypeRuntime.cs")));
         }
         private IEnumerator EndFailedSession(IRoomLighting source,System.Exception error,string notice)
         {

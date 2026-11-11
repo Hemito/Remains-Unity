@@ -19,7 +19,7 @@ namespace Remains.Gameplay
         public string Rejection(ActorState holder,ActorState body,bool alreadyHeld)
         {
             if(session.Rules.Telekinesis is not IActorTelekinesisRule rules)
-                return "Текущее правило телекинеза не поддерживает перенос актёров.";
+                return Remains.Content.GameLocalization.UiText("source.BodyTelekinesisController.4e4f84a292a6c446", "Текущее правило телекинеза не поддерживает перенос актёров.", "RemainsUnity/Assets/Remains/Gameplay/BodyTelekinesisController.cs");
             var target=new TelekinesisTarget(body);
             string reason=rules.Rejection(holder,target,alreadyHeld);
             return reason??(!alreadyHeld?rules.SightRejection(holder,target,geometry.Get(holder.level)):null);

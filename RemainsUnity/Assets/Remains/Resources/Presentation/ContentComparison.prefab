@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 1712776115729144055}
   - component: {fileID: 6449502573256732546}
   - component: {fileID: 6851039610971515791}
+  - component: {fileID: 195817047529643054}
   m_Layer: 0
   m_Name: "\u0422\u0435\u043A\u0441\u0442"
   m_TagString: Untagged
@@ -79,6 +80,20 @@ MonoBehaviour:
     m_VerticalOverflow: 0
     m_LineSpacing: 1
   m_Text: "\u041E\u0442\u043C\u0435\u043D\u0430"
+--- !u!114 &195817047529643054
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 136692307040513862}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0e34fc73ed16ec4bb72adf27e407d2e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  localizationKey: prefab.1c8e8cb93c950094f84da37234042278.6851039610971515791
+  russianSource: "\u041E\u0442\u043C\u0435\u043D\u0430"
 --- !u!1 &841433289748577160
 GameObject:
   m_ObjectHideFlags: 0
@@ -90,6 +105,7 @@ GameObject:
   - component: {fileID: 7125344494864818851}
   - component: {fileID: 2271793079079654663}
   - component: {fileID: 3013361077696512652}
+  - component: {fileID: 6834738484017541065}
   m_Layer: 0
   m_Name: "\u0422\u0435\u043A\u0441\u0442"
   m_TagString: Untagged
@@ -158,6 +174,20 @@ MonoBehaviour:
     m_VerticalOverflow: 0
     m_LineSpacing: 1
   m_Text: "\u0412\u0435\u0440\u0441\u0438\u044F \u0438 \u043F\u043E\u0440\u044F\u0434\u043E\u043A"
+--- !u!114 &6834738484017541065
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 841433289748577160}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0e34fc73ed16ec4bb72adf27e407d2e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  localizationKey: prefab.1c8e8cb93c950094f84da37234042278.3013361077696512652
+  russianSource: "\u0412\u0435\u0440\u0441\u0438\u044F \u0438 \u043F\u043E\u0440\u044F\u0434\u043E\u043A"
 --- !u!1 &1370953954421346564
 GameObject:
   m_ObjectHideFlags: 0
@@ -169,6 +199,7 @@ GameObject:
   - component: {fileID: 8837190062117916050}
   - component: {fileID: 7376081102992739536}
   - component: {fileID: 47409021364677082}
+  - component: {fileID: 8579113199968904111}
   m_Layer: 0
   m_Name: "\u0422\u0435\u043A\u0441\u0442"
   m_TagString: Untagged
@@ -242,6 +273,25 @@ MonoBehaviour:
     \u043C\u043E\u0434\u044B \u043D\u0435 \u0443\u0441\u0442\u0430\u043D\u0430\u0432\u043B\u0438\u0432\u0430\u044E\u0442\u0441\u044F
     \u0438 \u043D\u0435 \u043F\u0435\u0440\u0435\u0441\u0442\u0430\u0432\u043B\u044F\u044E\u0442\u0441\u044F
     \u0430\u0432\u0442\u043E\u043C\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u0438."
+--- !u!114 &8579113199968904111
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1370953954421346564}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0e34fc73ed16ec4bb72adf27e407d2e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  localizationKey: prefab.1c8e8cb93c950094f84da37234042278.47409021364677082
+  russianSource: "\u041C\u043E\u0434\u044B \u0438\u043B\u0438 \u0438\u0433\u0440\u043E\u0432\u044B\u0435
+    \u0434\u0430\u043D\u043D\u044B\u0435 \u043E\u0442\u043B\u0438\u0447\u0430\u044E\u0442\u0441\u044F.\n\u0418\u0441\u0445\u043E\u0434\u043D\u0430\u044F
+    \u043A\u043E\u043F\u0438\u044F \u0441\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u0441\u044F;
+    \u043C\u043E\u0434\u044B \u043D\u0435 \u0443\u0441\u0442\u0430\u043D\u0430\u0432\u043B\u0438\u0432\u0430\u044E\u0442\u0441\u044F
+    \u0438 \u043D\u0435 \u043F\u0435\u0440\u0435\u0441\u0442\u0430\u0432\u043B\u044F\u044E\u0442\u0441\u044F
+    \u0430\u0432\u0442\u043E\u043C\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u0438."
 --- !u!1 &1599136020837906525
 GameObject:
   m_ObjectHideFlags: 0
@@ -253,6 +303,7 @@ GameObject:
   - component: {fileID: 2964726231553423372}
   - component: {fileID: 6667175851039857409}
   - component: {fileID: 5761796579661022428}
+  - component: {fileID: 6683500205417990496}
   m_Layer: 0
   m_Name: "\u0422\u0435\u043A\u0441\u0442"
   m_TagString: Untagged
@@ -321,6 +372,20 @@ MonoBehaviour:
     m_VerticalOverflow: 0
     m_LineSpacing: 1
   m_Text: "\u0414\u0430\u043B\u0435\u0435"
+--- !u!114 &6683500205417990496
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1599136020837906525}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0e34fc73ed16ec4bb72adf27e407d2e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  localizationKey: prefab.1c8e8cb93c950094f84da37234042278.5761796579661022428
+  russianSource: "\u0414\u0430\u043B\u0435\u0435"
 --- !u!1 &3710192846932808619
 GameObject:
   m_ObjectHideFlags: 0
@@ -332,6 +397,7 @@ GameObject:
   - component: {fileID: 8203832129551207271}
   - component: {fileID: 9221075852285685439}
   - component: {fileID: 7053630618356692420}
+  - component: {fileID: 4557357150511684758}
   m_Layer: 0
   m_Name: "\u0422\u0435\u043A\u0441\u0442"
   m_TagString: Untagged
@@ -400,6 +466,20 @@ MonoBehaviour:
     m_VerticalOverflow: 0
     m_LineSpacing: 1
   m_Text: "ID \u043F\u0430\u043A\u0435\u0442\u0430"
+--- !u!114 &4557357150511684758
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3710192846932808619}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0e34fc73ed16ec4bb72adf27e407d2e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  localizationKey: prefab.1c8e8cb93c950094f84da37234042278.7053630618356692420
+  russianSource: "ID \u043F\u0430\u043A\u0435\u0442\u0430"
 --- !u!1 &3923688906984190050
 GameObject:
   m_ObjectHideFlags: 0
@@ -411,6 +491,7 @@ GameObject:
   - component: {fileID: 5210066174950081868}
   - component: {fileID: 6127021238291794552}
   - component: {fileID: 3584819564722664184}
+  - component: {fileID: 4503622988785097002}
   m_Layer: 0
   m_Name: "\u0422\u0435\u043A\u0441\u0442"
   m_TagString: Untagged
@@ -479,6 +560,20 @@ MonoBehaviour:
     m_VerticalOverflow: 0
     m_LineSpacing: 1
   m_Text: "\u0412\u0435\u0440\u0441\u0438\u044F \u0438 \u043F\u043E\u0440\u044F\u0434\u043E\u043A"
+--- !u!114 &4503622988785097002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3923688906984190050}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0e34fc73ed16ec4bb72adf27e407d2e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  localizationKey: prefab.1c8e8cb93c950094f84da37234042278.3584819564722664184
+  russianSource: "\u0412\u0435\u0440\u0441\u0438\u044F \u0438 \u043F\u043E\u0440\u044F\u0434\u043E\u043A"
 --- !u!1 &4006653223453276465
 GameObject:
   m_ObjectHideFlags: 0
@@ -569,6 +664,7 @@ GameObject:
   - component: {fileID: 2960464890307087675}
   - component: {fileID: 3544929695971154674}
   - component: {fileID: 6264730521215481863}
+  - component: {fileID: 8975263325789924449}
   m_Layer: 0
   m_Name: "\u0422\u0435\u043A\u0441\u0442"
   m_TagString: Untagged
@@ -637,6 +733,20 @@ MonoBehaviour:
     m_VerticalOverflow: 0
     m_LineSpacing: 1
   m_Text: "\u0412\u0435\u0440\u0441\u0438\u044F \u0438 \u043F\u043E\u0440\u044F\u0434\u043E\u043A"
+--- !u!114 &8975263325789924449
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4092836110526518089}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0e34fc73ed16ec4bb72adf27e407d2e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  localizationKey: prefab.1c8e8cb93c950094f84da37234042278.6264730521215481863
+  russianSource: "\u0412\u0435\u0440\u0441\u0438\u044F \u0438 \u043F\u043E\u0440\u044F\u0434\u043E\u043A"
 --- !u!1 &4120320349961036892
 GameObject:
   m_ObjectHideFlags: 0
@@ -648,6 +758,7 @@ GameObject:
   - component: {fileID: 7665773794441393405}
   - component: {fileID: 7044943004130536822}
   - component: {fileID: 5831479468344385490}
+  - component: {fileID: 502055709331974118}
   m_Layer: 0
   m_Name: "\u0422\u0435\u043A\u0441\u0442"
   m_TagString: Untagged
@@ -716,6 +827,20 @@ MonoBehaviour:
     m_VerticalOverflow: 0
     m_LineSpacing: 1
   m_Text: "ID \u043F\u0430\u043A\u0435\u0442\u0430"
+--- !u!114 &502055709331974118
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4120320349961036892}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0e34fc73ed16ec4bb72adf27e407d2e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  localizationKey: prefab.1c8e8cb93c950094f84da37234042278.5831479468344385490
+  russianSource: "ID \u043F\u0430\u043A\u0435\u0442\u0430"
 --- !u!1 &4387428570914599674
 GameObject:
   m_ObjectHideFlags: 0
@@ -727,6 +852,7 @@ GameObject:
   - component: {fileID: 655698036129072693}
   - component: {fileID: 7897294239211976815}
   - component: {fileID: 1379348108564206900}
+  - component: {fileID: 5634977988562910034}
   m_Layer: 0
   m_Name: "\u0422\u0435\u043A\u0441\u0442"
   m_TagString: Untagged
@@ -795,6 +921,20 @@ MonoBehaviour:
     m_VerticalOverflow: 0
     m_LineSpacing: 1
   m_Text: "\u0412 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u0438"
+--- !u!114 &5634977988562910034
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4387428570914599674}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0e34fc73ed16ec4bb72adf27e407d2e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  localizationKey: prefab.1c8e8cb93c950094f84da37234042278.1379348108564206900
+  russianSource: "\u0412 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u0438"
 --- !u!1 &4396312688987411732
 GameObject:
   m_ObjectHideFlags: 0
@@ -806,6 +946,7 @@ GameObject:
   - component: {fileID: 6222480887786623520}
   - component: {fileID: 1278019965269298421}
   - component: {fileID: 2227487025118962314}
+  - component: {fileID: 8663691633693197706}
   m_Layer: 0
   m_Name: "\u0422\u0435\u043A\u0441\u0442"
   m_TagString: Untagged
@@ -874,6 +1015,20 @@ MonoBehaviour:
     m_VerticalOverflow: 0
     m_LineSpacing: 1
   m_Text: "\u0412\u0435\u0440\u0441\u0438\u044F \u0438 \u043F\u043E\u0440\u044F\u0434\u043E\u043A"
+--- !u!114 &8663691633693197706
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4396312688987411732}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0e34fc73ed16ec4bb72adf27e407d2e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  localizationKey: prefab.1c8e8cb93c950094f84da37234042278.2227487025118962314
+  russianSource: "\u0412\u0435\u0440\u0441\u0438\u044F \u0438 \u043F\u043E\u0440\u044F\u0434\u043E\u043A"
 --- !u!1 &5345234658902818413
 GameObject:
   m_ObjectHideFlags: 0
@@ -885,6 +1040,7 @@ GameObject:
   - component: {fileID: 5963284107873911327}
   - component: {fileID: 1922714139178004028}
   - component: {fileID: 5401144180950848831}
+  - component: {fileID: 596377933269933664}
   m_Layer: 0
   m_Name: "\u0422\u0435\u043A\u0441\u0442"
   m_TagString: Untagged
@@ -953,6 +1109,20 @@ MonoBehaviour:
     m_VerticalOverflow: 0
     m_LineSpacing: 1
   m_Text: "\u0412\u0435\u0440\u0441\u0438\u044F \u0438 \u043F\u043E\u0440\u044F\u0434\u043E\u043A"
+--- !u!114 &596377933269933664
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5345234658902818413}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0e34fc73ed16ec4bb72adf27e407d2e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  localizationKey: prefab.1c8e8cb93c950094f84da37234042278.5401144180950848831
+  russianSource: "\u0412\u0435\u0440\u0441\u0438\u044F \u0438 \u043F\u043E\u0440\u044F\u0434\u043E\u043A"
 --- !u!1 &5352498344911147208
 GameObject:
   m_ObjectHideFlags: 0
@@ -964,6 +1134,7 @@ GameObject:
   - component: {fileID: 5395195772347461136}
   - component: {fileID: 2693205391109269948}
   - component: {fileID: 178484368921207271}
+  - component: {fileID: 8901015671853192537}
   m_Layer: 0
   m_Name: "\u0422\u0435\u043A\u0441\u0442"
   m_TagString: Untagged
@@ -1032,6 +1203,20 @@ MonoBehaviour:
     m_VerticalOverflow: 0
     m_LineSpacing: 1
   m_Text: "\u0412\u0435\u0440\u0441\u0438\u044F \u0438 \u043F\u043E\u0440\u044F\u0434\u043E\u043A"
+--- !u!114 &8901015671853192537
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5352498344911147208}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0e34fc73ed16ec4bb72adf27e407d2e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  localizationKey: prefab.1c8e8cb93c950094f84da37234042278.178484368921207271
+  russianSource: "\u0412\u0435\u0440\u0441\u0438\u044F \u0438 \u043F\u043E\u0440\u044F\u0434\u043E\u043A"
 --- !u!1 &5372305464136163354
 GameObject:
   m_ObjectHideFlags: 0
@@ -1164,6 +1349,7 @@ GameObject:
   - component: {fileID: 6268642572328238134}
   - component: {fileID: 472836924562691732}
   - component: {fileID: 6803601028796455585}
+  - component: {fileID: 3551828248516285496}
   m_Layer: 0
   m_Name: "\u0422\u0435\u043A\u0441\u0442"
   m_TagString: Untagged
@@ -1232,6 +1418,20 @@ MonoBehaviour:
     m_VerticalOverflow: 0
     m_LineSpacing: 1
   m_Text: "\u0412\u0435\u0440\u0441\u0438\u044F \u0438 \u043F\u043E\u0440\u044F\u0434\u043E\u043A"
+--- !u!114 &3551828248516285496
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6193594811165060927}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0e34fc73ed16ec4bb72adf27e407d2e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  localizationKey: prefab.1c8e8cb93c950094f84da37234042278.6803601028796455585
+  russianSource: "\u0412\u0435\u0440\u0441\u0438\u044F \u0438 \u043F\u043E\u0440\u044F\u0434\u043E\u043A"
 --- !u!1 &6244236939741656751
 GameObject:
   m_ObjectHideFlags: 0
@@ -1365,6 +1565,7 @@ GameObject:
   - component: {fileID: 6022409959157186212}
   - component: {fileID: 4205445255537753660}
   - component: {fileID: 9105480095478844182}
+  - component: {fileID: 3348523904114920595}
   m_Layer: 0
   m_Name: "\u0422\u0435\u043A\u0441\u0442"
   m_TagString: Untagged
@@ -1433,6 +1634,20 @@ MonoBehaviour:
     m_VerticalOverflow: 0
     m_LineSpacing: 1
   m_Text: "\u041D\u0430\u0437\u0430\u0434"
+--- !u!114 &3348523904114920595
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6352388247784394484}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0e34fc73ed16ec4bb72adf27e407d2e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  localizationKey: prefab.1c8e8cb93c950094f84da37234042278.9105480095478844182
+  russianSource: "\u041D\u0430\u0437\u0430\u0434"
 --- !u!1 &6490567718861914334
 GameObject:
   m_ObjectHideFlags: 0
@@ -1444,6 +1659,7 @@ GameObject:
   - component: {fileID: 6326421023159415318}
   - component: {fileID: 1994326360778932697}
   - component: {fileID: 3791389822580983347}
+  - component: {fileID: 6656745184093492594}
   m_Layer: 0
   m_Name: "\u0422\u0435\u043A\u0441\u0442"
   m_TagString: Untagged
@@ -1513,6 +1729,22 @@ MonoBehaviour:
     m_LineSpacing: 1
   m_Text: "\u041F\u043E\u043F\u0440\u043E\u0431\u043E\u0432\u0430\u0442\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C
     \u0441 \u044D\u0442\u0438\u043C \u043D\u0430\u0431\u043E\u0440\u043E\u043C"
+--- !u!114 &6656745184093492594
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6490567718861914334}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0e34fc73ed16ec4bb72adf27e407d2e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  localizationKey: prefab.1c8e8cb93c950094f84da37234042278.3791389822580983347
+  russianSource: "\u041F\u043E\u043F\u0440\u043E\u0431\u043E\u0432\u0430\u0442\u044C
+    \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0441 \u044D\u0442\u0438\u043C
+    \u043D\u0430\u0431\u043E\u0440\u043E\u043C"
 --- !u!1 &6559103486579253537
 GameObject:
   m_ObjectHideFlags: 0
@@ -1524,6 +1756,7 @@ GameObject:
   - component: {fileID: 4700648099841855868}
   - component: {fileID: 4807523788135623735}
   - component: {fileID: 6411267426145362963}
+  - component: {fileID: 8358008280203762500}
   m_Layer: 0
   m_Name: "\u0422\u0435\u043A\u0441\u0442"
   m_TagString: Untagged
@@ -1592,6 +1825,20 @@ MonoBehaviour:
     m_VerticalOverflow: 0
     m_LineSpacing: 1
   m_Text: "\u0412\u0435\u0440\u0441\u0438\u044F \u0438 \u043F\u043E\u0440\u044F\u0434\u043E\u043A"
+--- !u!114 &8358008280203762500
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6559103486579253537}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0e34fc73ed16ec4bb72adf27e407d2e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  localizationKey: prefab.1c8e8cb93c950094f84da37234042278.6411267426145362963
+  russianSource: "\u0412\u0435\u0440\u0441\u0438\u044F \u0438 \u043F\u043E\u0440\u044F\u0434\u043E\u043A"
 --- !u!1 &6577153690013142386
 GameObject:
   m_ObjectHideFlags: 0
@@ -1603,6 +1850,7 @@ GameObject:
   - component: {fileID: 6673781053095516143}
   - component: {fileID: 6676272027024850290}
   - component: {fileID: 7982550892028856166}
+  - component: {fileID: 7554701888199986017}
   m_Layer: 0
   m_Name: "\u0422\u0435\u043A\u0441\u0442"
   m_TagString: Untagged
@@ -1671,6 +1919,20 @@ MonoBehaviour:
     m_VerticalOverflow: 0
     m_LineSpacing: 1
   m_Text: "ID \u043F\u0430\u043A\u0435\u0442\u0430"
+--- !u!114 &7554701888199986017
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6577153690013142386}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0e34fc73ed16ec4bb72adf27e407d2e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  localizationKey: prefab.1c8e8cb93c950094f84da37234042278.7982550892028856166
+  russianSource: "ID \u043F\u0430\u043A\u0435\u0442\u0430"
 --- !u!1 &6609730169310008585
 GameObject:
   m_ObjectHideFlags: 0
@@ -1682,6 +1944,7 @@ GameObject:
   - component: {fileID: 188514206051181561}
   - component: {fileID: 7398607435783400450}
   - component: {fileID: 394483884380570173}
+  - component: {fileID: 92498611818222499}
   m_Layer: 0
   m_Name: "\u0422\u0435\u043A\u0441\u0442"
   m_TagString: Untagged
@@ -1750,6 +2013,20 @@ MonoBehaviour:
     m_VerticalOverflow: 0
     m_LineSpacing: 1
   m_Text: "\u0421\u0435\u0439\u0447\u0430\u0441"
+--- !u!114 &92498611818222499
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6609730169310008585}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0e34fc73ed16ec4bb72adf27e407d2e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  localizationKey: prefab.1c8e8cb93c950094f84da37234042278.394483884380570173
+  russianSource: "\u0421\u0435\u0439\u0447\u0430\u0441"
 --- !u!1 &7076288614691680687
 GameObject:
   m_ObjectHideFlags: 0
@@ -1974,6 +2251,7 @@ GameObject:
   - component: {fileID: 5600022081452109809}
   - component: {fileID: 2181263703555919328}
   - component: {fileID: 7247635382312667903}
+  - component: {fileID: 8002291273472013469}
   m_Layer: 0
   m_Name: "\u0422\u0435\u043A\u0441\u0442"
   m_TagString: Untagged
@@ -2042,6 +2320,20 @@ MonoBehaviour:
     m_VerticalOverflow: 0
     m_LineSpacing: 1
   m_Text: "ID \u043F\u0430\u043A\u0435\u0442\u0430"
+--- !u!114 &8002291273472013469
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8000738668557678182}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0e34fc73ed16ec4bb72adf27e407d2e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  localizationKey: prefab.1c8e8cb93c950094f84da37234042278.7247635382312667903
+  russianSource: "ID \u043F\u0430\u043A\u0435\u0442\u0430"
 --- !u!1 &8263648885747077639
 GameObject:
   m_ObjectHideFlags: 0
@@ -2174,6 +2466,7 @@ GameObject:
   - component: {fileID: 3907524242520897148}
   - component: {fileID: 1109697713504512164}
   - component: {fileID: 82711874599669965}
+  - component: {fileID: 2384013680680522646}
   m_Layer: 0
   m_Name: "\u0422\u0435\u043A\u0441\u0442"
   m_TagString: Untagged
@@ -2242,3 +2535,17 @@ MonoBehaviour:
     m_VerticalOverflow: 0
     m_LineSpacing: 1
   m_Text: "\u041F\u0430\u043A\u0435\u0442"
+--- !u!114 &2384013680680522646
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8868104080093084178}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0e34fc73ed16ec4bb72adf27e407d2e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  localizationKey: prefab.1c8e8cb93c950094f84da37234042278.82711874599669965
+  russianSource: "\u041F\u0430\u043A\u0435\u0442"

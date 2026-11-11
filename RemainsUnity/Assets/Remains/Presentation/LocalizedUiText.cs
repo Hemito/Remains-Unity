@@ -10,14 +10,28 @@ namespace Remains.Presentation
     public sealed class LocalizedUiText : MonoBehaviour
     {
         private Text label;
+        [SerializeField,InspectorName("Ключ String Table")] private string localizationKey;
+        [SerializeField,InspectorName("Русский исходник")] private string russianSource;
+        public string SourceKey=>localizationKey;
+        public string RussianSource=>russianSource;
         private string source,lastOutput;
+        private System.Func<string> evaluate;
         private bool writing,subscribed;
+        public void SetSource(string key,string russian)
+        {localizationKey=key;russianSource=russian;}
         public static void Bind(Text text)
         {
             if(text==null || text.GetComponentInParent<InputField>() is {} input && input.textComponent==text)return;
             var binding=text.GetComponent<LocalizedUiText>();
             if(binding==null)binding=text.gameObject.AddComponent<LocalizedUiText>();
             binding.Attach(text);
+        }
+        public static void Bind(Text text,System.Func<string> evaluate)
+        {
+            if(text==null || evaluate==null)return;
+            var binding=text.GetComponent<LocalizedUiText>();
+            if(binding==null)binding=text.gameObject.AddComponent<LocalizedUiText>();
+            binding.evaluate=evaluate;binding.Attach(text);
         }
         public static void BindTree(Transform root)
         {
@@ -41,7 +55,7 @@ namespace Remains.Presentation
         private void Refresh()
         {
             if(label==null || source==null || writing)return;
-            string translated=GameLocalization.TranslateRussian(source,"UI:"+name);
+            string translated=evaluate!=null?evaluate():!string.IsNullOrEmpty(localizationKey)?GameLocalization.UiText(localizationKey,russianSource,"UI:"+name):GameLocalization.TranslateRussian(source,"UI:"+name);
             label.font=LocalizationFonts.ForLanguage(GameLocalization.CurrentLanguage);
             lastOutput=translated;
             if(label.text==translated)return;

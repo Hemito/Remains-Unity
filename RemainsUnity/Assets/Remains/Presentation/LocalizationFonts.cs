@@ -13,6 +13,7 @@ namespace Remains.Presentation
         private static HashSet<string> installed;
         public static Font ForLanguage(string code)
         {
+            code=GameLocalization.NormalizeCode(code) switch {"zh-Hans"=>"zh","zh-Hant"=>"tw","ja"=>"jp",var normalized=>normalized};
             if(fonts.TryGetValue(code,out var font) && font!=null)return font;
             if(code is not ("zh" or "tw" or "jp"))return fonts[code]=Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             installed??=new HashSet<string>(Font.GetOSInstalledFontNames(),StringComparer.OrdinalIgnoreCase);

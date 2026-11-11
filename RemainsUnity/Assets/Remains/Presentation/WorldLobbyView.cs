@@ -29,12 +29,12 @@ namespace Remains.Presentation
             button.interactable=interactable;OriginalButtonStyle.SetSelected(button,selected);
         }
         public static string ChoiceText(string worldName,string holder,long revision,string branch,string snapshot,string relation)
-            => $"{worldName}\nКопия у {holder} · состояние №{revision}\nВетвь {branch??"не указана"} · снимок {snapshot??"не указан"}\n{relation}";
+            => Remains.Content.GameLocalization.Format("source.WorldLobbyView.ba48dde2a050c431", $"{worldName}\nКопия у {holder} · состояние №{revision}\nВетвь {branch??Remains.Content.GameLocalization.UiText("source.WorldLobbyView.6d50be0a122eade8", "не указана", "RemainsUnity/Assets/Remains/Presentation/WorldLobbyView.cs")} · снимок {snapshot??Remains.Content.GameLocalization.UiText("source.WorldLobbyView.f250ed099246c65e", "не указан", "RemainsUnity/Assets/Remains/Presentation/WorldLobbyView.cs")}\n{relation}", "RemainsUnity/Assets/Remains/Presentation/WorldLobbyView.cs");
         // Abbreviations distinguish all advertised values, including deliberately shared prefixes.
         // The panel calls this only when offers/selection change, never in an Update loop.
         public static string IdentityLabel(string id,IReadOnlyList<string> advertised)
         {
-            if(string.IsNullOrEmpty(id)) return "нет данных";
+            if(string.IsNullOrEmpty(id)) return Remains.Content.GameLocalization.UiText("source.WorldLobbyView.db4dbb4b9f6aabbd", "нет данных", "RemainsUnity/Assets/Remains/Presentation/WorldLobbyView.cs");
             if(advertised==null) throw new ArgumentNullException(nameof(advertised));
             int length=Math.Min(12,id.Length);
             while(length<id.Length)
@@ -48,13 +48,13 @@ namespace Remains.Presentation
             }
             return id.Substring(0,length);
         }
-        public static string RelationText(WorldRelation relation,bool selected) => selected?"Выбрана для запуска":relation switch {
-            WorldRelation.Identical=>"Такой же снимок, как выбранный",
-            WorldRelation.Newer=>"Продолжение выбранной копии",
-            WorldRelation.Older=>"Предыдущая копия выбранного продолжения",
-            WorldRelation.Divergent=>"Разошедшаяся ветвь — прогресс не объединяется",
-            WorldRelation.DifferentWorld=>"Другой мир",
-            _=>"Связь копий не подтверждена"
+        public static string RelationText(WorldRelation relation,bool selected) => selected?Remains.Content.GameLocalization.UiText("source.WorldLobbyView.5b0bbe7cc14b0946", "Выбрана для запуска", "RemainsUnity/Assets/Remains/Presentation/WorldLobbyView.cs"):relation switch {
+            WorldRelation.Identical=>Remains.Content.GameLocalization.UiText("source.WorldLobbyView.d188d5fc50af8c8e", "Такой же снимок, как выбранный", "RemainsUnity/Assets/Remains/Presentation/WorldLobbyView.cs"),
+            WorldRelation.Newer=>Remains.Content.GameLocalization.UiText("source.WorldLobbyView.442149f2beb31833", "Продолжение выбранной копии", "RemainsUnity/Assets/Remains/Presentation/WorldLobbyView.cs"),
+            WorldRelation.Older=>Remains.Content.GameLocalization.UiText("source.WorldLobbyView.432b864d9842303a", "Предыдущая копия выбранного продолжения", "RemainsUnity/Assets/Remains/Presentation/WorldLobbyView.cs"),
+            WorldRelation.Divergent=>Remains.Content.GameLocalization.UiText("source.WorldLobbyView.85ac804cdc2fc2cc", "Разошедшаяся ветвь — прогресс не объединяется", "RemainsUnity/Assets/Remains/Presentation/WorldLobbyView.cs"),
+            WorldRelation.DifferentWorld=>Remains.Content.GameLocalization.UiText("source.WorldLobbyView.19dac3fe13130d3d", "Другой мир", "RemainsUnity/Assets/Remains/Presentation/WorldLobbyView.cs"),
+            _=>Remains.Content.GameLocalization.UiText("source.WorldLobbyView.fe6489f88917c8a9", "Связь копий не подтверждена", "RemainsUnity/Assets/Remains/Presentation/WorldLobbyView.cs")
         };
         public void ShowWaiting(string instruction,string status)
         {

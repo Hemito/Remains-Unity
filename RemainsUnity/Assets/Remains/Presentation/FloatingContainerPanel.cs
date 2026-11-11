@@ -47,9 +47,9 @@ namespace Remains.Presentation
         public bool Open(string id)
         {
             var source=InventorySource.Resolve(session.World,id);
-            if(source?.IsLooseItem==true) {session.ShowNotice("Свободная вещь подбирается целиком действием взаимодействия.");return false;}
+            if(source?.IsLooseItem==true) {session.ShowNotice(Remains.Content.GameLocalization.UiText("source.FloatingContainerPanel.aa39e80d47e61cc7", "Свободная вещь подбирается целиком действием взаимодействия.", "RemainsUnity/Assets/Remains/Presentation/FloatingContainerPanel.cs"));return false;}
             if(!ContainerAccess.Accessible(session.LocalActor,source,session.Rules.Loot,session.Rules.Deposit))
-            {session.ShowNotice("Контейнер больше недоступен.");return false;}
+            {session.ShowNotice(Remains.Content.GameLocalization.UiText("source.FloatingContainerPanel.5ed361a0a987f983", "Контейнер больше недоступен.", "RemainsUnity/Assets/Remains/Presentation/FloatingContainerPanel.cs"));return false;}
             view.BeginSource(id);sourceId=id;row=0;Refresh();
             if(source.Body==null) session.ContainerInspection.Request(id);
             changed?.Invoke();return true;
@@ -93,7 +93,7 @@ namespace Remains.Presentation
         private void Claim(string item)
         {
             if(!IsOpen || item==null) return;
-            session.ShowNotice("Подбор подтверждается…");session.RequestClaim(sourceId,item,0);
+            session.ShowNotice(Remains.Content.GameLocalization.UiText("source.FloatingContainerPanel.86834ee1c83cebbd", "Подбор подтверждается…", "RemainsUnity/Assets/Remains/Presentation/FloatingContainerPanel.cs"));session.RequestClaim(sourceId,item,0);
         }
         public void Step(bool cover)
         {

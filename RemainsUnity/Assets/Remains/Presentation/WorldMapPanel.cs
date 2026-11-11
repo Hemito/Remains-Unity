@@ -45,12 +45,12 @@ namespace Remains.Presentation
             if(source==null || source.Rejection(actor)!=null) {Close();return;}
             bool valid=TryNumber(out int index);
             string level=valid?WorldFactories.Level(index):null;
-            string rejection=!valid?$"Номер завода — целое число от −{WorldFactories.MaxIndex} до {WorldFactories.MaxIndex}.":
+            string rejection=!valid?Remains.Content.GameLocalization.Format("source.WorldMapPanel.710299722d4c2cc8", $"Номер завода — целое число от −{WorldFactories.MaxIndex} до {WorldFactories.MaxIndex}.", "RemainsUnity/Assets/Remains/Presentation/WorldMapPanel.cs"):
                 TravelRules.Rejection(actor,actor.level,level,actor.generation,actor.lifecycleSequence,session.Pause.IsPaused(level));
             view.Travel.interactable=selected && rejection==null && !session.Travel.Pending;
-            view.Description.text=!selected?"Выберите место на карте.":
-                Describe(valid,index,level)+"\n\n"+(rejection??"Отправиться ко входу на завод.")+
-                (session.Travel.Pending?"\n\nОжидание подтверждения перехода…":"")+Visited();
+            view.Description.text=!selected?Remains.Content.GameLocalization.UiText("source.WorldMapPanel.02fad132bb0f1292", "Выберите место на карте.", "RemainsUnity/Assets/Remains/Presentation/WorldMapPanel.cs"):
+                Describe(valid,index,level)+"\n\n"+(rejection??Remains.Content.GameLocalization.UiText("source.WorldMapPanel.84a992b8f91b615d", "Отправиться ко входу на завод.", "RemainsUnity/Assets/Remains/Presentation/WorldMapPanel.cs"))+
+                (session.Travel.Pending?Remains.Content.GameLocalization.UiText("source.WorldMapPanel.8218d666da6be18a", "\n\nОжидание подтверждения перехода…", "RemainsUnity/Assets/Remains/Presentation/WorldMapPanel.cs"):"")+Visited();
             OriginalButtonStyle.SetSelected(view.Factory,selected);
         }
         private bool TryNumber(out int index)=>int.TryParse(view.Index.text,NumberStyles.AllowLeadingSign,CultureInfo.InvariantCulture,out index) &&
@@ -60,16 +60,16 @@ namespace Remains.Presentation
             TryNumber(out int index);
             view.Index.text=Mathf.Clamp(index+delta,-WorldFactories.MaxIndex,WorldFactories.MaxIndex).ToString(CultureInfo.InvariantCulture);
         }
-        private static string Name(int index)=>index==0?"Основной завод · 0":"Завод · "+(index<0?"−"+(-index):index.ToString(CultureInfo.InvariantCulture));
+        private static string Name(int index)=>index==0?Remains.Content.GameLocalization.UiText("source.WorldMapPanel.94bb6e3f1bb85658", "Основной завод · 0", "RemainsUnity/Assets/Remains/Presentation/WorldMapPanel.cs"):Remains.Content.GameLocalization.UiText("source.WorldMapPanel.215b097420e2edba", "Завод · ", "RemainsUnity/Assets/Remains/Presentation/WorldMapPanel.cs")+(index<0?"−"+(-index):index.ToString(CultureInfo.InvariantCulture));
         private string Describe(bool valid,int index,string level)
         {
-            if(!valid) return "Завод";
+            if(!valid) return Remains.Content.GameLocalization.UiText("source.WorldMapPanel.375a930de738b8e4", "Завод", "RemainsUnity/Assets/Remains/Presentation/WorldMapPanel.cs");
             var world=session.World;
             if(world==null) return Name(index);
             var catalog=FactoryProfileCatalog.Load();
             var saved=WorldFactories.Find(world,level);
             var profile=saved!=null?catalog.Saved(saved):catalog.For(WorldFactories.Seed(world),index);
-            return $"{Name(index)}\n{profile.title}\n\n{profile.description}"+(saved==null?"\n\nЕщё не посещён: будет создан при первом входе.":"");
+            return $"{Name(index)}\n{profile.title}\n\n{profile.description}"+(saved==null?Remains.Content.GameLocalization.UiText("source.WorldMapPanel.9cf90bffcb9523d9", "\n\nЕщё не посещён: будет создан при первом входе.", "RemainsUnity/Assets/Remains/Presentation/WorldMapPanel.cs"):"");
         }
         private string Visited()
         {
@@ -77,7 +77,7 @@ namespace Remains.Presentation
             if(world==null) return "";
             var numbers=world.factories.Select(f=>WorldFactories.TryIndex(f.level,out int index)?index:(int?)null).Where(i=>i!=null).Select(i=>i.Value).OrderBy(i=>i).ToArray();
             if(numbers.Length==0) return "";
-            var text=new StringBuilder("\n\nПосещённые: ");
+            var text=new StringBuilder(Remains.Content.GameLocalization.UiText("source.WorldMapPanel.b929e90358965481", "\n\nПосещённые: ", "RemainsUnity/Assets/Remains/Presentation/WorldMapPanel.cs"));
             for(int i=0;i<numbers.Length;i++) text.Append(i>0?", ":"").Append(numbers[i]<0?"−"+(-numbers[i]):numbers[i].ToString(CultureInfo.InvariantCulture));
             return text.ToString();
         }

@@ -55,6 +55,11 @@ namespace Remains.Editor
                 Require(PlayerPrefs.GetString(GameLocalization.Preference)=="en","Выбранный язык не сохранён локально.");
                 Require(input.text=="Фонарик" && userText.text=="Фонарик" && userText.GetComponent<LocalizedUiText>()==null,"Локализация изменила пользовательский ввод.");
                 label.text="Закрыть";Require(label.text=="Close","Новое значение подписи не переведено по событию Text.");
+                var reactive=new HudElements(label.font).Label(node.transform,()=>GameLocalization.UiText("unity/language","Язык","reactive-check"),Vector2.zero,Vector2.one);
+                LocalizedUiText.Bind(reactive); // A later generic BindTree must preserve the explicit evaluator.
+                Require(reactive.text=="Language","Подпись создана не на выбранном языке.");
+                GameLocalization.Select("ru");Require(reactive.text=="Язык","Подпись, созданная на английском, не вернулась к русскому исходнику.");
+                GameLocalization.Select("en");Require(reactive.text=="Language","Повторное переключение реактивной подписи не сработало.");
                 foreach(var language in pack.languages)
                 {
                     GameLocalization.Select(language.code);
@@ -96,7 +101,7 @@ namespace Remains.Editor
                 foreach(string code in new[]{"en","zh","ru"})
                 {
                     picker.Open();picker.ChoiceRect(code).GetComponent<Button>().onClick.Invoke();
-                    Require(GameLocalization.CurrentLanguage==code,"Кнопка языка не выбрала "+code);
+                    Require(GameLocalization.CurrentLanguage==GameLocalization.NormalizeCode(code),"Кнопка языка не выбрала "+code);
                     LocalizationFonts.ApplyTree(canvas.transform);picker.RefreshFonts();
                     picker.Close();await Capture("menu-"+code);picker.Open();await Capture("languages-"+code);
                 }

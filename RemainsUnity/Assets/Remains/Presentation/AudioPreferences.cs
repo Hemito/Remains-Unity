@@ -58,8 +58,8 @@ namespace Remains.Presentation
             catch(Exception error)
             {
                 bool restored=!changed || Dsp.TryRestore(previous,out _);
-                reason="Не удалось сохранить настройки звука. "+error.Message+(restored?" Прежний DSP-буфер восстановлен.":
-                    " Прежний DSP-буфер восстановить не удалось; проверьте устройство или перезапустите игру.");
+                reason=Remains.Content.GameLocalization.UiText("source.AudioPreferences.b9f961492f1a8bcb", "Не удалось сохранить настройки звука. ", "RemainsUnity/Assets/Remains/Presentation/AudioPreferences.cs")+error.Message+(restored?Remains.Content.GameLocalization.UiText("source.AudioPreferences.d0a8c804020825da", " Прежний DSP-буфер восстановлен.", "RemainsUnity/Assets/Remains/Presentation/AudioPreferences.cs"):
+                    Remains.Content.GameLocalization.UiText("source.AudioPreferences.d46ec6cc6f3bb3b0", " Прежний DSP-буфер восстановить не удалось; проверьте устройство или перезапустите игру.", "RemainsUnity/Assets/Remains/Presentation/AudioPreferences.cs"));
                 return false;
             }
             levels=candidate;Changed?.Invoke();return true;

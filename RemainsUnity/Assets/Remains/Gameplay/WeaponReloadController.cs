@@ -48,15 +48,15 @@ namespace Remains.Gameplay
         {
             if(Active || string.IsNullOrEmpty(selected) || actor==null || actor.down || session.Pause.IsPaused(actor.level)) return false;
             var definition=WeaponCatalog.Get(selected);
-            if(definition.rechargeSeconds>0) {session.ShowNotice("Оружие подзаряжается автоматически.");return false;}
+            if(definition.rechargeSeconds>0) {session.ShowNotice(Remains.Content.GameLocalization.UiText("source.WeaponReloadController.dd43af1b085f5c2a", "Оружие подзаряжается автоматически.", "RemainsUnity/Assets/Remains/Gameplay/WeaponReloadController.cs"));return false;}
             if(WeaponAmmunition.ReloadAmount(actor,definition)==0)
-            { session.ShowNotice("Перезарядка не нужна или нет подходящих патронов в запасе.");return false; }
+            { session.ShowNotice(Remains.Content.GameLocalization.UiText("source.WeaponReloadController.ee3a1557bea6de6a", "Перезарядка не нужна или нет подходящих патронов в запасе.", "RemainsUnity/Assets/Remains/Gameplay/WeaponReloadController.cs"));return false; }
             settings??=ActiveReloadSettings.Load();
             clock.Start(definition.reloadSeconds,settings.windowStart,settings.windowWidth);
             actorId=actor.id;weapon=selected;generation=actor.generation;lifecycle=actor.lifecycleSequence;
             weaponItem=actor.equippedWeaponItem;
             world=session.World?.worldId;level=actor.level;selectionRevision=actor.weaponSelectionRevision;
-            session.ShowNotice("Перезарядка…");
+            session.ShowNotice(Remains.Content.GameLocalization.UiText("source.WeaponReloadController.0902bfd6c5c14765", "Перезарядка…", "RemainsUnity/Assets/Remains/Gameplay/WeaponReloadController.cs"));
             Started?.Invoke(actor,selected);
             return true;
         }
@@ -72,7 +72,7 @@ namespace Remains.Gameplay
             else if(attempt==ActiveReloadAttempt.Missed)
             {
                 Finished?.Invoke();Started?.Invoke(actor,weapon);
-                session.ShowNotice("Промах: перезарядка начата заново.");
+                session.ShowNotice(Remains.Content.GameLocalization.UiText("source.WeaponReloadController.4baa954dc8252fef", "Промах: перезарядка начата заново.", "RemainsUnity/Assets/Remains/Gameplay/WeaponReloadController.cs"));
             }
             return attempt!=ActiveReloadAttempt.Ignored;
         }
@@ -87,7 +87,7 @@ namespace Remains.Gameplay
             if(!Active) return;
             var actor=session.World?.Find(actorId);
             if(!Matches(actor,selected))
-            {actorId=null;clock.Cancel();Finished?.Invoke();session.ShowNotice("Перезарядка прервана.");return;}
+            {actorId=null;clock.Cancel();Finished?.Invoke();session.ShowNotice(Remains.Content.GameLocalization.UiText("source.WeaponReloadController.20d7e8398482d1d8", "Перезарядка прервана.", "RemainsUnity/Assets/Remains/Gameplay/WeaponReloadController.cs"));return;}
             if(session.Pause.IsPaused(actor.level)) return;
             clock.Advance(dt);
             if(clock.Running) return;
@@ -98,8 +98,8 @@ namespace Remains.Gameplay
             actorId=null;
             Finished?.Invoke();
             if(WeaponAmmunition.CompleteReload(actor,WeaponCatalog.Get(weapon)))
-            {session.PublishActor(actor);session.ShowNotice("Оружие перезаряжено.");}
-            else session.ShowNotice("Перезарядка не выполнена: запас патронов изменился.");
+            {session.PublishActor(actor);session.ShowNotice(Remains.Content.GameLocalization.UiText("source.WeaponReloadController.16b77d5305c86072", "Оружие перезаряжено.", "RemainsUnity/Assets/Remains/Gameplay/WeaponReloadController.cs"));}
+            else session.ShowNotice(Remains.Content.GameLocalization.UiText("source.WeaponReloadController.fd3b5c6d17c20546", "Перезарядка не выполнена: запас патронов изменился.", "RemainsUnity/Assets/Remains/Gameplay/WeaponReloadController.cs"));
         }
     }
 }

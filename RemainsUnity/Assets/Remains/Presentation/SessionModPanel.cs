@@ -31,12 +31,12 @@ namespace Remains.Presentation
             if(Differences.Count==0) return;
             root=ui.Panel(parent,"Моды сессии",new Vector2(90,-70),new Vector2(1100,570));
             (ConfirmRect,CancelRect)=ContentComparisonView.Draw(root.transform,Differences,
-                "Моды или игровые данные отличаются. Продолжение может изменить игровой результат.",page,
+                Remains.Content.GameLocalization.UiText("source.SessionModPanel.6736b949661ffde6", "Моды или игровые данные отличаются. Продолжение может изменить игровой результат.", "RemainsUnity/Assets/Remains/Presentation/SessionModPanel.cs"),page,
                 next=>{page=next;Render();},accept=>
                 {
                     Differences=new List<ContentDifference>();Render();
                     if(accept) session.SendJoin(true);else session.StopClient();
-                },"У вас","У хоста","Войти с этим набором");
+                },Remains.Content.GameLocalization.UiText("source.SessionModPanel.07a67ba979c9831e", "У вас", "RemainsUnity/Assets/Remains/Presentation/SessionModPanel.cs"),Remains.Content.GameLocalization.UiText("source.SessionModPanel.4187792a4d9f66b2", "У хоста", "RemainsUnity/Assets/Remains/Presentation/SessionModPanel.cs"),Remains.Content.GameLocalization.UiText("source.SessionModPanel.6dedfbafb0cbeb18", "Войти с этим набором", "RemainsUnity/Assets/Remains/Presentation/SessionModPanel.cs"));
         }
     }
 }

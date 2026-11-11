@@ -39,8 +39,8 @@ namespace Remains.Gameplay
             this.session=session??throw new ArgumentNullException(nameof(session));
             if(equip==null) throw new ArgumentNullException(nameof(equip));
             Register(StandardItemActions.Equip,(item,context)=>equip(IsEquipped(item,context)?null:item.id),
-                rejection:(item,_)=>WeaponInventory.IsEquippable(item)?null:"Этот предмет нельзя экипировать.",
-                caption:(item,context)=>IsEquipped(item,context)?"Убрать оружие":"Взять в копыта");
+                rejection:(item,_)=>WeaponInventory.IsEquippable(item)?null:Remains.Content.GameLocalization.UiText("source.ItemShortcutActions.9129aea12899167c", "Этот предмет нельзя экипировать.", "RemainsUnity/Assets/Remains/Gameplay/ItemShortcutActions.cs"),
+                caption:(item,context)=>IsEquipped(item,context)?Remains.Content.GameLocalization.UiText("source.ItemShortcutActions.43d496940c2bb17a", "Убрать оружие", "RemainsUnity/Assets/Remains/Gameplay/ItemShortcutActions.cs"):Remains.Content.GameLocalization.UiText("source.ItemShortcutActions.cddd8a2bb549751d", "Взять в копыта", "RemainsUnity/Assets/Remains/Gameplay/ItemShortcutActions.cs"));
             Register(StandardItemActions.Heal,(item,_)=>session.RequestSelfHeal(item.id),
                 rejection:(item,_)=>HealingRules.Rejection(session.LocalActor,session.LocalActor,true));
             // A radiation cure: the owner spends it through the inventory journal (as ammunition) and takes the radiation
@@ -48,24 +48,24 @@ namespace Remains.Gameplay
             Register(StandardItemActions.Consume,(item,_)=>
             {
                 var actor=session.LocalActor;float amount=Remains.Content.ItemRadiationCures.Amount(item.definition);
-                if(!InventoryJournal.Consume(actor,item.definition,1)) {session.ShowNotice("Предмет закончился или зарезервирован.");return;}
+                if(!InventoryJournal.Consume(actor,item.definition,1)) {session.ShowNotice(Remains.Content.GameLocalization.UiText("source.ItemShortcutActions.8d5d334ceba75901", "Предмет закончился или зарезервирован.", "RemainsUnity/Assets/Remains/Gameplay/ItemShortcutActions.cs"));return;}
                 PlayerRadiation.Cure(actor,amount);session.PublishActor(actor);
-            },rejection:(item,_)=>session.LocalActor.radiation<=0?"Радиации нет — лекарство не нужно.":null,caption:(_,_)=>"Принять");
+            },rejection:(item,_)=>session.LocalActor.radiation<=0?Remains.Content.GameLocalization.UiText("source.ItemShortcutActions.304a470a47e39828", "Радиации нет — лекарство не нужно.", "RemainsUnity/Assets/Remains/Gameplay/ItemShortcutActions.cs"):null,caption:(_,_)=>Remains.Content.GameLocalization.UiText("source.ItemShortcutActions.9659ad64c284dce8", "Принять", "RemainsUnity/Assets/Remains/Gameplay/ItemShortcutActions.cs"));
             Register(StandardItemActions.Wear,(item,context)=>
             {
                 if(!CosmeticEquipment.TryEquip(session.LocalActor,item.id,context.ToggleEquipped,out var reason))
                 {session.ShowNotice(reason);return;}
                 session.PublishActor(session.LocalActor);
-            },rejection:(item,_)=>CosmeticEquipment.IsWearable(item)?null:"Для предмета не подключён внешний вид.",
-                caption:(item,context)=>context.ToggleEquipped && CosmeticEquipment.IsEquipped(session.LocalActor,item.id)?"Снять":"Надеть");
+            },rejection:(item,_)=>CosmeticEquipment.IsWearable(item)?null:Remains.Content.GameLocalization.UiText("source.ItemShortcutActions.cda48623c4016582", "Для предмета не подключён внешний вид.", "RemainsUnity/Assets/Remains/Gameplay/ItemShortcutActions.cs"),
+                caption:(item,context)=>context.ToggleEquipped && CosmeticEquipment.IsEquipped(session.LocalActor,item.id)?Remains.Content.GameLocalization.UiText("source.ItemShortcutActions.d4b51f7a04de69d1", "Снять", "RemainsUnity/Assets/Remains/Gameplay/ItemShortcutActions.cs"):Remains.Content.GameLocalization.UiText("source.ItemShortcutActions.05378324d95c9b4c", "Надеть", "RemainsUnity/Assets/Remains/Gameplay/ItemShortcutActions.cs"));
             Action<ItemStack,ItemActionContext> hold=(item,context)=>
             {
                 if(IsHeld(item,context)) {equip(null);return;}
                 if(!HeldItemSelection.Select(session.LocalActor,item.id,out var reason)) {session.ShowNotice(reason);return;}
                 session.PublishActor(session.LocalActor);
             };
-            Func<ItemStack,ItemActionContext,string> holdRejection=(item,_)=>WeaponInventory.IsEquippable(item)?"Этот предмет не является обычной удерживаемой вещью.":null;
-            Func<ItemStack,ItemActionContext,string> holdCaption=(item,context)=>IsHeld(item,context)?"Убрать из копыт":"Взять в копыта";
+            Func<ItemStack,ItemActionContext,string> holdRejection=(item,_)=>WeaponInventory.IsEquippable(item)?Remains.Content.GameLocalization.UiText("source.ItemShortcutActions.3c3836682ec3bb75", "Этот предмет не является обычной удерживаемой вещью.", "RemainsUnity/Assets/Remains/Gameplay/ItemShortcutActions.cs"):null;
+            Func<ItemStack,ItemActionContext,string> holdCaption=(item,context)=>IsHeld(item,context)?Remains.Content.GameLocalization.UiText("source.ItemShortcutActions.8081e518981b3354", "Убрать из копыт", "RemainsUnity/Assets/Remains/Gameplay/ItemShortcutActions.cs"):Remains.Content.GameLocalization.UiText("source.ItemShortcutActions.cddd8a2bb549751d", "Взять в копыта", "RemainsUnity/Assets/Remains/Gameplay/ItemShortcutActions.cs");
             Register(StandardItemActions.Hold,hold,rejection:holdRejection,caption:holdCaption);
             Register(StandardItemActions.Toss,hold,rejection:holdRejection,caption:holdCaption); // Explicit compatibility for mods using the former action ID.
         }
@@ -79,8 +79,8 @@ namespace Remains.Gameplay
             var actor=session.LocalActor;
             if(actor==null || !actor.connected || actor.down || session.Travel.Pending || session.Pause.IsPaused(actor.level)) return false;
             var item=HeldItemSelection.Selected(actor);
-            if(item==null) {session.ShowNotice("Удерживаемый предмет закончился. Выберите другой предмет.");return false;}
-            if(InventoryAvailability.Count(actor,item)<=0) {session.ShowNotice("Предмет зарезервирован для передачи.");return false;}
+            if(item==null) {session.ShowNotice(Remains.Content.GameLocalization.UiText("source.ItemShortcutActions.635497f7eb729e72", "Удерживаемый предмет закончился. Выберите другой предмет.", "RemainsUnity/Assets/Remains/Gameplay/ItemShortcutActions.cs"));return false;}
+            if(InventoryAvailability.Count(actor,item)<=0) {session.ShowNotice(Remains.Content.GameLocalization.UiText("source.ItemShortcutActions.aa5b6c28a5cfe979", "Предмет зарезервирован для передачи.", "RemainsUnity/Assets/Remains/Gameplay/ItemShortcutActions.cs"));return false;}
             return session.Deposits.Toss(item.id,aim,whole?0:1);
         }
         public void Register(string id,Action<ItemStack,bool,Vector2?> action,bool replace=false)
@@ -103,7 +103,7 @@ namespace Remains.Gameplay
             try
             {
                 var item=ItemShortcuts.Get(session.LocalActor,slot);
-                if(item==null) {session.ShowNotice("Быстрая клавиша не назначена или предмет закончился.");return false;}
+                if(item==null) {session.ShowNotice(Remains.Content.GameLocalization.UiText("source.ItemShortcutActions.1a7119b142fae5ce", "Быстрая клавиша не назначена или предмет закончился.", "RemainsUnity/Assets/Remains/Gameplay/ItemShortcutActions.cs"));return false;}
                 // The same key again puts it away: a weapon, a held item, clothes (user 2026-11-06).
                 return ActivateItem(item.id,aim,whole,toggleEquipped:true);
             }
@@ -127,27 +127,27 @@ namespace Remains.Gameplay
             catch(Exception error)
             {item=null;handler=null;Failure(itemId,"проверка правила, подписи или доступности",error);return FailedAvailability(itemId);}
         }
-        private static ItemActionAvailability FailedAvailability(string itemId)=>new(itemId,null,"Использовать","Ошибка действия предмета. Подробности — в журнале.");
+        private static ItemActionAvailability FailedAvailability(string itemId)=>new(itemId,null,Remains.Content.GameLocalization.UiText("source.ItemShortcutActions.2c3624a41884a7c0", "Использовать", "RemainsUnity/Assets/Remains/Gameplay/ItemShortcutActions.cs"),Remains.Content.GameLocalization.UiText("source.ItemShortcutActions.6f0c69ed0a863d8d", "Ошибка действия предмета. Подробности — в журнале.", "RemainsUnity/Assets/Remains/Gameplay/ItemShortcutActions.cs"));
         private void Failure(string itemId,string stage,Exception error)=>session.ReportGameplayPreparationFailure(
             new InvalidOperationException($"Ошибка действия предмета: actor={session.LocalActor?.id}, item={itemId}, этап={stage}. Действие не подменяется другим обработчиком.",error));
         private ItemActionAvailability ResolveAvailable(string itemId,ItemActionContext context,out ItemStack item,out Handler handler)
         {
             var actor=session.LocalActor;item=InventoryStacks.Find(actor,itemId);handler=null;
             string action=item==null?null:session.Rules.ItemActions.Action(item);
-            string reason=actor==null || !actor.connected?"Персонаж не подключён.":
-                actor.weaponInventoryVersion!=1?"Инвентарь предметов ещё не подготовлен.":
-                session.Travel.Pending?"Переход в другую область ещё не завершён.":
-                session.Pause.IsPaused(actor.level)?"Область на паузе. Действия временно недоступны.":
-                actor.down?"Без сознания нельзя использовать предметы.":
-                item==null?"Предмет закончился или отсутствует.":
-                InventoryAvailability.Count(actor,item)<=0?"Предмет зарезервирован для передачи.":null;
+            string reason=actor==null || !actor.connected?Remains.Content.GameLocalization.UiText("source.ItemShortcutActions.56126a612eec5166", "Персонаж не подключён.", "RemainsUnity/Assets/Remains/Gameplay/ItemShortcutActions.cs"):
+                actor.weaponInventoryVersion!=1?Remains.Content.GameLocalization.UiText("source.ItemShortcutActions.2d5bfbd8b3a5215f", "Инвентарь предметов ещё не подготовлен.", "RemainsUnity/Assets/Remains/Gameplay/ItemShortcutActions.cs"):
+                session.Travel.Pending?Remains.Content.GameLocalization.UiText("source.ItemShortcutActions.b960e07aa32d1a13", "Переход в другую область ещё не завершён.", "RemainsUnity/Assets/Remains/Gameplay/ItemShortcutActions.cs"):
+                session.Pause.IsPaused(actor.level)?Remains.Content.GameLocalization.UiText("source.ItemShortcutActions.a553f23c59a68abb", "Область на паузе. Действия временно недоступны.", "RemainsUnity/Assets/Remains/Gameplay/ItemShortcutActions.cs"):
+                actor.down?Remains.Content.GameLocalization.UiText("source.ItemShortcutActions.973bdc830ffd6cbf", "Без сознания нельзя использовать предметы.", "RemainsUnity/Assets/Remains/Gameplay/ItemShortcutActions.cs"):
+                item==null?Remains.Content.GameLocalization.UiText("source.ItemShortcutActions.dcdb4764fc242b0e", "Предмет закончился или отсутствует.", "RemainsUnity/Assets/Remains/Gameplay/ItemShortcutActions.cs"):
+                InventoryAvailability.Count(actor,item)<=0?Remains.Content.GameLocalization.UiText("source.ItemShortcutActions.aa5b6c28a5cfe979", "Предмет зарезервирован для передачи.", "RemainsUnity/Assets/Remains/Gameplay/ItemShortcutActions.cs"):null;
             if(item!=null && (action==null || !handlers.TryGetValue(action,out handler)))
             {
                 string key=session.Rules.ItemActions.GetType().FullName+":"+action;
                 if(missing.Add(key)) Debug.LogWarning($"Не найден обработчик действия предмета: actor={actor.id}, item={item.id}, definition={item.definition}, action={action}, rule={session.Rules.ItemActions.GetType().FullName}.");
-                reason??="Действие предмета не подключено. Подробности в журнале.";
+                reason??=Remains.Content.GameLocalization.UiText("source.ItemShortcutActions.f58da301eb9f950e", "Действие предмета не подключено. Подробности в журнале.", "RemainsUnity/Assets/Remains/Gameplay/ItemShortcutActions.cs");
             }
-            string label=handler?.Caption==null?"Использовать":handler.Caption(item,context);
+            string label=handler?.Caption==null?Remains.Content.GameLocalization.UiText("source.ItemShortcutActions.2c3624a41884a7c0", "Использовать", "RemainsUnity/Assets/Remains/Gameplay/ItemShortcutActions.cs"):handler.Caption(item,context);
             if(string.IsNullOrWhiteSpace(label)) throw new InvalidOperationException($"Обработчик предмета {action} вернул пустую подпись: item={itemId}.");
             if(reason==null)
             {
