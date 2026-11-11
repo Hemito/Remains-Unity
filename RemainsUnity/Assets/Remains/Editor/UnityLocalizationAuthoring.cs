@@ -68,12 +68,13 @@ namespace Remains.Editor
             Require(original.StringTables.All(table=>table.Values.All(entry=>!entry.IsSmart)),"Исходные @/# тексты ошибочно помечены Smart String.");
             var packs=ReadPacks();
             var translations=packs.ToDictionary(p=>p.code,p=>p.entries.ToDictionary(e=>e.key,e=>e.text,StringComparer.Ordinal),StringComparer.Ordinal);
+            var reused=LocalizationReuseAuthoring.SourceKeys();
             foreach(var source in RegisteredSources())
             {
                 var ui=(StringTable)LocalizationEditorSettings.GetStringTableCollection(Ui).GetTable("ru");
                 Require(ui.GetEntry((string)source["key"])?.LocalizedValue==(string)source["russian"],"Нет зарегистрированной подписи: "+source["key"]);
                 if((string)source["kind"]!="text")continue;
-                var legacy=FindLegacySource(packs,(string)source["russian"],translations);
+                var legacy=reused.TryGetValue(Ui+"/"+(string)source["key"],out string originalKey)?packs.Single(p=>p.code=="ru").entries.Single(e=>e.key==originalKey):FindLegacySource(packs,(string)source["russian"],translations);
                 if(legacy==null)continue;
                 foreach(var pack in packs.Where(p=>p.code!="ru"))
                     if(translations[pack.code].TryGetValue(legacy.key,out string expected))
@@ -173,6 +174,7 @@ namespace Remains.Editor
                 }
             }
             EditorUtility.SetDirty(russianUi);
+            LocalizationReuseAuthoring.Apply(packs);
             foreach(var collection in collections.Values)
             {collection.SetPreloadTableFlag(true);EditorUtility.SetDirty(collection.SharedData);EditorUtility.SetDirty(collection);}
             var addressables=AddressableAssetSettingsDefaultObject.GetSettings(true);

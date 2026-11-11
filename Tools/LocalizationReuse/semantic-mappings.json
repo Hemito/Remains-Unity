@@ -1,0 +1,765 @@
+{
+  "schema": 1,
+  "mappings": [
+    {
+      "table": "Remains.UI",
+      "ownKey": "source.ControlSettingsPanel.5d74e9a8efa53246",
+      "ownRussian": "Стандартные",
+      "originalKey": "pip:default[0]/n[0]",
+      "reason": "Кнопка восстановления стандартных назначений: тот же смысл, что «По умолчанию».",
+      "approved": true
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "source.KeyboardBindings.b7d9d6924d7583bf",
+      "ownRussian": "Движение влево",
+      "originalKey": "key:keyLeft[0]/n[0]",
+      "reason": "Название назначения клавиши движения влево.",
+      "approved": true
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "source.KeyboardBindings.98a3f37e1558e5d7",
+      "ownRussian": "Движение вправо",
+      "originalKey": "key:keyRight[0]/n[0]",
+      "reason": "Название назначения клавиши движения вправо.",
+      "approved": true
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "prefab.43a8ba2d669af00428866fba485d6990.5143305739107934917",
+      "ownRussian": "Шерсть",
+      "originalKey": "gui:vidfur[0]/n[0]",
+      "reason": "Поле выбора цвета шерсти в редакторе внешности.",
+      "approved": true
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "source.CharacterEditorPanel.a195613dd396f885",
+      "ownRussian": "Шерсть",
+      "originalKey": "gui:vidfur[0]/n[0]",
+      "reason": "Поле выбора цвета шерсти в редакторе внешности.",
+      "approved": true
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "prefab.43a8ba2d669af00428866fba485d6990.5896319077448694043",
+      "ownRussian": "Грива",
+      "originalKey": "gui:vidhair[0]/n[0]",
+      "reason": "Поле выбора основного цвета гривы/волос.",
+      "approved": true
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "source.CharacterEditorPanel.148b7f0158f5d678",
+      "ownRussian": "Грива",
+      "originalKey": "gui:vidhair[0]/n[0]",
+      "reason": "Поле выбора основного цвета гривы/волос.",
+      "approved": true
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "prefab.43a8ba2d669af00428866fba485d6990.3583339224460024743",
+      "ownRussian": "Второй цвет гривы",
+      "originalKey": "gui:vidhair1[0]/n[0]",
+      "reason": "Поле выбора дополнительного цвета гривы/волос.",
+      "approved": true
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "prefab.43a8ba2d669af00428866fba485d6990.7318951589155980513",
+      "ownRussian": "Второй цвет гривы",
+      "originalKey": "gui:vidhair1[0]/n[0]",
+      "reason": "Поле выбора дополнительного цвета гривы/волос.",
+      "approved": true
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "source.CharacterEditorPanel.4f0a2f8cd516c50d",
+      "ownRussian": "Второй цвет гривы",
+      "originalKey": "gui:vidhair1[0]/n[0]",
+      "reason": "Поле выбора дополнительного цвета гривы/волос.",
+      "approved": true
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "source.CharacterEditorPanel.9aa7f8a76001e0cb",
+      "ownRussian": "Магия",
+      "originalKey": "gui:vidmagic[0]/n[0]",
+      "reason": "Только поле CharacterEditorPanel: цвет магической ауры, а не ресурс маны.",
+      "approved": true
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "source.KeyboardBindings.fa6e9746466df689",
+      "ownRussian": "Удар копытом",
+      "originalKey": "key:keyPunch[0]/n[0]",
+      "reason": "То же назначение клавиши удара; оригинал называет его «Удар».",
+      "approved": true
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "source.PrototypeHud.70b8b44383ce58d2",
+      "ownRussian": "Хаб",
+      "originalKey": "pip:ls4[0]/n[0]",
+      "reason": "Хаб играет роль базы, но это новое название локации; не заменять автоматически.",
+      "approved": false
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "source.KeyboardBindings.13973caa31e8e362",
+      "ownRussian": "Вверх / встать",
+      "originalKey": "key:keyBeUp[0]/n[0]",
+      "reason": "Оригинальная короткая подпись теряет вторую функцию клавиши.",
+      "approved": false
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "source.KeyboardBindings.4631754738e7175e",
+      "ownRussian": "Вниз / присесть",
+      "originalKey": "key:keySit[0]/n[0]",
+      "reason": "Оригинальная короткая подпись теряет вторую функцию клавиши.",
+      "approved": false
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "source.KeyboardBindings.5b1b5a05b2d4f568",
+      "ownRussian": "Прыжок",
+      "originalKey": "key:keyJump[0]/n[0]",
+      "reason": "Оригинал дополнительно обещает левитацию; нужна проверка текущего назначения.",
+      "approved": false
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "source.KeyboardBindings.f3758fc6f971587f",
+      "ownRussian": "Бег / модификатор",
+      "originalKey": "key:keyRun[0]/n[0]",
+      "reason": "Оригинал не описывает дополнительную роль модификатора.",
+      "approved": false
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "source.LanguageSettingsPanel.9089a73112cc819e",
+      "ownRussian": "Язык интерфейса",
+      "originalKey": "gui:options[0]/n[0]",
+      "reason": "Общие настройки не эквивалентны выбору языка; неподходящий кандидат.",
+      "approved": false
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "unity/language-title",
+      "ownRussian": "Язык интерфейса",
+      "originalKey": "gui:options[0]/n[0]",
+      "reason": "Общие настройки не эквивалентны выбору языка; неподходящий кандидат.",
+      "approved": false
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "prefab.43a8ba2d669af00428866fba485d6990.3306692121259579248",
+      "ownRussian": "Глаза",
+      "originalKey": "gui:videye[0]/n[0]",
+      "reason": "Текущее поле меняет цвет, оригинал описывает цвет и форму: контекст частично различается.",
+      "approved": false
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "source.CharacterEditorPanel.21993a6953734cc4",
+      "ownRussian": "Глаза",
+      "originalKey": "gui:videye[0]/n[0]",
+      "reason": "Текущее поле меняет цвет, оригинал описывает цвет и форму: контекст частично различается.",
+      "approved": false
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "source.InteractionHint.cf1625995f4753e0",
+      "ownRussian": "Открыть дверь",
+      "originalKey": "gui:open[0]/n[0]",
+      "reason": "Тот же глагол взаимодействия, но старый перевод потеряет объект «дверь»; кандидат для составной подписи.",
+      "approved": false
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "source.InteractionHint.bd261b1ef70cfeeb",
+      "ownRussian": "Закрыть дверь",
+      "originalKey": "gui:close[0]/n[0]",
+      "reason": "Тот же глагол взаимодействия, но старый перевод потеряет объект «дверь»; кандидат для составной подписи.",
+      "approved": false
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "source.ItemShortcutActions.cddd8a2bb549751d",
+      "ownRussian": "Взять в копыта",
+      "originalKey": "gui:take[0]/n[0]",
+      "reason": "Оригинальное «взять» может означать подобрать в инвентарь; новая команда выбирает удерживаемую вещь.",
+      "approved": false
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "unity/hold",
+      "ownRussian": "Взять в копыта",
+      "originalKey": "gui:take[0]/n[0]",
+      "reason": "Оригинальное «взять» может означать подобрать в инвентарь; новая команда выбирает удерживаемую вещь.",
+      "approved": false
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "prefab.cfc33f7a5ffd048438cd2a29260512f6.8584167170670343521",
+      "ownRussian": "Звук",
+      "originalKey": "pip:opt1_1[0]/n[0]",
+      "reason": "Настройки звука шире одного ползунка громкости; не эквивалентно.",
+      "approved": false
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "ui.controls.audio",
+      "ownRussian": "Звук",
+      "originalKey": "pip:opt1_1[0]/n[0]",
+      "reason": "Настройки звука шире одного ползунка громкости; не эквивалентно.",
+      "approved": false
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "unity/sound",
+      "ownRussian": "Звук",
+      "originalKey": "pip:opt1_1[0]/n[0]",
+      "reason": "Настройки звука шире одного ползунка громкости; не эквивалентно.",
+      "approved": false
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "source.KeyboardBindings.25ab204b14416ac8",
+      "ownRussian": "Ячейка 1",
+      "originalKey": "key:keyWeapon1[0]/n[0]",
+      "reason": "То же назначение быстрой ячейки; слот 10 — клавиша 0, слоты 11/12 — минус/равно.",
+      "approved": true
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "source.KeyboardBindings.9c213364fd1e189e",
+      "ownRussian": "Ячейка 2",
+      "originalKey": "key:keyWeapon2[0]/n[0]",
+      "reason": "То же назначение быстрой ячейки; слот 10 — клавиша 0, слоты 11/12 — минус/равно.",
+      "approved": true
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "source.KeyboardBindings.826f5466634835c4",
+      "ownRussian": "Ячейка 3",
+      "originalKey": "key:keyWeapon3[0]/n[0]",
+      "reason": "То же назначение быстрой ячейки; слот 10 — клавиша 0, слоты 11/12 — минус/равно.",
+      "approved": true
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "source.KeyboardBindings.5ab5ee84cdf358c0",
+      "ownRussian": "Ячейка 4",
+      "originalKey": "key:keyWeapon4[0]/n[0]",
+      "reason": "То же назначение быстрой ячейки; слот 10 — клавиша 0, слоты 11/12 — минус/равно.",
+      "approved": true
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "source.KeyboardBindings.b79db45439cc35e1",
+      "ownRussian": "Ячейка 5",
+      "originalKey": "key:keyWeapon5[0]/n[0]",
+      "reason": "То же назначение быстрой ячейки; слот 10 — клавиша 0, слоты 11/12 — минус/равно.",
+      "approved": true
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "source.KeyboardBindings.42dad65a9e585352",
+      "ownRussian": "Ячейка 6",
+      "originalKey": "key:keyWeapon6[0]/n[0]",
+      "reason": "То же назначение быстрой ячейки; слот 10 — клавиша 0, слоты 11/12 — минус/равно.",
+      "approved": true
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "source.KeyboardBindings.614133cd1fb891fa",
+      "ownRussian": "Ячейка 7",
+      "originalKey": "key:keyWeapon7[0]/n[0]",
+      "reason": "То же назначение быстрой ячейки; слот 10 — клавиша 0, слоты 11/12 — минус/равно.",
+      "approved": true
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "source.KeyboardBindings.1a644bc1ff59f552",
+      "ownRussian": "Ячейка 8",
+      "originalKey": "key:keyWeapon8[0]/n[0]",
+      "reason": "То же назначение быстрой ячейки; слот 10 — клавиша 0, слоты 11/12 — минус/равно.",
+      "approved": true
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "source.KeyboardBindings.65c481b72964a0c3",
+      "ownRussian": "Ячейка 9",
+      "originalKey": "key:keyWeapon9[0]/n[0]",
+      "reason": "То же назначение быстрой ячейки; слот 10 — клавиша 0, слоты 11/12 — минус/равно.",
+      "approved": true
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "source.KeyboardBindings.6a78727bdf2d622e",
+      "ownRussian": "Ячейка 0",
+      "originalKey": "key:keyWeapon10[0]/n[0]",
+      "reason": "То же назначение быстрой ячейки; слот 10 — клавиша 0, слоты 11/12 — минус/равно.",
+      "approved": true
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "source.KeyboardBindings.58bb9d13ae17570c",
+      "ownRussian": "Ячейка −",
+      "originalKey": "key:keyWeapon11[0]/n[0]",
+      "reason": "То же назначение быстрой ячейки; слот 10 — клавиша 0, слоты 11/12 — минус/равно.",
+      "approved": true
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "source.KeyboardBindings.d4db0d69cf65e5f0",
+      "ownRussian": "Ячейка =",
+      "originalKey": "key:keyWeapon12[0]/n[0]",
+      "reason": "То же назначение быстрой ячейки; слот 10 — клавиша 0, слоты 11/12 — минус/равно.",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "bcell/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "crystal/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "egg/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "energ/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "fuel/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "gren40/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "item:batt/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "item:bcell/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "item:crystal/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "item:egg/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "item:energ/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "item:fuel/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "item:gren40/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "item:not/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "item:p10/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "item:p12/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "item:p127/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "item:p145/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "item:p20/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "item:p308/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "item:p32/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "item:p375/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "item:p44/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "item:p5/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "item:p50mg/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "item:p556/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "item:p9/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "item:recharg/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "item:rocket/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "not/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "p12/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "p127/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "p145/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "p20/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "p308/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "p32/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "p375/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "p44/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "p5/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "p50mg/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "p556/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "p9/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "recharg/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.Items",
+      "ownKey": "rocket/description",
+      "ownRussian": "Боеприпасы.",
+      "originalKey": "pip:inv5[0]/n[0]",
+      "reason": "Краткое описание обозначает категорию предмета. Выбрано название категории боеприпасов, не столбец «используемый тип патронов».",
+      "approved": true
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "prefab.43a8ba2d669af00428866fba485d6990.5593292421765602195",
+      "ownRussian": "Магия",
+      "originalKey": "gui:vidmagic[0]/n[0]",
+      "reason": "Статическая кнопка CharacterEditor выбирает цвет магической ауры; соответствует редактору внешности оригинала.",
+      "approved": true
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "prefab.64365b956e8fb034c9391cc0930621f4.6522821813522547974",
+      "ownRussian": "Броня",
+      "originalKey": "pip:inv2[0]/n[0]",
+      "reason": "Кнопка категории инвентаря/предметов: броня как категория вещей, не численная защита персонажа.",
+      "approved": true
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "prefab.64365b956e8fb034c9391cc0930621f4.783366424444018941",
+      "ownRussian": "Оружие",
+      "originalKey": "pip:inv1[0]/n[0]",
+      "reason": "Кнопка категории инвентаря/предметов: оружие, не строка оружия выбранного противника.",
+      "approved": true
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "prefab.8202bdb71638659489381bdbdcc04588.3409559007799383718",
+      "ownRussian": "Броня",
+      "originalKey": "pip:inv2[0]/n[0]",
+      "reason": "Кнопка категории инвентаря/предметов: броня как категория вещей, не численная защита персонажа.",
+      "approved": true
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "prefab.8202bdb71638659489381bdbdcc04588.9154564220246291293",
+      "ownRussian": "Оружие",
+      "originalKey": "pip:inv1[0]/n[0]",
+      "reason": "Кнопка категории инвентаря/предметов: оружие, не строка оружия выбранного противника.",
+      "approved": true
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "prefab.9e4a73e43eccfd54f8953663fc5875af.175879564514863245",
+      "ownRussian": "Оружие",
+      "originalKey": "pip:inv1[0]/n[0]",
+      "reason": "Кнопка категории инвентаря/предметов: оружие, не строка оружия выбранного противника.",
+      "approved": true
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "prefab.9e4a73e43eccfd54f8953663fc5875af.8687022260779217088",
+      "ownRussian": "Снаряжение",
+      "originalKey": "pip:inv3[0]/n[0]",
+      "reason": "Категория предметов DebugItems; взято название категории, не правило автоматической сортировки.",
+      "approved": true
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "source.KeyboardBindings.3c7fd48a2f8d798a",
+      "ownRussian": "Инвентарь",
+      "originalKey": "key:keyInvent[0]/n[0]",
+      "reason": "Название назначения клавиши открытия инвентаря; выбран оригинальный key-контекст.",
+      "approved": true
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "source.KeyboardBindings.6bb5d2c7d65ad8f5",
+      "ownRussian": "Телекинез",
+      "originalKey": "key:keyTele[0]/n[0]",
+      "reason": "Название назначения клавиши телекинеза; выбран оригинальный key-контекст, не название эффекта.",
+      "approved": true
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "unity/armor",
+      "ownRussian": "Броня",
+      "originalKey": "pip:inv2[0]/n[0]",
+      "reason": "Кнопка категории инвентаря/предметов: броня как категория вещей, не численная защита персонажа.",
+      "approved": true
+    },
+    {
+      "table": "Remains.UI",
+      "ownKey": "unity/weapons",
+      "ownRussian": "Оружие",
+      "originalKey": "pip:inv1[0]/n[0]",
+      "reason": "Кнопка категории инвентаря/предметов: оружие, не строка оружия выбранного противника.",
+      "approved": true
+    }
+  ]
+}
