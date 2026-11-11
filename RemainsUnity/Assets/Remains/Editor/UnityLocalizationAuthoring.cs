@@ -80,6 +80,7 @@ namespace Remains.Editor
                     if(translations[pack.code].TryGetValue(legacy.key,out string expected))
                     {
                         var table=(StringTable)LocalizationEditorSettings.GetStringTableCollection(Ui).GetTable(LocaleCode(pack.code));
+                        if(reused.ContainsKey(Ui+"/"+(string)source["key"]))expected=LocalizationReuseAuthoring.AdaptLayout((string)source["russian"],expected);
                         Require(table.GetEntry((string)source["key"])?.LocalizedValue==expected,"У подписи потерян существующий перевод: "+pack.code+"/"+source["key"]);
                     }
             }
@@ -174,7 +175,9 @@ namespace Remains.Editor
                 }
             }
             EditorUtility.SetDirty(russianUi);
+            LocalizationOwnAuthoring.Apply();
             LocalizationReuseAuthoring.Apply(packs);
+            LocalizationOwnAuthoring.ValidateCoverage();
             foreach(var collection in collections.Values)
             {collection.SetPreloadTableFlag(true);EditorUtility.SetDirty(collection.SharedData);EditorUtility.SetDirty(collection);}
             var addressables=AddressableAssetSettingsDefaultObject.GetSettings(true);

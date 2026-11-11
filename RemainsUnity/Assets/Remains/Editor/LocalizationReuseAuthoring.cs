@@ -12,6 +12,12 @@ namespace Remains.Editor
 {
     public static class LocalizationReuseAuthoring
     {
+        public static string AdaptLayout(string russian,string translation)
+        {
+            if(russian.EndsWith(": ",StringComparison.Ordinal))return translation.TrimEnd(' ',':','：')+": ";
+            if(russian.EndsWith(" · ",StringComparison.Ordinal))return translation.TrimEnd(' ','·')+" · ";
+            return translation;
+        }
         public static System.Collections.Generic.Dictionary<string,string> SourceKeys()
         {
             string path=Path.GetFullPath(Path.Combine(Application.dataPath,"../../Tools/LocalizationReuse/reuse-map.json"));
@@ -38,7 +44,7 @@ namespace Remains.Editor
                     var entry=pack.entries.FirstOrDefault(e=>e.key==source);
                     if(entry==null || string.IsNullOrWhiteSpace(entry.text)){Debug.LogWarning("В оригинале нет перевода для сопоставления: locale="+pack.code+", key="+source);continue;}
                     var table=(StringTable)collection.GetTable(GameLocalization.NormalizeCode(pack.code));
-                    table.AddEntry(key,entry.text).IsSmart=false;EditorUtility.SetDirty(table);applied++;
+                    table.AddEntry(key,AdaptLayout(russian,entry.text)).IsSmart=false;EditorUtility.SetDirty(table);applied++;
                 }
             }
             Debug.Log("Переиспользование исходной локализации: сопоставлений="+mappings.Count+", переводов="+applied+". Русские строки и ключи сохранены.");
