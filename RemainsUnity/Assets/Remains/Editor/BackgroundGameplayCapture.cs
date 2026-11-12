@@ -35,8 +35,8 @@ namespace Remains.Editor
 
     public sealed class BackgroundGameplayCaptureDriver : MonoBehaviour
     {
-        private const int Fps=30, Width=1280, Height=720, FrameCount=240;
-        private const uint VideoBitRate=20000000;
+        private const int Fps=30, Width=2560, Height=1440, FrameCount=240;
+        private const uint VideoBitRate=40000000;
         private PrototypeRuntime runtime;
         private MediaEncoder encoder;
         private Texture2D videoFrame;
