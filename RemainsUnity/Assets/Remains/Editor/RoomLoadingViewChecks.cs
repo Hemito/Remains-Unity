@@ -23,6 +23,13 @@ namespace Remains.Editor
                 Require(font!=null,"отсутствует назначаемый шрифт HUD");
                 var menu=PauseMenuView.Create(root.transform);
                 var view=RoomLoadingView.Create(root.transform,font,menu.transform);view.Validate();
+                string previous=GameLocalization.CurrentLanguage;
+                try
+                {
+                    foreach(var language in GameLocalization.Languages)
+                    {GameLocalization.Select(language.code);view.Validate();}
+                }
+                finally {GameLocalization.Select(previous);}
                 Require(!view.IsVisible && view.Caption.font==font && view.Caption.alignment==TextAnchor.MiddleCenter &&
                     view.Caption.fontSize==20 && !view.Caption.resizeTextForBestFit,"начальная видимость или типографика не соответствует HUD");
                 Require(view.Rect.anchorMin==Vector2.zero && view.Rect.anchorMax==Vector2.one &&

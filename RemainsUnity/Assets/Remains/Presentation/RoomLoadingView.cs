@@ -36,7 +36,7 @@ namespace Remains.Presentation
             rect.offsetMin=new Vector2(32,-24);rect.offsetMax=new Vector2(-32,24);
             view.caption=label.GetComponent<Text>();
             view.caption.font=font;view.caption.fontSize=20;
-            view.caption.text=Remains.Content.GameLocalization.UiText("source.RoomLoadingView.aeba456daed007f4", "Загрузка локации…", "RemainsUnity/Assets/Remains/Presentation/RoomLoadingView.cs");view.caption.color=new Color(.65f,1,.75f,1);
+            LocalizedUiText.Bind(view.caption,LoadingCaption);view.caption.color=new Color(.65f,1,.75f,1);
             view.caption.alignment=TextAnchor.MiddleCenter;view.caption.raycastTarget=false;
             view.caption.resizeTextForBestFit=false;
             view.Validate();root.SetActive(false);return view;
@@ -59,9 +59,10 @@ namespace Remains.Presentation
                 background==null || background.gameObject!=gameObject || background.color.a!=1 || !background.raycastTarget ||
                 menuLayer==null || menuLayer.parent!=transform.parent || menuLayer==transform ||
                 caption==null || caption.font==null || !caption.transform.IsChildOf(transform) || caption.raycastTarget ||
-                caption.text!="Загрузка локации…" || Rect.anchorMin!=Vector2.zero || Rect.anchorMax!=Vector2.one ||
+                caption.text!=LoadingCaption() || Rect.anchorMin!=Vector2.zero || Rect.anchorMax!=Vector2.one ||
                 Rect.offsetMin!=Vector2.zero || Rect.offsetMax!=Vector2.zero)
                 throw new InvalidOperationException("Загрузка локации: неверные ссылки, полноэкранные границы, непрозрачность или текст HUD.");
         }
+        private static string LoadingCaption()=>Remains.Content.GameLocalization.UiText("source.RoomLoadingView.aeba456daed007f4","Загрузка локации…","RoomLoadingView");
     }
 }
