@@ -56,6 +56,15 @@ namespace Remains.Presentation
         private Camera view;
         public float BaseVolume=>mix.effectsVolume;
         public float Volume {get;set;}
+        private bool offlineCapture;
+        // The caller must start AudioRenderer before enabling, and disable before stopping it.
+        // Ordinary background checks retain their muted output.
+        public void SetOfflineCapture(bool enabled)
+        {
+            offlineCapture=enabled;
+            foreach(var voice in voices)
+                if(voice.source!=null) voice.source.mute=Application.isBatchMode && !offlineCapture;
+        }
         public void Initialize(CoopSession session,WeaponReloadController reload,Camera camera)
         {
             this.session=session;this.reload=reload;
@@ -160,7 +169,7 @@ namespace Remains.Presentation
             source.playOnAwake=false;source.spatialBlend=0;source.clip=clip;
             source.loop=fire!=null;
             // Background verification must not make sound on the user's desktop.
-            source.mute=Application.isBatchMode;
+            source.mute=Application.isBatchMode && !offlineCapture;
             source.volume=Mathf.Clamp01(Volume)*gain*Attenuation(Vector2.Distance(position,session.LocalActor.BodyPosition));
             source.panStereo=mix.Pan(position.x,view.transform.position.x);
             var voice=new Voice {source=source,level=level,position=position,remaining=source.loop?float.PositiveInfinity:clip.length,gain=gain,fire=fire};voices.Add(voice);
