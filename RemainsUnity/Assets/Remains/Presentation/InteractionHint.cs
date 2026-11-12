@@ -57,6 +57,7 @@ namespace Remains.Presentation
             if(interactKey==key) return;
             interactKey=key;content=Content.None;
         }
+        public void InvalidateLanguage(){content=Content.None;displayedTitle=null;}
         public void Refresh(ContainerState container,bool visible,ActorState localActor=null)
         {
             RefreshSource(container,visible,localActor);
@@ -103,7 +104,8 @@ namespace Remains.Presentation
             if(!hasTarget || !allowed) UpdateOutline();
             if(point!=null)
             {
-                if(content!=Content.Travel || displayedTitle!=point.title) {content=Content.Travel;displayedTitle=point.title;SetText($"{interactKey} · {point.title}",normalColor);}
+                string title=Remains.Content.GameLocalization.TranslateRussian(point.title,"TravelPoint:"+point.id);
+                if(content!=Content.Travel || displayedTitle!=title) {content=Content.Travel;displayedTitle=title;SetText($"{interactKey} · {title}",normalColor);}
                 targetTop=new Vector2(point.x+point.width*.5f,point.y+point.height+.25f);
             }
         }

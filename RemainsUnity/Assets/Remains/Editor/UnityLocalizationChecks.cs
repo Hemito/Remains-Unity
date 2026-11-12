@@ -6,6 +6,16 @@ namespace Remains.Editor
 {
     public static class UnityLocalizationChecks
     {
+        public static async void BuildDynamicFixBatch()
+        {
+            try
+            {
+                UnityLocalizationAuthoring.Migrate();UnityLocalizationAuthoring.RunChecks();
+                await DynamicLocalizationChecks.Run();
+                PrototypeBuild.BuildTo("Builds/Windows/Remains.exe",runContractChecks:false);EditorApplication.Exit(0);
+            }
+            catch(Exception error){Debug.LogException(error);EditorApplication.Exit(1);}
+        }
         public static void BuildLoadingFixBatch()
         {
             try

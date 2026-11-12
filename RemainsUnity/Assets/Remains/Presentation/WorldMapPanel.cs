@@ -69,7 +69,9 @@ namespace Remains.Presentation
             var catalog=FactoryProfileCatalog.Load();
             var saved=WorldFactories.Find(world,level);
             var profile=saved!=null?catalog.Saved(saved):catalog.For(WorldFactories.Seed(world),index);
-            return $"{Name(index)}\n{profile.title}\n\n{profile.description}"+(saved==null?Remains.Content.GameLocalization.UiText("source.WorldMapPanel.9cf90bffcb9523d9", "\n\nЕщё не посещён: будет создан при первом входе.", "RemainsUnity/Assets/Remains/Presentation/WorldMapPanel.cs"):"");
+            string title=GameLocalization.UiText("factory.profile."+profile.id+".title",profile.title,"WorldMapPanel"),
+                description=GameLocalization.UiText("factory.profile."+profile.id+".description",profile.description,"WorldMapPanel");
+            return $"{Name(index)}\n{title}\n\n{description}"+(saved==null?Remains.Content.GameLocalization.UiText("source.WorldMapPanel.9cf90bffcb9523d9", "\n\nЕщё не посещён: будет создан при первом входе.", "RemainsUnity/Assets/Remains/Presentation/WorldMapPanel.cs"):"");
         }
         private string Visited()
         {

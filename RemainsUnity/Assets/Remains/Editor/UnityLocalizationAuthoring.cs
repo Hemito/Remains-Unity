@@ -175,6 +175,7 @@ namespace Remains.Editor
                 }
             }
             EditorUtility.SetDirty(russianUi);
+            LocalizationContentAuthoring.Register();
             LocalizationOwnAuthoring.Apply();
             LocalizationReuseAuthoring.Apply(packs);
             LocalizationOwnAuthoring.ValidateCoverage();

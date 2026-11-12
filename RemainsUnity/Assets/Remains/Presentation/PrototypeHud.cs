@@ -522,7 +522,13 @@ namespace Remains.Presentation
         private void OnDestroy()=>Dispose();
         private void LateUpdate() {using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("PrototypeHud.LateUpdate");containerPanel?.Step(RoomPresentationPending || InventoryOpen || PauseMenu.IsOpen || AudioSettings.IsOpen || ControlSettings.IsOpen || LanguageSettings.IsOpen || WorldMap.IsOpen);}
         private void RefreshLanguage()
-        {if(disposed)return;LocalizationFonts.ApplyTree(transform);LanguageSettings.RefreshFonts();RefreshBindingLabels();Refresh();}
+        {
+            if(disposed)return;
+            statusLevel=null;statusPlayers=-1;displayedFriendlyFire=null;displayedFriendlyDecision=null;
+            combatHud?.RefreshLanguage();
+            selectedWorldPanel?.RefreshLanguage();containerHint?.InvalidateLanguage();
+            LocalizationFonts.ApplyTree(transform);LanguageSettings.RefreshFonts();RefreshBindingLabels();Refresh();WorldMap.Refresh();
+        }
         private static void ApplyOriginalImage(Image image,string key,bool filled)
         {
             var texture=GameAssets.Load<Texture2D>("Original/Hud/"+key);

@@ -30,6 +30,11 @@ namespace Remains.Presentation
             view.Validate();
         }
         public void SetBindings(KeyboardBindings value)=>keys=value;
+        public void RefreshLanguage()
+        {
+            // Metadata/artwork caches remain valid; only the localized name changes.
+            if(itemPrepared && shownDefinition!=null)SetText(view.ItemName,text.Name(shownDefinition,"HUD выбранной вещи: язык"));
+        }
 
         public void Refresh(ActorState actor,bool visible,float? reloadRemaining=null)
         {

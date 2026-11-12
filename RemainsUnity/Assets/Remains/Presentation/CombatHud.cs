@@ -12,6 +12,7 @@ namespace Remains.Presentation
         private readonly GameObject vitals,loadout;
         private readonly Text name,healthText,manaText,grenades;
         private readonly SelectedItemHudPresentation selectedItem;
+        public void RefreshLanguage()=>selectedItem.RefreshLanguage();
         private readonly Image grenadeIcon;
         private readonly Image health,mana;
         private readonly HealthBarWarning healthWarning;
