@@ -36,6 +36,7 @@ namespace Remains.Editor
     public sealed class BackgroundGameplayCaptureDriver : MonoBehaviour
     {
         private const int Fps=30, Width=1280, Height=720, FrameCount=240;
+        private const uint VideoBitRate=20000000;
         private PrototypeRuntime runtime;
         private MediaEncoder encoder;
         private Texture2D videoFrame;
@@ -89,7 +90,9 @@ namespace Remains.Editor
             var config=AudioSettings.GetConfiguration();
             if(config.speakerMode!=AudioSpeakerMode.Stereo) throw new InvalidOperationException("Пробная запись ожидает стереомикс: "+config.speakerMode);
             encoder=new MediaEncoder(Path.Combine(output,"gameplay.mp4"),
-                new VideoTrackAttributes {frameRate=new MediaRational(Fps),width=Width,height=Height,includeAlpha=false},
+                new VideoTrackEncoderAttributes(new H264EncoderAttributes
+                    {gopSize=Fps,numConsecutiveBFrames=2,profile=VideoEncodingProfile.H264High})
+                    {frameRate=new MediaRational(Fps),width=Width,height=Height,includeAlpha=false,targetBitRate=VideoBitRate},
                 new AudioTrackAttributes {sampleRate=new MediaRational(config.sampleRate),channelCount=2,language="ru"});
             videoFrame=new Texture2D(Width,Height,TextureFormat.RGBA32,false);
             if(!AudioRenderer.Start()) throw new InvalidOperationException("Unity не смог включить запись игрового аудиомикса.");
