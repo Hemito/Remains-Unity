@@ -1090,6 +1090,7 @@ namespace Remains.Networking
                     {
                         ServerWorld.revision++;
                         BroadcastState(serverActors.Next(actor));
+                        if(SharedHostWorld) RaiseChanged(WorldChangeKind.Actors,new[]{"actors:"+actor.id});
                     }
                 }
                 catch(InvalidOperationException error)
@@ -1149,6 +1150,12 @@ namespace Remains.Networking
             if(!actor.player && !incoming.attackBusy)
                 checkpoint|=ownership.ReassignAndReportChanges(ServerWorld,owners.Values.ToArray());
             ServerWorld.revision++;
+            // One host world: the host's presentation reads this graph and must learn of the replaced actor now, as a
+            // client does from the same ActorMessage (MergeActor), not at the next slow tick. Until then the host's
+            // actor frame kept the old object: the remote player's previous weapon, selection and pose for up to a
+            // second (2026-11-08: weapon hidden after a switch, reload probe 3/3 in one-world mode).
+            if(SharedHostWorld) RaiseChanged(deathLoot==null?WorldChangeKind.Actors:WorldChangeKind.Actors|WorldChangeKind.Containers,
+                deathLoot==null?new[]{"actors:"+incoming.id}:null);
             // The death is the explosion (spider mine): the commit carries both.
             if(deathBlast!=null) {DeathBlasts.Detonate(deathBlast);return;}
             if(checkpoint) {BroadcastWorld();return;}
